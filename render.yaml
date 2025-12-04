@@ -4,6 +4,11 @@ services:
     env: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    envVars:
+      - key: VITE_SUPABASE_URL
+        value: https://ndzjirmrfdeheuljjvxb.supabase.co
+      - key: VITE_SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kemppcm1yZmRlaGV1bGpqdnhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1Mjk4ODQsImV4cCI6MjA4MDEwNTg4NH0.KurTQrTjwUJM9aA5M0OVw7bZa7radpy0EDx1q9lKf1A
     routes:
       - type: rewrite
         source: /*
