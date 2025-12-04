@@ -12,25 +12,26 @@ export const db = {
     const totalTarget = allocations?.reduce((sum, a) => sum + Number(a.target_tonnage), 0) || 0;
 
     // 2. Get deliveries for calc
+    // Fix: Use 'validation_status' instead of 'status'
     const { data: deliveries, error: delError } = await supabase
       .from('deliveries')
-      .select('tonnage_delivered, status, allocation_id');
+      .select('tonnage_delivered, validation_status, allocation_id');
     
     if (delError) console.error('Error fetching deliveries:', JSON.stringify(delError));
 
     const totalDelivered = deliveries
-      ?.filter((d: any) => d.status === 'VALIDATED')
+      ?.filter((d: any) => d.validation_status === 'VALIDATED')
       .reduce((sum: number, d: any) => sum + (Number(d.tonnage_delivered) || 0), 0) || 0;
 
     const activeTrucks = deliveries
-      ?.filter((d: any) => ['IN_TRANSIT', 'DRAFT'].includes(d.status)).length || 0;
+      ?.filter((d: any) => ['IN_TRANSIT', 'DRAFT'].includes(d.validation_status)).length || 0;
 
     // 3. Calc Alerts (Over delivered)
     let alerts = 0;
     if (allocations && deliveries) {
       allocations.forEach((alloc: any) => {
         const deliveredForAlloc = deliveries
-          .filter((d: any) => d.allocation_id === alloc.id && d.status === 'VALIDATED')
+          .filter((d: any) => d.allocation_id === alloc.id && d.validation_status === 'VALIDATED')
           .reduce((sum: number, d: any) => sum + (Number(d.tonnage_delivered) || 0), 0);
         
         if (deliveredForAlloc > Number(alloc.target_tonnage)) alerts++;
@@ -57,13 +58,14 @@ export const db = {
     }
 
     // Get delivered sums for progress calculation
+    // Fix: Use 'validation_status'
     const { data: deliveries } = await supabase
       .from('deliveries')
-      .select('allocation_id, tonnage_delivered, status');
+      .select('allocation_id, tonnage_delivered, validation_status');
 
     return data.map((alloc: any) => {
       const delivered = deliveries
-        ?.filter((d: any) => d.allocation_id === alloc.id && d.status === 'VALIDATED')
+        ?.filter((d: any) => d.allocation_id === alloc.id && d.validation_status === 'VALIDATED')
         .reduce((sum: number, d: any) => sum + (Number(d.tonnage_delivered) || 0), 0) || 0;
 
       return {
@@ -102,6 +104,7 @@ export const db = {
       const alloc = del.allocations; // The joined object
       return {
         ...del,
+        status: del.validation_status, // Map DB column 'validation_status' to UI prop 'status'
         operator_name: alloc?.operators?.name || 'Unknown',
         region_name: alloc?.regions?.name || 'Unknown',
         truck_plate: del.trucks?.plate_number || 'Unknown',
@@ -118,6 +121,7 @@ export const db = {
     const { data: allocations } = await supabase.from('allocations').select('region_id, target_tonnage');
     
     // Fetch validated deliveries joined with allocation to get region
+    // Fix: Use 'validation_status' in filter
     const { data: deliveries } = await supabase
       .from('deliveries')
       .select(`
@@ -126,7 +130,7 @@ export const db = {
           region_id
         )
       `)
-      .eq('status', 'VALIDATED');
+      .eq('validation_status', 'VALIDATED');
 
     const chartData: Record<string, { name: string; planned: number; delivered: number }> = {};
     
