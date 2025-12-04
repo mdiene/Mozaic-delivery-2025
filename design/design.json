@@ -1,0 +1,24 @@
+{
+  "designPrinciple": "Soft UI (Neumorphism Lite)",
+  "description": "A modern, clean aesthetic characterized by distinct rounded corners, diffused multi-layered shadows, and a warm, approachable color palette. The interface prioritizes depth and hierarchy through elevation rather than borders.",
+  "tokens": {
+    "colors": {
+      "primary": "Warm Amber / Orange",
+      "text": "Dark Blue-Gray (Slate)",
+      "background": "Off-white / Soft Gray"
+    },
+    "typography": {
+      "fontFamily": "Inter, sans-serif",
+      "headings": "Bold, Tight Tracking",
+      "body": "Regular, Relaxed Line-height"
+    },
+    "shapes": {
+      "cornerRadius": "1rem (16px) for cards, 0.5rem (8px) for inputs",
+      "border": "None or very subtle (1px solid transparent)"
+    },
+    "effects": {
+      "shadows": "Large, diffused, colored shadows (soft-xl)",
+      "gradients": "Subtle top-left to bottom-right gradients for active states"
+    }
+  }
+}

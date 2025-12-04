@@ -4,169 +4,52 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MASAE Delivery Tracker</title>
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    
     <style>
-      :root {
-        /* Default Theme (matches original hardcoded styles) */
-        --background: #f8fafc; /* slate-50 */
-        --foreground: #0f172a; /* slate-900 */
-        --card: #ffffff;
-        --card-foreground: #0f172a;
-        --popover: #ffffff;
-        --popover-foreground: #0f172a;
-        --primary: #059669; /* emerald-600 */
-        --primary-foreground: #ffffff;
-        --secondary: #f1f5f9; /* slate-100 */
-        --secondary-foreground: #0f172a;
-        --muted: #f1f5f9;
-        --muted-foreground: #64748b; /* slate-500 */
-        --accent: #f1f5f9;
-        --accent-foreground: #0f172a;
-        --destructive: #ef4444;
-        --destructive-foreground: #ffffff;
-        --border: #e2e8f0; /* slate-200 */
-        --input: #e2e8f0;
-        --ring: #059669;
-        --radius: 0.5rem;
+      /* CSS Bridge: Map DaisyUI variables to App Semantic Variables */
+      /* This allows standard Tailwind components (bg-background, text-primary) to inherit DaisyUI theme colors */
+      :root:has([data-theme]) {
+        --background: var(--b1);
+        --foreground: var(--bc);
+        --card: var(--b1);
+        --card-foreground: var(--bc);
+        --popover: var(--b1);
+        --popover-foreground: var(--bc);
+        --primary: var(--p);
+        --primary-foreground: var(--pc);
+        --secondary: var(--s);
+        --secondary-foreground: var(--sc);
+        --muted: var(--b2);
+        --muted-foreground: var(--bc);
+        --accent: var(--a);
+        --accent-foreground: var(--ac);
+        --destructive: var(--er);
+        --destructive-foreground: var(--erc);
+        --border: var(--b3);
+        --input: var(--b3);
+        --ring: var(--p);
+        --radius: var(--rounded-box, 0.5rem);
         
-        /* Sidebar specific for Default Theme (Dark) */
-        --sidebar: #0f172a; /* slate-900 */
-        --sidebar-foreground: #f8fafc; /* slate-50 */
-        --sidebar-primary: #059669;
-        --sidebar-primary-foreground: #ffffff;
-        --sidebar-accent: #1e293b; /* slate-800 */
-        --sidebar-accent-foreground: #ffffff;
-        --sidebar-border: #1e293b;
-        --sidebar-ring: #059669;
+        /* Map Sidebar to match main theme or slightly darker/lighter */
+        --sidebar: var(--b1);
+        --sidebar-foreground: var(--bc);
+        --sidebar-primary: var(--p);
+        --sidebar-primary-foreground: var(--pc);
+        --sidebar-accent: var(--b2);
+        --sidebar-accent-foreground: var(--bc);
+        --sidebar-border: var(--b3);
       }
-
-      [data-theme="shadcn"] {
-        --radius: 0.65rem;
-        
-        /* Slate-950 base for foreground, White for background */
-        --background: oklch(1 0 0);
-        --foreground: oklch(0.129 0.042 264.695); /* slate-900 approx */
-
-        --card: oklch(1 0 0);
-        --card-foreground: oklch(0.129 0.042 264.695);
-
-        --popover: oklch(1 0 0);
-        --popover-foreground: oklch(0.129 0.042 264.695);
-
-        /* Emerald-600 */
-        --primary: oklch(0.623 0.188 145.42);
-        --primary-foreground: oklch(0.985 0 0);
-
-        /* Slate-100 */
-        --secondary: oklch(0.968 0.007 247.896);
-        --secondary-foreground: oklch(0.129 0.042 264.695);
-
-        /* Slate-100 */
-        --muted: oklch(0.968 0.007 247.896);
-        --muted-foreground: oklch(0.554 0.046 257.417);
-
-        /* Slate-100 */
-        --accent: oklch(0.968 0.007 247.896);
-        --accent-foreground: oklch(0.129 0.042 264.695);
-
-        /* Red-600 */
-        --destructive: oklch(0.577 0.245 27.325);
-        --destructive-foreground: oklch(0.985 0 0);
-
-        /* Slate-200 */
-        --border: oklch(0.929 0.013 255.508);
-        --input: oklch(0.929 0.013 255.508);
-        
-        /* Emerald-600 */
-        --ring: oklch(0.623 0.188 145.42);
-
-        /* Palette: Emerald, Indigo, Amber, Red, Sky */
-        --chart-1: oklch(0.623 0.188 145.42); /* Emerald */
-        --chart-2: oklch(0.518 0.253 280.52); /* Indigo */
-        --chart-3: oklch(0.769 0.188 70.08);  /* Amber */
-        --chart-4: oklch(0.577 0.245 27.325); /* Red */
-        --chart-5: oklch(0.746 0.16 232.661); /* Sky */
-
-        /* Sidebar - Light Slate */
-        --sidebar: oklch(0.985 0.002 247.839);
-        --sidebar-foreground: oklch(0.129 0.042 264.695);
-        --sidebar-primary: oklch(0.623 0.188 145.42);
-        --sidebar-primary-foreground: oklch(0.985 0 0);
-        --sidebar-accent: oklch(0.968 0.007 247.896);
-        --sidebar-accent-foreground: oklch(0.129 0.042 264.695);
-        --sidebar-border: oklch(0.929 0.013 255.508);
-        --sidebar-ring: oklch(0.623 0.188 145.42);
-      }
-
-      [data-theme="shadcn"].dark {
-        --background: oklch(0.129 0.042 264.695); /* slate-950 */
-        --foreground: oklch(0.985 0 0);
-        
-        --card: oklch(0.129 0.042 264.695);
-        --card-foreground: oklch(0.985 0 0);
-
-        --popover: oklch(0.129 0.042 264.695);
-        --popover-foreground: oklch(0.985 0 0);
-
-        /* Emerald-500 */
-        --primary: oklch(0.696 0.17 162.48);
-        --primary-foreground: oklch(0.129 0.042 264.695);
-
-        /* Slate-800 */
-        --secondary: oklch(0.279 0.041 260.031);
-        --secondary-foreground: oklch(0.985 0 0);
-
-        /* Slate-800 */
-        --muted: oklch(0.279 0.041 260.031);
-        --muted-foreground: oklch(0.704 0.04 256.788);
-
-        /* Slate-800 */
-        --accent: oklch(0.279 0.041 260.031);
-        --accent-foreground: oklch(0.985 0 0);
-
-        /* Red-900 */
-        --destructive: oklch(0.396 0.141 25.723);
-        --destructive-foreground: oklch(0.985 0 0);
-
-        /* Slate-800 */
-        --border: oklch(0.279 0.041 260.031);
-        --input: oklch(0.279 0.041 260.031);
-        
-        --ring: oklch(0.696 0.17 162.48);
-
-        --chart-1: oklch(0.696 0.17 162.48);  /* Emerald */
-        --chart-2: oklch(0.637 0.237 281.282); /* Indigo */
-        --chart-3: oklch(0.85 0.15 80);      /* Amber */
-        --chart-4: oklch(0.65 0.2 30);       /* Red */
-        --chart-5: oklch(0.75 0.15 220);     /* Sky */
-
-        --sidebar: oklch(0.129 0.042 264.695);
-        --sidebar-foreground: oklch(0.704 0.04 256.788);
-        --sidebar-primary: oklch(0.696 0.17 162.48);
-        --sidebar-primary-foreground: oklch(0.985 0 0);
-        --sidebar-accent: oklch(0.279 0.041 260.031);
-        --sidebar-accent-foreground: oklch(0.985 0 0);
-        --sidebar-border: oklch(0.279 0.041 260.031);
-        --sidebar-ring: oklch(0.696 0.17 162.48);
-      }
-
-      /* Custom scrollbar for webkit */
-      ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: var(--muted-foreground);
-        border-radius: 3px;
-        opacity: 0.5;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: var(--foreground);
+      
+      /* Ensure Custom Themes Override the Bridge */
+      [data-theme="amber"], [data-theme="shadcn"] {
+         /* Variables are defined in external CSS files imported in index.tsx */
       }
     </style>
+
     <script>
       tailwind.config = {
         darkMode: 'class',

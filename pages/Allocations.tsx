@@ -401,12 +401,14 @@ export const Allocations = () => {
                       })
                       .map(o => (
                       <option key={o.id} value={o.id}>
-                        {o.name} {o.commune_name ? `(${o.commune_name})` : ''}
+                        {o.name} {o.commune_name ? `(${o.commune_name})` : ''} {(!formData.project_id && o.project_name && o.project_name !== '-') ? `- ${o.project_name}` : ''}
                       </option>
                     ))}
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Only operators assigned to the selected project and not yet allocated are shown.
+                     {formData.project_id 
+                      ? "Only operators assigned to the selected project and not yet allocated are shown."
+                      : "Showing all unallocated operators across all projects."}
                   </p>
                 </div>
                 

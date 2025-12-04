@@ -1,0 +1,29 @@
+@import './default.css';
+@import './shadcn.css';
+@import './amber.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Transitions */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 3px;
+  opacity: 0.5;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground);
+}

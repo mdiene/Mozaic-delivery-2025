@@ -1,0 +1,40 @@
+:root {
+  /* Default Theme */
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #059669; /* emerald-600 */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9; /* slate-100 */
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b; /* slate-500 */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0; /* slate-200 */
+  --input: #e2e8f0;
+  --ring: #059669;
+  --radius: 0.5rem;
+  
+  /* Sidebar */
+  --sidebar: #0f172a; /* slate-900 */
+  --sidebar-foreground: #f8fafc; /* slate-50 */
+  --sidebar-primary: #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e293b; /* slate-800 */
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #059669;
+
+  /* Chart Defaults */
+  --chart-1: #059669;
+  --chart-2: #6366f1;
+  --chart-3: #f59e0b;
+  --chart-4: #ef4444;
+  --chart-5: #0ea5e9;
+}

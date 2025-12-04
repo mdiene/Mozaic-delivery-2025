@@ -1,0 +1,48 @@
+{
+  "name": "Amber Soft UI",
+  "version": "1.0.0",
+  "colors": {
+    "palette": {
+      "amber": {
+        "50": "#fffbeb",
+        "100": "#fef3c7",
+        "400": "#fbbf24",
+        "500": "#f59e0b",
+        "600": "#d97706"
+      },
+      "slate": {
+        "50": "#f8fafc",
+        "100": "#f1f5f9",
+        "200": "#e2e8f0",
+        "500": "#64748b",
+        "700": "#334155",
+        "900": "#0f172a"
+      }
+    },
+    "semantic": {
+      "primary": "oklch(0.769 0.188 70.08)", 
+      "background": "oklch(0.985 0.002 247.839)",
+      "surface": "oklch(1 0 0)",
+      "text-primary": "oklch(0.129 0.042 264.695)",
+      "text-secondary": "oklch(0.554 0.046 257.417)"
+    }
+  },
+  "spacing": {
+    "card-padding": "1.5rem",
+    "section-gap": "1.5rem"
+  },
+  "components": {
+    "card": {
+      "borderRadius": "1rem",
+      "shadow": "0 20px 27px 0 rgba(0, 0, 0, 0.05)",
+      "border": "none"
+    },
+    "button": {
+      "primary": {
+        "gradient": "linear-gradient(to bottom right, #fbbf24, #d97706)",
+        "borderRadius": "0.5rem",
+        "shadow": "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+      }
+    }
+  }
+}

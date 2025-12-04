@@ -1,0 +1,98 @@
+[data-theme="amber"] {
+  --radius: 1rem; /* Soft UI uses larger border radius */
+  
+  /* Background: Soft Off-White */
+  --background: oklch(0.985 0.002 247.839); 
+  --foreground: oklch(0.129 0.042 264.695); /* Dark Slate */
+
+  /* Cards: Pure White with Shadows */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+
+  /* Primary: Warm Amber */
+  --primary: oklch(0.769 0.188 70.08); 
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary: Soft Gray */
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.129 0.042 264.695);
+
+  /* Muted */
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+
+  /* Accent */
+  --accent: oklch(0.95 0.02 80); /* Very light amber/yellow tint */
+  --accent-foreground: oklch(0.129 0.042 264.695);
+
+  /* Destructive */
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  /* Borders: Very subtle/transparent as Soft UI relies on shadows */
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  
+  --ring: oklch(0.769 0.188 70.08);
+
+  /* Charts */
+  --chart-1: oklch(0.769 0.188 70.08);  /* Amber (Primary) */
+  --chart-2: oklch(0.623 0.188 145.42); /* Emerald */
+  --chart-3: oklch(0.518 0.253 280.52); /* Indigo */
+  --chart-4: oklch(0.577 0.245 27.325); /* Red */
+  --chart-5: oklch(0.746 0.16 232.661); /* Sky */
+
+  /* Sidebar: White with soft shadows */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.769 0.188 70.08);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.769 0.188 70.08);
+}
+
+[data-theme="amber"].dark {
+   /* Dark Mode for Amber - Deep Gray/Black with Amber Accents */
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
+  
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
+
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
+
+  --primary: oklch(0.769 0.188 70.08);
+  --primary-foreground: oklch(0.141 0.005 285.823);
+
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  
+  --ring: oklch(0.769 0.188 70.08);
+
+  --sidebar: oklch(0.21 0.006 285.885);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.769 0.188 70.08);
+  --sidebar-primary-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.769 0.188 70.08);
+}

@@ -1,9 +1,8 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Truck as TruckType, Driver as DriverType } from '../types';
-import { Truck, User, Plus, Trash2, Edit2, X, Save } from 'lucide-react';
+import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon } from 'lucide-react';
 
 export const Fleet = () => {
   const [activeTab, setActiveTab] = useState<'trucks' | 'drivers'>('trucks');
@@ -50,6 +49,18 @@ export const Fleet = () => {
     } catch (e) {
       alert('Cannot delete. Item might be in use.');
     }
+  };
+
+  // Special handler to open Add Truck modal pre-filled with this driver
+  const handleAssignTruck = (driver: DriverType) => {
+    // Switch to trucks mode so the modal renders the Truck form
+    setActiveTab('trucks');
+    setFormData({
+      driver_id: driver.id,
+      status: 'AVAILABLE',
+      capacity_tonnes: 0
+    });
+    setIsModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -109,6 +120,10 @@ export const Fleet = () => {
   };
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Fleet Data...</div>;
+
+  // Split drivers for grouping
+  const assignedDrivers = drivers.filter(d => d.truck_plate);
+  const unassignedDrivers = drivers.filter(d => !d.truck_plate);
 
   return (
     <div className="space-y-6">
@@ -210,41 +225,91 @@ export const Fleet = () => {
               </thead>
               <tbody className="divide-y divide-border">
                 {drivers.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No drivers found.</td></tr>}
-                {drivers.map(driver => (
-                  <tr key={driver.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-muted rounded-full text-muted-foreground">
-                          <User size={18} />
-                        </div>
-                        <span className="font-medium text-foreground">{driver.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground">{driver.phone}</td>
-                    <td className="px-6 py-4 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
-                    <td className="px-6 py-4">
-                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                        ${driver.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
-                       `}>
-                        {driver.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      {driver.truck_plate ? (
-                        <div className="flex items-center gap-2">
-                          <Truck size={14} className="text-muted-foreground" />
-                          <span className="font-mono font-medium text-foreground">{driver.truck_plate}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">None</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      <button onClick={() => handleEdit(driver)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(driver.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                    </td>
-                  </tr>
-                ))}
+                
+                {/* ASSIGNED DRIVERS GROUP */}
+                {assignedDrivers.length > 0 && (
+                  <>
+                    <tr className="bg-muted/30">
+                       <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider border-y border-border">Assigned</td>
+                    </tr>
+                    {assignedDrivers.map(driver => (
+                      <tr key={driver.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-muted rounded-full text-muted-foreground">
+                              <User size={18} />
+                            </div>
+                            <span className="font-medium text-foreground">{driver.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-foreground">{driver.phone}</td>
+                        <td className="px-6 py-4 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                            ${driver.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                          `}>
+                            {driver.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Truck size={14} className="text-muted-foreground" />
+                            <span className="font-mono font-medium text-foreground">{driver.truck_plate}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                          <button onClick={() => handleEdit(driver)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete(driver.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+
+                {/* UNASSIGNED DRIVERS GROUP */}
+                {unassignedDrivers.length > 0 && (
+                  <>
+                    <tr className="bg-muted/30">
+                       <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider border-y border-border">Unassigned</td>
+                    </tr>
+                    {unassignedDrivers.map(driver => (
+                      <tr key={driver.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-muted rounded-full text-muted-foreground">
+                              <User size={18} />
+                            </div>
+                            <span className="font-medium text-foreground">{driver.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-foreground">{driver.phone}</td>
+                        <td className="px-6 py-4 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                            ${driver.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                          `}>
+                            {driver.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className="text-xs text-muted-foreground italic">None</span>
+                        </td>
+                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                          {/* Assign Truck Action */}
+                          <button 
+                            onClick={() => handleAssignTruck(driver)}
+                            className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-colors"
+                            title="Assign to New Truck"
+                          >
+                            <LinkIcon size={16} />
+                          </button>
+                          <button onClick={() => handleEdit(driver)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete(driver.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
               </tbody>
             </table>
           )}
@@ -314,7 +379,7 @@ export const Fleet = () => {
                     >
                       <option value="">Select a driver...</option>
                       {drivers
-                        .filter(d => !d.truck_id || (formData.id && d.truck_id === formData.id))
+                        .filter(d => !d.truck_id || (formData.id && d.truck_id === formData.id) || d.id === formData.driver_id)
                         .map(d => (
                         <option key={d.id} value={d.id}>{d.name} ({d.license_number})</option>
                       ))}
