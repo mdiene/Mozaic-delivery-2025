@@ -58,6 +58,12 @@ export const Settings = () => {
     }
   };
 
+  const handleEdit = (type: string, item: any) => {
+    setModalType(type);
+    setFormData({ ...item });
+    setIsModalOpen(true);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -67,7 +73,12 @@ export const Settings = () => {
       if (modalType === 'commune') table = 'communes';
       if (modalType === 'project') table = 'project';
 
-      await db.createItem(table, formData);
+      if (formData.id) {
+        await db.updateItem(table, formData.id, formData);
+      } else {
+        await db.createItem(table, formData);
+      }
+
       setIsModalOpen(false);
       setFormData({});
       fetchData();
@@ -82,6 +93,12 @@ export const Settings = () => {
     setFormData({});
     setIsModalOpen(true);
   };
+
+  // Check for duplicate phase number
+  const isDuplicatePhase = modalType === 'project' && projects.some(p => 
+    String(p.numero_phase) === String(formData.numero_phase) && 
+    p.id !== formData.id // Allow same phase if we are editing the same project
+  );
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Settings...</div>;
 
@@ -143,8 +160,19 @@ export const Settings = () => {
                     <td className="px-4 py-3 text-muted-foreground">{p.numero_bon_disposition}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.numero_phase}</td>
                     <td className="px-4 py-3 text-foreground font-mono">{p.tonnage_total} T</td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => handleDelete('project', p.id)} className="text-muted-foreground hover:text-destructive">
+                    <td className="px-4 py-3 text-right flex justify-end gap-2">
+                      <button 
+                        onClick={() => handleEdit('project', p)} 
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                        title="Edit"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete('project', p.id)} 
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        title="Delete"
+                      >
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -216,7 +244,8 @@ export const Settings = () => {
                     <tr key={item.id} className="hover:bg-muted/50">
                       <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right flex justify-end gap-2">
+                        <button onClick={() => handleEdit('regions', item)} className="text-muted-foreground hover:text-primary"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete('regions', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
                       </td>
                     </tr>
@@ -226,7 +255,8 @@ export const Settings = () => {
                       <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{regions.find(r => r.id === item.region_id)?.name}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right flex justify-end gap-2">
+                        <button onClick={() => handleEdit('departments', item)} className="text-muted-foreground hover:text-primary"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete('departments', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
                       </td>
                     </tr>
@@ -236,7 +266,8 @@ export const Settings = () => {
                       <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{departments.find(d => d.id === item.department_id)?.name}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right flex justify-end gap-2">
+                         <button onClick={() => handleEdit('communes', item)} className="text-muted-foreground hover:text-primary"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete('communes', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
                       </td>
                     </tr>
@@ -253,7 +284,9 @@ export const Settings = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-card rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border border-border">
             <div className="flex justify-between items-center p-4 border-b border-border bg-muted/30">
-              <h3 className="font-semibold text-foreground capitalize">Add {modalType}</h3>
+              <h3 className="font-semibold text-foreground capitalize">
+                {formData.id ? 'Edit' : 'Add'} {modalType}
+              </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="p-6 space-y-4">
@@ -283,6 +316,7 @@ export const Settings = () => {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Region</label>
                   <select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                    value={formData.region_id || ''}
                     onChange={e => setFormData({...formData, region_id: e.target.value})}
                   >
                     <option value="">Select Region...</option>
@@ -295,6 +329,7 @@ export const Settings = () => {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Department</label>
                   <select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                    value={formData.department_id || ''}
                     onChange={e => setFormData({...formData, department_id: e.target.value})}
                   >
                     <option value="">Select Department...</option>
@@ -327,6 +362,11 @@ export const Settings = () => {
                         value={formData.numero_phase || ''} 
                         onChange={e => setFormData({...formData, numero_phase: e.target.value})} 
                       />
+                      {isDuplicatePhase && (
+                        <p className="text-destructive text-xs mt-1 animate-fade-in">
+                          Phase number already used. Please change.
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-1">Tonnage Total</label>
@@ -348,7 +388,17 @@ export const Settings = () => {
 
               <div className="pt-4 flex justify-end gap-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90">Save</button>
+                <button 
+                  type="submit" 
+                  disabled={isDuplicatePhase}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors ${
+                    isDuplicatePhase 
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed' 
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  }`}
+                >
+                  Save
+                </button>
               </div>
             </form>
           </div>
