@@ -23,27 +23,30 @@ export const db = {
     const totalTarget = allocations?.reduce((sum, a) => sum + Number(a.target_tonnage), 0) || 0;
 
     // 2. Get deliveries for calc
-    // Fix: Use 'validation_status' instead of 'status'
+    // Removed validation_status selection as column was dropped
     const { data: deliveries, error: delError } = await supabase
       .from('deliveries')
-      .select('tonnage_delivered, validation_status, allocation_id');
+      .select('tonnage_loaded, allocation_id');
     
     if (delError) safeLog('Error fetching deliveries:', delError);
 
+    // Sum all deliveries (assuming all existing records are valid)
     const totalDelivered = deliveries
-      ?.filter((d: any) => d.validation_status === 'VALIDATED')
-      .reduce((sum: number, d: any) => sum + (Number(d.tonnage_delivered) || 0), 0) || 0;
+      ?.reduce((sum: number, d: any) => {
+        const val = Number(d.tonnage_loaded) || 0;
+        return sum + val;
+      }, 0) || 0;
 
-    const activeTrucks = deliveries
-      ?.filter((d: any) => ['IN_TRANSIT', 'DRAFT'].includes(d.validation_status)).length || 0;
+    // Cannot determine active trucks without status, defaulting to 0 or logic removal
+    const activeTrucks = 0;
 
     // 3. Calc Alerts (Over delivered)
     let alerts = 0;
     if (allocations && deliveries) {
       allocations.forEach((alloc: any) => {
         const deliveredForAlloc = deliveries
-          .filter((d: any) => d.allocation_id === alloc.id && d.validation_status === 'VALIDATED')
-          .reduce((sum: number, d: any) => sum + (Number(d.tonnage_delivered) || 0), 0);
+          .filter((d: any) => d.allocation_id === alloc.id)
+          .reduce((sum: number, d: any) => sum + (Number(d.tonnage_loaded) || 0), 0);
         
         if (deliveredForAlloc > Number(alloc.target_tonnage)) alerts++;
       });
@@ -69,15 +72,15 @@ export const db = {
     }
 
     // Get delivered sums for progress calculation
-    // Fix: Use 'validation_status'
+    // Removed validation_status
     const { data: deliveries } = await supabase
       .from('deliveries')
-      .select('allocation_id, tonnage_delivered, validation_status');
+      .select('allocation_id, tonnage_loaded');
 
     return data.map((alloc: any) => {
       const delivered = deliveries
-        ?.filter((d: any) => d.allocation_id === alloc.id && d.validation_status === 'VALIDATED')
-        .reduce((sum: number, d: any) => sum + (Number(d.tonnage_delivered) || 0), 0) || 0;
+        ?.filter((d: any) => d.allocation_id === alloc.id)
+        .reduce((sum: number, d: any) => sum + (Number(d.tonnage_loaded) || 0), 0) || 0;
 
       return {
         ...alloc,
@@ -115,7 +118,7 @@ export const db = {
       const alloc = del.allocations; // The joined object
       return {
         ...del,
-        status: del.validation_status, // Map DB column 'validation_status' to UI prop 'status'
+        // status removed
         operator_name: alloc?.operators?.name || 'Unknown',
         region_name: alloc?.regions?.name || 'Unknown',
         truck_plate: del.trucks?.plate_number || 'Unknown',
@@ -136,17 +139,17 @@ export const db = {
     }
     const { data: allocations } = await allocQuery;
     
-    // Fetch validated deliveries joined with allocation to get region
+    // Fetch deliveries joined with allocation to get region
+    // Removed validation_status check
     let delQuery = supabase
       .from('deliveries')
       .select(`
-        tonnage_delivered,
+        tonnage_loaded,
         allocations!inner (
           region_id,
           project_id
         )
-      `)
-      .eq('validation_status', 'VALIDATED');
+      `);
     
     if (projectId && projectId !== 'all') {
        // Filter on the joined table
@@ -172,7 +175,8 @@ export const db = {
     deliveries?.forEach((d: any) => {
       const rid = d.allocations?.region_id;
       if (rid && chartData[rid]) {
-        chartData[rid].delivered += Number(d.tonnage_delivered);
+        const val = Number(d.tonnage_loaded) || 0;
+        chartData[rid].delivered += val;
       }
     });
 

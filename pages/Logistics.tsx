@@ -1,8 +1,9 @@
 
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView } from '../types';
-import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar } from 'lucide-react';
+import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User } from 'lucide-react';
 
 export const Logistics = () => {
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
@@ -61,7 +62,6 @@ export const Logistics = () => {
       setFormData({
         bl_number: generateBL(),
         delivery_date: new Date().toISOString().split('T')[0],
-        validation_status: 'DRAFT',
         tonnage_loaded: 0
       });
     }
@@ -80,17 +80,29 @@ export const Logistics = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client Validation
+    if (!formData.allocation_id) {
+       alert("Allocation is required");
+       return;
+    }
+    if (Number(formData.tonnage_loaded) <= 0) {
+       alert("Load must be greater than 0");
+       return;
+    }
+
     try {
       // Allowlist Strategy: Only include fields that exist in the 'deliveries' table
+      // Schema: id, allocation_id, bl_number, truck_id, driver_id, tonnage_loaded, delivery_date
+      // Removed validation_status
+      
       const dbPayload: any = {
         allocation_id: formData.allocation_id,
         bl_number: formData.bl_number,
         truck_id: formData.truck_id || null, // Handle possible empty string
         driver_id: formData.driver_id || null,
         tonnage_loaded: Number(formData.tonnage_loaded),
-        tonnage_delivered: formData.tonnage_delivered ? Number(formData.tonnage_delivered) : null,
-        delivery_date: formData.delivery_date,
-        validation_status: formData.validation_status || 'DRAFT'
+        delivery_date: formData.delivery_date
       };
 
       if (formData.id) {
@@ -102,7 +114,8 @@ export const Logistics = () => {
       fetchData();
     } catch (error: any) {
       console.error("Save Error:", error);
-      alert(`Failed to save dispatch: ${error.message || JSON.stringify(error)}`);
+      const msg = error.details || error.hint || error.message || JSON.stringify(error);
+      alert(`Failed to save dispatch: ${msg}`);
     }
   };
 
@@ -125,6 +138,20 @@ export const Logistics = () => {
   );
 
   const selectedAllocation = allocations.find(a => a.id === formData.allocation_id);
+  const selectedTruck = trucks.find(t => t.id === formData.truck_id);
+  const assignedDriverName = selectedTruck?.driver_name || (formData.driver_id ? drivers.find(d => d.id === formData.driver_id)?.name : '');
+
+  // Calculate real-time stats for the selected allocation
+  // Summing up tonnage_loaded for ALL deliveries associated with this allocation (since status is removed)
+  const calculatedDelivered = React.useMemo(() => {
+    if (!formData.allocation_id) return 0;
+    return deliveries
+      .filter(d => d.allocation_id === formData.allocation_id)
+      .reduce((sum, d) => sum + Number(d.tonnage_loaded || 0), 0);
+  }, [formData.allocation_id, deliveries]);
+
+  const targetTonnage = selectedAllocation?.target_tonnage || 0;
+  const remainingTonnage = targetTonnage - calculatedDelivered;
 
   return (
     <div className="space-y-6">
@@ -163,7 +190,6 @@ export const Logistics = () => {
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Destination</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transport</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Load</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Actions</th>
               </tr>
@@ -171,7 +197,7 @@ export const Logistics = () => {
             <tbody className="divide-y divide-border">
               {filteredDeliveries.length === 0 && (
                 <tr>
-                   <td colSpan={7} className="p-8 text-center text-muted-foreground">No dispatches found. Create one to get started.</td>
+                   <td colSpan={6} className="p-8 text-center text-muted-foreground">No dispatches found. Create one to get started.</td>
                 </tr>
               )}
               {filteredDeliveries.map((del) => (
@@ -203,9 +229,6 @@ export const Logistics = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm font-medium text-foreground">{del.tonnage_loaded} T</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <StatusBadge status={del.status} />
                   </td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">
                     {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}
@@ -269,16 +292,18 @@ export const Logistics = () => {
                       <div className="mt-3 grid grid-cols-3 gap-2 text-center bg-muted/30 p-3 rounded-lg border border-border border-dashed">
                         <div className="flex flex-col">
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Target</span>
-                            <span className="font-mono text-sm font-medium text-foreground">{selectedAllocation.target_tonnage} T</span>
+                            <span className="font-mono text-sm font-medium text-foreground">{targetTonnage} T</span>
                         </div>
-                        <div className="flex flex-col border-l border-border">
+                        <div className="flex flex-col border-l border-border relative">
+                            {/* Blue dashed emphasis for Delivered */}
+                            <div className="absolute -inset-1 border border-dashed border-blue-400 rounded-md pointer-events-none opacity-50"></div>
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Delivered</span>
-                            <span className="font-mono text-sm font-medium text-primary">{selectedAllocation.delivered_tonnage} T</span>
+                            <span className="font-mono text-sm font-medium text-primary">{calculatedDelivered} T</span>
                         </div>
                         <div className="flex flex-col border-l border-border">
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Remaining</span>
                             <span className="font-mono text-sm font-medium text-foreground">
-                                {selectedAllocation.target_tonnage - selectedAllocation.delivered_tonnage} T
+                                {remainingTonnage} T
                             </span>
                         </div>
                       </div>
@@ -331,19 +356,24 @@ export const Logistics = () => {
                     </select>
                   </div>
 
-                  <div>
+                  {/* Driver Field - Read Only based on Truck */}
+                  <div className="relative">
                      <label className="block text-sm font-medium text-foreground mb-1">Driver</label>
-                     <select 
-                       required
-                       className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
-                       value={formData.driver_id || ''}
-                       onChange={(e) => setFormData({...formData, driver_id: e.target.value})}
-                    >
-                       <option value="">Select Driver...</option>
-                       {drivers.map(d => (
-                         <option key={d.id} value={d.id}>{d.name}</option>
-                       ))}
-                    </select>
+                     {/* Dashed border effect container */}
+                     <div className="relative">
+                        <input 
+                          type="text"
+                          readOnly
+                          disabled
+                          placeholder="Select a truck to load driver..."
+                          className="w-full rounded-lg border border-input bg-muted/50 p-2 pl-9 text-sm text-foreground focus:outline-none cursor-not-allowed"
+                          value={assignedDriverName}
+                        />
+                        <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                     </div>
+                     {!assignedDriverName && formData.truck_id && (
+                       <p className="text-xs text-amber-500 mt-1">This truck has no assigned driver.</p>
+                     )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -371,20 +401,6 @@ export const Logistics = () => {
                       </div>
                      </div>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Status</label>
-                    <select 
-                       className="w-full rounded-lg border border-input bg-background p-2 text-sm text-foreground"
-                       value={formData.validation_status || 'DRAFT'}
-                       onChange={(e) => setFormData({...formData, validation_status: e.target.value})}
-                    >
-                      <option value="DRAFT">Draft</option>
-                      <option value="IN_TRANSIT">In Transit</option>
-                      <option value="DELIVERED">Delivered</option>
-                      <option value="VALIDATED">Validated</option>
-                    </select>
-                  </div>
                 </div>
               </div>
 
@@ -409,20 +425,5 @@ export const Logistics = () => {
         </div>
       )}
     </div>
-  );
-};
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const styles: any = {
-    DRAFT: 'bg-secondary text-secondary-foreground',
-    IN_TRANSIT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200',
-    VALIDATED: 'bg-primary/10 text-primary',
-    DELIVERED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200'
-  };
-
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.DRAFT}`}>
-      {status?.replace('_', ' ') || 'DRAFT'}
-    </span>
   );
 };

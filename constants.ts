@@ -86,7 +86,6 @@ export const MOCK_DELIVERIES: Delivery[] = [
     tonnage_loaded: 40,
     tonnage_delivered: 40,
     delivery_date: '2023-10-05T09:00:00Z',
-    status: 'VALIDATED',
     created_at: '2023-10-05T08:00:00Z'
   },
   {
@@ -98,7 +97,6 @@ export const MOCK_DELIVERIES: Delivery[] = [
     tonnage_loaded: 50,
     tonnage_delivered: null, // Still in transit
     delivery_date: '2023-10-06T10:00:00Z',
-    status: 'IN_TRANSIT',
     created_at: '2023-10-06T09:00:00Z'
   }
 ];

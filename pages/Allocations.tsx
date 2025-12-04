@@ -52,7 +52,7 @@ export const Allocations = () => {
     if (alloc) {
       setFormData({ 
         ...alloc,
-        // Map DB fields back to UI inputs if needed
+        // Map DB fields back to UI inputs
         responsible_phone: alloc.responsible_phone_raw || ''
       });
     } else {
@@ -143,9 +143,20 @@ export const Allocations = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side Validation
+    if (Number(formData.target_tonnage) <= 0) {
+      alert("Target Tonnage must be greater than 0");
+      return;
+    }
+    if (!formData.allocation_key) {
+      alert("Allocation Key is required");
+      return;
+    }
+
     try {
-      // Allowlist Strategy: Explicitly construct payload with only DB columns
-      // This prevents "column delivered_tonnage does not exist" errors
+      // Allowlist Strategy: Explicitly construct payload with ONLY columns that exist in 'allocations' table
+      // This prevents "column 'delivered_tonnage' does not exist" errors
       const dbPayload: any = {
         allocation_key: formData.allocation_key,
         region_id: formData.region_id,
@@ -153,12 +164,12 @@ export const Allocations = () => {
         commune_id: formData.commune_id,
         operator_id: formData.operator_id,
         responsible_name: formData.responsible_name,
-        // Map UI phone to DB columns
+        // Map UI phone input to DB columns
         responsible_phone_raw: formData.responsible_phone || null,
         responsible_phone_normalized: formData.responsible_phone ? formData.responsible_phone.replace(/\s/g, '') : null,
         target_tonnage: Number(formData.target_tonnage),
         status: formData.status || 'OPEN',
-        // Convert empty string to null for foreign keys to prevent UUID errors
+        // Foreign keys: map empty strings to null
         project_id: formData.project_id || null
       };
 
@@ -172,7 +183,9 @@ export const Allocations = () => {
       fetchData();
     } catch (error: any) {
       console.error("Save Error:", error);
-      alert(`Failed to save allocation: ${error.message || JSON.stringify(error)}`);
+      // Try to extract readable error
+      const msg = error.details || error.hint || error.message || JSON.stringify(error);
+      alert(`Failed to save allocation: ${msg}`);
     }
   };
 
@@ -344,7 +357,20 @@ export const Allocations = () => {
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.project_id || ''}
-                    onChange={(e) => setFormData({...formData, project_id: e.target.value})}
+                    onChange={(e) => {
+                      const newProjectId = e.target.value;
+                      setFormData((prev: any) => {
+                        const currentOp = operators.find(o => o.id === prev.operator_id);
+                        // If current operator does not match the new project, clear selection
+                        const isOpValid = !prev.operator_id || (currentOp && currentOp.projet_id === newProjectId);
+                        
+                        return {
+                          ...prev,
+                          project_id: newProjectId,
+                          operator_id: isOpValid ? prev.operator_id : ''
+                        };
+                      });
+                    }}
                   >
                     <option value="">Select Project...</option>
                     {projects.map(p => (

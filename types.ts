@@ -1,6 +1,6 @@
 
+
 export type AllocationStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED';
-export type DeliveryStatus = 'DRAFT' | 'IN_TRANSIT' | 'DELIVERED' | 'VALIDATED';
 
 export interface Region {
   id: string;
@@ -88,9 +88,9 @@ export interface Delivery {
   truck_id: string;
   driver_id: string;
   tonnage_loaded: number;
-  tonnage_delivered?: number;
+  tonnage_delivered?: number | null; // Nullable based on schema
   delivery_date: string;
-  status: DeliveryStatus;
+  // Status removed as per schema update
   created_at: string;
 }
 
