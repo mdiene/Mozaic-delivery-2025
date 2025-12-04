@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -6,55 +7,15 @@
     <title>MASAE Delivery Tracker</title>
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- DaisyUI -->
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
     
-    <style>
-      /* CSS Bridge: Map DaisyUI variables to App Semantic Variables */
-      /* This allows standard Tailwind components (bg-background, text-primary) to inherit DaisyUI theme colors */
-      :root:has([data-theme]) {
-        --background: var(--b1);
-        --foreground: var(--bc);
-        --card: var(--b1);
-        --card-foreground: var(--bc);
-        --popover: var(--b1);
-        --popover-foreground: var(--bc);
-        --primary: var(--p);
-        --primary-foreground: var(--pc);
-        --secondary: var(--s);
-        --secondary-foreground: var(--sc);
-        --muted: var(--b2);
-        --muted-foreground: var(--bc);
-        --accent: var(--a);
-        --accent-foreground: var(--ac);
-        --destructive: var(--er);
-        --destructive-foreground: var(--erc);
-        --border: var(--b3);
-        --input: var(--b3);
-        --ring: var(--p);
-        --radius: var(--rounded-box, 0.5rem);
-        
-        /* Map Sidebar to match main theme or slightly darker/lighter */
-        --sidebar: var(--b1);
-        --sidebar-foreground: var(--bc);
-        --sidebar-primary: var(--p);
-        --sidebar-primary-foreground: var(--pc);
-        --sidebar-accent: var(--b2);
-        --sidebar-accent-foreground: var(--bc);
-        --sidebar-border: var(--b3);
-      }
-      
-      /* Ensure Custom Themes Override the Bridge */
-      [data-theme="amber"], [data-theme="shadcn"] {
-         /* Variables are defined in external CSS files imported in index.tsx */
-      }
-    </style>
-
     <script>
       tailwind.config = {
         darkMode: 'class',
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
             boxShadow: {
               'soft-xs': '0 2px 9px -5px rgba(20, 20, 20, 0.15)',
               'soft-sm': '0 5px 10px 0 rgba(17, 12, 46, 0.15)',

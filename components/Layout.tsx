@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
@@ -11,11 +12,9 @@ import {
   LogOut,
   Bell,
   Search,
-  Palette,
   Sun,
   Moon
 } from 'lucide-react';
-import { themes } from '../design/registry';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -100,13 +99,9 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
 };
 
 const Header = ({ 
-  currentThemeId, 
-  setTheme, 
   isDarkMode, 
   toggleDarkMode 
 }: { 
-  currentThemeId: string, 
-  setTheme: (t: string) => void,
   isDarkMode: boolean,
   toggleDarkMode: () => void
 }) => {
@@ -125,23 +120,6 @@ const Header = ({
 
       <div className="flex items-center gap-3">
         
-        {/* Theme Selector */}
-        <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-2 py-1 border border-border">
-          <Palette size={14} className="text-muted-foreground" />
-          <select 
-            value={currentThemeId} 
-            onChange={(e) => setTheme(e.target.value)}
-            className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer max-w-[100px] md:max-w-[150px]"
-          >
-            {themes.map(t => (
-               // Filter duplicates if strictly distinct names needed, but IDs might be shared for modes
-               <option key={`${t.id}-${t.name}`} value={t.id} disabled={t.isDark !== isDarkMode && t.id === currentThemeId}>
-                 {t.name}
-               </option>
-            ))}
-          </select>
-        </div>
-
         {/* Day/Night Toggle */}
         <button 
           onClick={toggleDarkMode}
@@ -179,68 +157,20 @@ const Header = ({
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [expanded, setExpanded] = useState(false);
-  const [themeId, setThemeId] = useState('amber');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Apply Theme
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    // 1. Set data-theme for DaisyUI or Custom CSS
-    // If it's a custom theme (shadcn, amber), we still set data-theme so our CSS selector works.
-    // If it's a DaisyUI theme, data-theme triggers Daisy styles.
-    root.setAttribute('data-theme', themeId);
-
-    // 2. Handle Dark Mode Class
-    // Some custom themes use .dark class (like shadcn.css)
     if (isDarkMode) {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-  }, [themeId, isDarkMode]);
+  }, [isDarkMode]);
 
-  // Intelligent Toggle
   const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-
-    // Logic to switch to a corresponding theme if available
-    // E.g. if on "light" (daisy), switch to "dark" (daisy)
-    // If on "shadcn" (custom), stay on "shadcn" but toggle class
-    // If on "amber", stay on "amber" but toggle class
-    
-    const currentThemeDef = themes.find(t => t.id === themeId && t.isDark === isDarkMode);
-    
-    // If currently using a Daisy theme, we might want to switch to a different Daisy theme that matches the new mode
-    if (currentThemeDef?.type === 'daisy') {
-       // Simple mapping for common defaults
-       if (newMode) {
-         if (themeId === 'light') setThemeId('dark');
-         if (themeId === 'cupcake') setThemeId('dim');
-         if (themeId === 'emerald') setThemeId('forest');
-         if (themeId === 'corporate') setThemeId('business');
-       } else {
-         if (themeId === 'dark') setThemeId('light');
-         if (themeId === 'dim') setThemeId('cupcake');
-         if (themeId === 'forest') setThemeId('emerald');
-         if (themeId === 'business') setThemeId('corporate');
-       }
-    }
-  };
-
-  const handleThemeChange = (newId: string) => {
-    setThemeId(newId);
-    // Check if the selected theme implies a mode change
-    const themeDef = themes.find(t => t.id === newId);
-    if (themeDef) {
-       // If picking a strictly dark theme (e.g. 'black'), force dark mode
-       // If picking a strictly light theme (e.g. 'cupcake'), force light mode
-       // Custom themes (shadcn, amber) support both, so don't force unless implicit
-       if (themeDef.type === 'daisy') {
-         setIsDarkMode(themeDef.isDark);
-       }
-    }
+    setIsDarkMode(!isDarkMode);
   };
 
   return (
@@ -248,8 +178,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Sidebar expanded={expanded} setExpanded={setExpanded} />
       <div className={`transition-all duration-300 ${expanded ? 'pl-64' : 'pl-20'}`}>
         <Header 
-          currentThemeId={themeId} 
-          setTheme={handleThemeChange} 
           isDarkMode={isDarkMode}
           toggleDarkMode={toggleDarkMode}
         />
