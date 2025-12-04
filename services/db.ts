@@ -211,19 +211,30 @@ export const db = {
   },
 
   getOperators: async (): Promise<Operator[]> => {
-    const { data, error } = await supabase
+    // Perform Client-Side join to avoid schema cache issues with FKs
+    // 1. Fetch raw operators
+    const { data: operators, error: opError } = await supabase
       .from('operators')
-      .select('*, communes(name)')
+      .select('*')
       .order('name');
       
-    if (error) {
-      console.error('Error fetching operators:', error);
+    if (opError) {
+      console.error('Error fetching operators:', JSON.stringify(opError));
       return [];
     }
 
-    return (data || []).map((op: any) => ({
+    // 2. Fetch raw communes to map names
+    const { data: communes } = await supabase
+      .from('communes')
+      .select('id, name');
+
+    // 3. Create Map for O(1) lookup
+    const communeMap = new Map((communes || []).map((c: any) => [c.id, c.name]));
+
+    // 4. Map data
+    return (operators || []).map((op: any) => ({
       ...op,
-      commune_name: op.communes?.name || 'Unknown',
+      commune_name: communeMap.get(op.commune_id) || 'Unknown',
       is_coop: op.operateur_coop_gie, // Map DB column to frontend prop
       phone: op.contact_info?.phone // Extract phone from jsonb
     })) as Operator[];

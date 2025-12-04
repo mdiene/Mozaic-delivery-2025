@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
-import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search } from 'lucide-react';
+import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
 
 type Tab = 'geographic' | 'projects' | 'operators';
@@ -115,6 +115,11 @@ export const Settings = () => {
         delete payload.phone;
         delete payload.commune_name;
       }
+      
+      // Remove ID if it's empty or null to allow DB to generate it
+      if (!payload.id) {
+         delete payload.id;
+      }
 
       if (formData.id) {
         await db.updateItem(table, formData.id, payload);
@@ -202,7 +207,11 @@ export const Settings = () => {
                   <th className="px-4 py-3">Operator Name</th>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Commune</th>
-                  <th className="px-4 py-3">Phone</th>
+                  <th className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Phone size={14} /> Phone
+                    </div>
+                  </th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -228,7 +237,15 @@ export const Settings = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">{op.commune_name}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{op.phone || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
+                      {op.phone ? (
+                        <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">
+                           {op.phone}
+                        </a>
+                      ) : (
+                        <span className="opacity-50">-</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right flex justify-end gap-2">
                       <button 
                         onClick={() => handleEdit('operator', op)} 
