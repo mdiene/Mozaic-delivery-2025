@@ -52,7 +52,7 @@ export const Allocations = () => {
     if (alloc) {
       setFormData({ 
         ...alloc,
-        // Map DB fields back to UI inputs
+        // Map DB fields back to UI inputs if needed
         responsible_phone: alloc.responsible_phone_raw || ''
       });
     } else {
@@ -145,6 +145,7 @@ export const Allocations = () => {
     e.preventDefault();
     try {
       // Allowlist Strategy: Explicitly construct payload with only DB columns
+      // This prevents "column delivered_tonnage does not exist" errors
       const dbPayload: any = {
         allocation_key: formData.allocation_key,
         region_id: formData.region_id,
@@ -197,6 +198,9 @@ export const Allocations = () => {
       return true;
     });
   };
+  
+  // Calculate assigned operator IDs to filter dropdown
+  const assignedOperatorIds = new Set(allocations.map(a => a.operator_id));
 
   return (
     <div className="space-y-6">
@@ -362,13 +366,22 @@ export const Allocations = () => {
                   >
                     <option value="">Select Operator...</option>
                     {operators
-                      .filter(o => !formData.project_id || o.projet_id === formData.project_id)
+                      .filter(o => {
+                         // Must match project if selected
+                         if (formData.project_id && o.projet_id !== formData.project_id) return false;
+                         // Must NOT be already assigned, UNLESS it's the current one (for editing)
+                         if (assignedOperatorIds.has(o.id) && o.id !== formData.operator_id) return false;
+                         return true;
+                      })
                       .map(o => (
                       <option key={o.id} value={o.id}>
                         {o.name} {o.commune_name ? `(${o.commune_name})` : ''}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Only operators assigned to the selected project and not yet allocated are shown.
+                  </p>
                 </div>
                 
                 {/* Responsible Person Section (DB Requirement) */}
