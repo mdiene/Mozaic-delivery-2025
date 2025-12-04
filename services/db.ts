@@ -186,8 +186,12 @@ export const db = {
   },
 
   getProjects: async (): Promise<Project[]> => {
-    const { data } = await supabase.from('project').select('*').order('created_at', { ascending: false });
-    // Map DB fields to TS interface if needed, assuming direct match for now
+    // Sort by phase descending since created_at is missing in schema
+    const { data, error } = await supabase.from('project').select('*').order('numero_phase', { ascending: false });
+    if (error) {
+      console.error('Error fetching projects:', JSON.stringify(error));
+      return [];
+    }
     return (data as any[]) || [];
   },
 

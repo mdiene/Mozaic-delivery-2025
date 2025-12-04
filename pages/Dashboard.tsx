@@ -76,9 +76,9 @@ export const Dashboard = () => {
 
       {/* Main Chart Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-card p-6 rounded-xl border border-border shadow-sm">
+        <div className="lg:col-span-2 bg-card p-6 rounded-xl border border-border shadow-sm min-w-0">
           <h2 className="text-lg font-semibold text-foreground mb-6">Regional Performance</h2>
-          <div className="h-80 w-full">
+          <div className="h-[320px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />

@@ -73,10 +73,17 @@ export const Settings = () => {
       if (modalType === 'commune') table = 'communes';
       if (modalType === 'project') table = 'project';
 
+      // Prepare payload (convert numeric fields if project)
+      const payload = { ...formData };
+      if (modalType === 'project') {
+        payload.numero_phase = Number(payload.numero_phase);
+        payload.tonnage_total = Number(payload.tonnage_total);
+      }
+
       if (formData.id) {
-        await db.updateItem(table, formData.id, formData);
+        await db.updateItem(table, formData.id, payload);
       } else {
-        await db.createItem(table, formData);
+        await db.createItem(table, payload);
       }
 
       setIsModalOpen(false);
@@ -84,7 +91,7 @@ export const Settings = () => {
       fetchData();
     } catch (error) {
       console.error(error);
-      alert('Failed to save.');
+      alert('Failed to save. Please check console for details.');
     }
   };
 
@@ -149,29 +156,36 @@ export const Settings = () => {
                   <th className="px-4 py-3">Market #</th>
                   <th className="px-4 py-3">Disp. #</th>
                   <th className="px-4 py-3">Phase</th>
+                  <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Total Tonnage</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
+                {projects.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No projects found. Add one to get started.</td>
+                  </tr>
+                )}
                 {projects.map((p) => (
                   <tr key={p.id} className="hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium text-foreground">{p.numero_marche}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.numero_bon_disposition}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.numero_phase}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString() : '-'}</td>
                     <td className="px-4 py-3 text-foreground font-mono">{p.tonnage_total} T</td>
                     <td className="px-4 py-3 text-right flex justify-end gap-2">
                       <button 
                         onClick={() => handleEdit('project', p)} 
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                        title="Edit"
+                        className="p-1.5 bg-muted hover:bg-primary/10 hover:text-primary rounded-md transition-colors"
+                        title="Edit Project"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button 
                         onClick={() => handleDelete('project', p.id)} 
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                        title="Delete"
+                        className="p-1.5 bg-muted hover:bg-destructive/10 hover:text-destructive rounded-md transition-colors"
+                        title="Delete Project"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -291,7 +305,7 @@ export const Settings = () => {
             </div>
             <form onSubmit={handleSave} className="p-6 space-y-4">
               
-              {/* Common Fields */}
+              {/* Common Fields (Name/Code) for Geo */}
               {modalType !== 'project' && (
                 <>
                   <div>
@@ -311,7 +325,7 @@ export const Settings = () => {
                 </>
               )}
 
-              {/* Specific Logic */}
+              {/* Specific Geo Logic */}
               {modalType === 'department' && (
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Region</label>
@@ -343,14 +357,14 @@ export const Settings = () => {
                  <>
                    <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Numero Marche</label>
-                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
+                    <input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                       value={formData.numero_marche || ''} 
                       onChange={e => setFormData({...formData, numero_marche: e.target.value})} 
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Numero Bon Disposition</label>
-                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
+                    <input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                       value={formData.numero_bon_disposition || ''} 
                       onChange={e => setFormData({...formData, numero_bon_disposition: e.target.value})} 
                     />
