@@ -55,7 +55,9 @@ export const MOCK_ALLOCATIONS: Allocation[] = [
     target_tonnage: 500,
     status: 'IN_PROGRESS',
     phase: 'Phase 1',
-    created_at: '2023-10-01T10:00:00Z'
+    created_at: '2023-10-01T10:00:00Z',
+    responsible_name: 'Moussa Diop',
+    responsible_phone_raw: '77 123 45 67'
   },
   {
     id: 'all_2',
@@ -67,7 +69,9 @@ export const MOCK_ALLOCATIONS: Allocation[] = [
     target_tonnage: 1000,
     status: 'OPEN',
     phase: 'Phase 1',
-    created_at: '2023-10-02T14:30:00Z'
+    created_at: '2023-10-02T14:30:00Z',
+    responsible_name: 'Fatou Ndiaye',
+    responsible_phone_raw: '76 987 65 43'
   }
 ];
 

@@ -52,8 +52,8 @@ export const Dashboard = () => {
          const [s, p] = await Promise.all([db.getStats(), db.getProjects()]);
          setStats(s);
          setProjects(p);
-       } catch (e) {
-         console.error(e);
+       } catch (e: any) {
+         console.error('Error loading dashboard:', e.message || e);
        }
     };
     loadInit();
@@ -66,8 +66,8 @@ export const Dashboard = () => {
         setLoading(true);
         const c = await db.getChartData(selectedProject);
         setChartData(c);
-      } catch (e) {
-        console.error(e);
+      } catch (e: any) {
+        console.error('Error loading chart:', e.message || e);
       } finally {
         setLoading(false);
       }

@@ -51,6 +51,7 @@ export interface Driver {
   license_number: string;
   status: 'ACTIVE' | 'INACTIVE';
   truck_id?: string;
+  truck_plate?: string;
 }
 
 export interface Project {
@@ -71,9 +72,13 @@ export interface Allocation {
   operator_id: string;
   target_tonnage: number;
   status: AllocationStatus;
-  phase: string;
+  phase?: string; // Optional in type, derived from project in UI, not in DB
   created_at: string;
   project_id?: string;
+  // Responsible Person fields matching DB schema
+  responsible_name: string;
+  responsible_phone_raw?: string;
+  responsible_phone_normalized?: string;
 }
 
 export interface Delivery {

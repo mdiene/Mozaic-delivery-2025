@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Truck as TruckType, Driver as DriverType } from '../types';
@@ -70,6 +71,9 @@ export const Fleet = () => {
         // Map form 'phone' to DB 'phone_normalized'
         payload.phone_normalized = payload.phone;
         delete payload.phone;
+        // Strip truck specific info joined for display
+        delete payload.truck_plate;
+        delete payload.trucks;
       }
       
       // Ensure numeric types
@@ -199,11 +203,13 @@ export const Fleet = () => {
                   <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Name</th>
                   <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Phone</th>
                   <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">License</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Assigned Truck</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {drivers.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">No drivers found.</td></tr>}
+                {drivers.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No drivers found.</td></tr>}
                 {drivers.map(driver => (
                   <tr key={driver.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-6 py-4">
@@ -216,6 +222,23 @@ export const Fleet = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-foreground">{driver.phone}</td>
                     <td className="px-6 py-4 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
+                    <td className="px-6 py-4">
+                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        ${driver.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                       `}>
+                        {driver.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {driver.truck_plate ? (
+                        <div className="flex items-center gap-2">
+                          <Truck size={14} className="text-muted-foreground" />
+                          <span className="font-mono font-medium text-foreground">{driver.truck_plate}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">None</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
                       <button onClick={() => handleEdit(driver)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
                       <button onClick={() => handleDelete(driver.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>

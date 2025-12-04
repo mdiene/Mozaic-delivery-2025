@@ -1,15 +1,130 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
-import { DeliveryView } from '../types';
-import { Plus, Search, FileText, MapPin, Truck as TruckIcon } from 'lucide-react';
+import { DeliveryView, Truck, Driver, AllocationView } from '../types';
+import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar } from 'lucide-react';
 
 export const Logistics = () => {
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
+  const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [allocations, setAllocations] = useState<AllocationView[]>([]);
+  
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState<any>({});
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [del, tr, dr, al] = await Promise.all([
+        db.getDeliveriesView(),
+        db.getTrucks(),
+        db.getDrivers(),
+        db.getAllocationsView()
+      ]);
+      setDeliveries(del);
+      setTrucks(tr);
+      setDrivers(dr);
+      // Only show open or in-progress allocations for new dispatches
+      setAllocations(al); 
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    db.getDeliveriesView().then(setDeliveries);
+    fetchData();
   }, []);
+
+  const generateBL = () => {
+    const year = new Date().getFullYear().toString().slice(-2);
+    const random = Math.floor(1000 + Math.random() * 9000);
+    return `BL${year}${random}`;
+  };
+
+  const handleOpenModal = (delivery?: DeliveryView) => {
+    if (delivery) {
+      // Edit Mode
+      setFormData({
+        ...delivery,
+        // Ensure date is formatted for input type="date"
+        delivery_date: delivery.delivery_date ? new Date(delivery.delivery_date).toISOString().split('T')[0] : ''
+      });
+    } else {
+      // Create Mode
+      setFormData({
+        bl_number: generateBL(),
+        delivery_date: new Date().toISOString().split('T')[0],
+        validation_status: 'DRAFT',
+        tonnage_loaded: 0
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this dispatch?')) return;
+    try {
+      await db.deleteItem('deliveries', id);
+      fetchData();
+    } catch (e) {
+      alert('Error deleting item.');
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // Allowlist Strategy: Only include fields that exist in the 'deliveries' table
+      const dbPayload: any = {
+        allocation_id: formData.allocation_id,
+        bl_number: formData.bl_number,
+        truck_id: formData.truck_id || null, // Handle possible empty string
+        driver_id: formData.driver_id || null,
+        tonnage_loaded: Number(formData.tonnage_loaded),
+        tonnage_delivered: formData.tonnage_delivered ? Number(formData.tonnage_delivered) : null,
+        delivery_date: formData.delivery_date,
+        validation_status: formData.validation_status || 'DRAFT'
+      };
+
+      if (formData.id) {
+        await db.updateItem('deliveries', formData.id, dbPayload);
+      } else {
+        await db.createItem('deliveries', dbPayload);
+      }
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      console.error("Save Error:", error);
+      alert(`Failed to save dispatch: ${error.message || JSON.stringify(error)}`);
+    }
+  };
+
+  // Logic: When truck changes, find the truck and auto-select its assigned driver
+  const handleTruckChange = (truckId: string) => {
+    const selectedTruck = trucks.find(t => t.id === truckId);
+    
+    setFormData((prev: any) => ({
+      ...prev,
+      truck_id: truckId,
+      // Auto-fill driver if the truck has one assigned
+      driver_id: selectedTruck?.driver_id || prev.driver_id
+    }));
+  };
+
+  const filteredDeliveries = deliveries.filter(d => 
+    d.bl_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.truck_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.operator_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectedAllocation = allocations.find(a => a.id === formData.allocation_id);
 
   return (
     <div className="space-y-6">
@@ -19,7 +134,7 @@ export const Logistics = () => {
           <p className="text-muted-foreground text-sm">Manage truck dispatches and generate delivery notes (BL).</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => handleOpenModal()}
           className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
         >
           <Plus size={18} />
@@ -27,13 +142,15 @@ export const Logistics = () => {
         </button>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
         <div className="p-4 border-b border-border flex gap-4">
            <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <input 
               type="text" 
-              placeholder="Search BL number or truck plate..."
+              placeholder="Search BL, Truck or Operator..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -48,10 +165,16 @@ export const Logistics = () => {
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Load</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {deliveries.map((del) => (
+              {filteredDeliveries.length === 0 && (
+                <tr>
+                   <td colSpan={7} className="p-8 text-center text-muted-foreground">No dispatches found. Create one to get started.</td>
+                </tr>
+              )}
+              {filteredDeliveries.map((del) => (
                 <tr key={del.id} className="hover:bg-muted/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -73,8 +196,8 @@ export const Logistics = () => {
                         <TruckIcon size={14} />
                       </div>
                       <div>
-                        <p className="text-sm font-mono font-medium text-foreground">{del.truck_plate}</p>
-                        <p className="text-xs text-muted-foreground">{del.driver_name}</p>
+                        <p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'No Truck'}</p>
+                        <p className="text-xs text-muted-foreground">{del.driver_name || 'No Driver'}</p>
                       </div>
                     </div>
                   </td>
@@ -85,7 +208,23 @@ export const Logistics = () => {
                     <StatusBadge status={del.status} />
                   </td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">
-                    {new Date(del.delivery_date).toLocaleDateString()}
+                    {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-6 py-4 text-right flex justify-end gap-2">
+                    <button 
+                      onClick={() => handleOpenModal(del)}
+                      className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+                      title="Edit Dispatch"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(del.id)}
+                      className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
+                      title="Delete Dispatch"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -96,64 +235,176 @@ export const Logistics = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden border border-border">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="font-semibold text-foreground">Dispatch New Truck</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">&times;</button>
+              <h3 className="font-semibold text-foreground">{formData.id ? 'Edit Dispatch' : 'New Dispatch'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-card">
-              <div className="space-y-4">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assignment</h4>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Operator / Allocation</label>
-                  <select className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground">
-                    <option>Select Allocation...</option>
-                    <option>GIE And Suxali (Thiès) - 460T Rem.</option>
-                  </select>
+            
+            <form onSubmit={handleSave}>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-card">
+                
+                {/* Left Column: Allocation Info */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                    <MapPin size={14} /> Assignment
+                  </h4>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Select Allocation / Operator</label>
+                    <select 
+                      required
+                      className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
+                      value={formData.allocation_id || ''}
+                      onChange={(e) => setFormData({...formData, allocation_id: e.target.value})}
+                    >
+                      <option value="">Choose Operator...</option>
+                      {allocations.map(alloc => (
+                        <option key={alloc.id} value={alloc.id}>
+                          {alloc.operator_name} ({alloc.region_name})
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {selectedAllocation ? (
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-center bg-muted/30 p-3 rounded-lg border border-border border-dashed">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Target</span>
+                            <span className="font-mono text-sm font-medium text-foreground">{selectedAllocation.target_tonnage} T</span>
+                        </div>
+                        <div className="flex flex-col border-l border-border">
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Delivered</span>
+                            <span className="font-mono text-sm font-medium text-primary">{selectedAllocation.delivered_tonnage} T</span>
+                        </div>
+                        <div className="flex flex-col border-l border-border">
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Remaining</span>
+                            <span className="font-mono text-sm font-medium text-foreground">
+                                {selectedAllocation.target_tonnage - selectedAllocation.delivered_tonnage} T
+                            </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Shows Operators with active quotas.
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                     <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-foreground">BL Number</span>
+                        <button 
+                          type="button" 
+                          onClick={() => setFormData({...formData, bl_number: generateBL()})}
+                          className="text-xs flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <RefreshCw size={12} /> Regenerate
+                        </button>
+                     </div>
+                     <input 
+                       type="text" 
+                       required
+                       readOnly
+                       value={formData.bl_number || ''}
+                       className="w-full bg-background font-mono font-bold text-center tracking-widest border border-input rounded-md py-2"
+                     />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Destination</label>
-                  <input type="text" disabled value="Thiès Nord, Thiès" className="w-full bg-muted rounded-lg border border-border p-2 text-sm text-muted-foreground" />
+                
+                {/* Right Column: Transport */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                    <TruckIcon size={14} /> Transport Details
+                  </h4>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Truck (Plate Number)</label>
+                    <select 
+                      required
+                      className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
+                      value={formData.truck_id || ''}
+                      onChange={(e) => handleTruckChange(e.target.value)}
+                    >
+                       <option value="">Select Truck...</option>
+                       {trucks.map(t => (
+                         <option key={t.id} value={t.id}>{t.plate_number} ({t.capacity_tonnes}T)</option>
+                       ))}
+                    </select>
+                  </div>
+
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Driver</label>
+                     <select 
+                       required
+                       className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
+                       value={formData.driver_id || ''}
+                       onChange={(e) => setFormData({...formData, driver_id: e.target.value})}
+                    >
+                       <option value="">Select Driver...</option>
+                       {drivers.map(d => (
+                         <option key={d.id} value={d.id}>{d.name}</option>
+                       ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Load (Tonnes)</label>
+                      <input 
+                        type="number" 
+                        required
+                        className="w-full rounded-lg border border-input bg-background p-2 text-sm text-foreground" 
+                        placeholder="0.00"
+                        value={formData.tonnage_loaded || ''}
+                        onChange={(e) => setFormData({...formData, tonnage_loaded: e.target.value})}
+                      />
+                     </div>
+                     <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Date</label>
+                      <div className="relative">
+                        <input 
+                          type="date" 
+                          required
+                          className="w-full rounded-lg border border-input bg-background p-2 text-sm text-foreground"
+                          value={formData.delivery_date || ''}
+                          onChange={(e) => setFormData({...formData, delivery_date: e.target.value})}
+                        />
+                      </div>
+                     </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Status</label>
+                    <select 
+                       className="w-full rounded-lg border border-input bg-background p-2 text-sm text-foreground"
+                       value={formData.validation_status || 'DRAFT'}
+                       onChange={(e) => setFormData({...formData, validation_status: e.target.value})}
+                    >
+                      <option value="DRAFT">Draft</option>
+                      <option value="IN_TRANSIT">In Transit</option>
+                      <option value="DELIVERED">Delivered</option>
+                      <option value="VALIDATED">Validated</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-              
-              <div className="space-y-4">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transport Details</h4>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Truck</label>
-                  <select className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground">
-                     <option>Select Truck...</option>
-                     <option>DK-2045-BB (40T)</option>
-                  </select>
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-foreground mb-1">Driver</label>
-                   <select className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground">
-                     <option>Select Driver...</option>
-                     <option>Amadou Fall</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Tonnage</label>
-                    <input type="number" className="w-full rounded-lg border border-input bg-background p-2 text-sm text-foreground" placeholder="0.00" />
-                   </div>
-                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">BL Number</label>
-                    <div className="flex">
-                      <input type="text" value="BL250003" readOnly className="w-full rounded-l-lg border border-border bg-muted p-2 text-sm text-muted-foreground" />
-                      <button className="bg-muted border border-l-0 border-border rounded-r-lg px-2 text-xs text-primary font-medium hover:bg-muted/80">
-                        GEN
-                      </button>
-                    </div>
-                   </div>
-                </div>
+
+              <div className="p-4 bg-muted/30 border-t border-border flex justify-end gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)} 
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg shadow-sm flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  {formData.id ? 'Update Dispatch' : 'Confirm Dispatch'}
+                </button>
               </div>
-            </div>
-            <div className="p-4 bg-muted/30 border-t border-border flex justify-end gap-2">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg shadow-sm">Confirm Dispatch</button>
-            </div>
+            </form>
           </div>
         </div>
       )}
@@ -162,7 +413,6 @@ export const Logistics = () => {
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
-  // Can use semantic maps or hardcoded distinct colors
   const styles: any = {
     DRAFT: 'bg-secondary text-secondary-foreground',
     IN_TRANSIT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200',
@@ -172,7 +422,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.DRAFT}`}>
-      {status.replace('_', ' ')}
+      {status?.replace('_', ' ') || 'DRAFT'}
     </span>
   );
 };

@@ -1,6 +1,16 @@
 
+
 import { supabase } from '../lib/supabaseClient';
 import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator } from '../types';
+
+// Helper to stringify errors safely
+const safeLog = (prefix: string, error: any) => {
+  try {
+    console.error(prefix, JSON.stringify(error, null, 2));
+  } catch (e) {
+    console.error(prefix, error);
+  }
+};
 
 export const db = {
   getStats: async () => {
@@ -9,7 +19,7 @@ export const db = {
       .from('allocations')
       .select('id, target_tonnage');
     
-    if (allocError) console.error('Error fetching allocations:', JSON.stringify(allocError));
+    if (allocError) safeLog('Error fetching allocations:', allocError);
     const totalTarget = allocations?.reduce((sum, a) => sum + Number(a.target_tonnage), 0) || 0;
 
     // 2. Get deliveries for calc
@@ -18,7 +28,7 @@ export const db = {
       .from('deliveries')
       .select('tonnage_delivered, validation_status, allocation_id');
     
-    if (delError) console.error('Error fetching deliveries:', JSON.stringify(delError));
+    if (delError) safeLog('Error fetching deliveries:', delError);
 
     const totalDelivered = deliveries
       ?.filter((d: any) => d.validation_status === 'VALIDATED')
@@ -54,7 +64,7 @@ export const db = {
       `);
 
     if (error) {
-      console.error('Error fetching allocations view:', JSON.stringify(error));
+      safeLog('Error fetching allocations view:', error);
       return [];
     }
 
@@ -97,7 +107,7 @@ export const db = {
       `);
 
     if (error) {
-      console.error('Error fetching deliveries view:', JSON.stringify(error));
+      safeLog('Error fetching deliveries view:', error);
       return [];
     }
 
@@ -178,7 +188,7 @@ export const db = {
       .order('plate_number');
 
     if (truckError) {
-      console.error('Error fetching trucks:', JSON.stringify(truckError));
+      safeLog('Error fetching trucks:', truckError);
       return [];
     }
 
@@ -190,7 +200,7 @@ export const db = {
       .not('truck_id', 'is', null);
 
     if (driverError) {
-       console.error('Error fetching drivers for trucks:', JSON.stringify(driverError));
+       safeLog('Error fetching drivers for trucks:', driverError);
     }
 
     // 3. Map
@@ -231,12 +241,22 @@ export const db = {
   },
 
   getDrivers: async (): Promise<Driver[]> => {
-    const { data, error } = await supabase.from('drivers').select('*').order('name');
-    if (error) return [];
+    // Fetch drivers and join with trucks to get plate number
+    const { data, error } = await supabase
+      .from('drivers')
+      .select('*, trucks:truck_id(plate_number)')
+      .order('name');
+      
+    if (error) {
+      safeLog('Error fetching drivers:', error);
+      return [];
+    }
+    
     // Map phone_normalized to phone for UI consistency
     return data.map((d: any) => ({
       ...d,
-      phone: d.phone_normalized
+      phone: d.phone_normalized,
+      truck_plate: d.trucks?.plate_number
     })) as Driver[];
   },
 
@@ -260,7 +280,7 @@ export const db = {
     // Sort by phase descending since created_at is missing in schema
     const { data, error } = await supabase.from('project').select('*').order('numero_phase', { ascending: false });
     if (error) {
-      console.error('Error fetching projects:', JSON.stringify(error));
+      safeLog('Error fetching projects:', error);
       return [];
     }
     return (data as any[]) || [];
@@ -272,7 +292,7 @@ export const db = {
       .select('project_id');
     
     if (error) {
-       console.error('Error checking project usage:', error);
+       safeLog('Error checking project usage:', error);
        return new Set();
     }
     
@@ -290,7 +310,7 @@ export const db = {
       .order('name');
       
     if (opError) {
-      console.error('Error fetching operators:', JSON.stringify(opError));
+      safeLog('Error fetching operators:', opError);
       return [];
     }
 
