@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../services/db';
-import { TrendingUp, Truck, AlertTriangle, CheckCircle } from 'lucide-react';
+import { TrendingUp, Truck, AlertTriangle, CheckCircle, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export const Dashboard = () => {
   const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, alerts: 0 });
@@ -102,24 +103,43 @@ export const Dashboard = () => {
         </div>
 
         {/* Quick Activity / Recent Feed */}
-        <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
-                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
-                  <Truck size={14} />
+        <div className="flex flex-col gap-6">
+           {/* Shortcuts Card */}
+          <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+             <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+             <Link 
+               to="/settings" 
+               className="flex items-center gap-4 p-4 rounded-lg bg-muted/50 hover:bg-muted border border-border transition-colors group"
+             >
+                <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Users size={20} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Truck dispatched</p>
-                  <p className="text-xs text-muted-foreground">BL25000{i} • 2 hours ago</p>
+                   <h3 className="font-medium text-foreground">Manage Operators</h3>
+                   <p className="text-xs text-muted-foreground">Add new GIE or individual operators</p>
                 </div>
-              </div>
-            ))}
+             </Link>
           </div>
-          <button className="mt-4 w-full py-2 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors font-medium">
-            View All Logs
-          </button>
+
+          <div className="bg-card p-6 rounded-xl border border-border shadow-sm flex-1">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
+                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                    <Truck size={14} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Truck dispatched</p>
+                    <p className="text-xs text-muted-foreground">BL25000{i} • 2 hours ago</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="mt-4 w-full py-2 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors font-medium">
+              View All Logs
+            </button>
+          </div>
         </div>
       </div>
     </div>

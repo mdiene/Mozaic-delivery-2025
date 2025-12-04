@@ -26,6 +26,7 @@ export interface Operator {
   id: string;
   name: string;
   commune_id: string;
+  commune_name?: string;
   is_coop: boolean;
   coop_name?: string;
   phone?: string;

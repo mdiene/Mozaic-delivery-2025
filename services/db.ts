@@ -211,8 +211,22 @@ export const db = {
   },
 
   getOperators: async (): Promise<Operator[]> => {
-    const { data } = await supabase.from('operators').select('*').order('name');
-    return (data as Operator[]) || [];
+    const { data, error } = await supabase
+      .from('operators')
+      .select('*, communes(name)')
+      .order('name');
+      
+    if (error) {
+      console.error('Error fetching operators:', error);
+      return [];
+    }
+
+    return (data || []).map((op: any) => ({
+      ...op,
+      commune_name: op.communes?.name || 'Unknown',
+      is_coop: op.operateur_coop_gie, // Map DB column to frontend prop
+      phone: op.contact_info?.phone // Extract phone from jsonb
+    })) as Operator[];
   },
 
   // Generic CRUD
