@@ -8,7 +8,7 @@ export const db = {
       .from('allocations')
       .select('id, target_tonnage');
     
-    if (allocError) console.error('Error fetching allocations:', allocError);
+    if (allocError) console.error('Error fetching allocations:', JSON.stringify(allocError));
     const totalTarget = allocations?.reduce((sum, a) => sum + Number(a.target_tonnage), 0) || 0;
 
     // 2. Get deliveries for calc
@@ -16,7 +16,7 @@ export const db = {
       .from('deliveries')
       .select('tonnage_delivered, status, allocation_id');
     
-    if (delError) console.error('Error fetching deliveries:', delError);
+    if (delError) console.error('Error fetching deliveries:', JSON.stringify(delError));
 
     const totalDelivered = deliveries
       ?.filter((d: any) => d.status === 'VALIDATED')
@@ -52,7 +52,7 @@ export const db = {
       `);
 
     if (error) {
-      console.error(error);
+      console.error('Error fetching allocations view:', JSON.stringify(error));
       return [];
     }
 
@@ -94,7 +94,7 @@ export const db = {
       `);
 
     if (error) {
-      console.error(error);
+      console.error('Error fetching deliveries view:', JSON.stringify(error));
       return [];
     }
 
@@ -136,15 +136,15 @@ export const db = {
 
     // Sum planned
     allocations?.forEach((a: any) => {
-      if (chartData[a.region_id]) {
+      if (a.region_id && chartData[a.region_id]) {
         chartData[a.region_id].planned += Number(a.target_tonnage);
       }
     });
 
     // Sum delivered
     deliveries?.forEach((d: any) => {
-      const rid = d.allocations.region_id;
-      if (chartData[rid]) {
+      const rid = d.allocations?.region_id;
+      if (rid && chartData[rid]) {
         chartData[rid].delivered += Number(d.tonnage_delivered);
       }
     });
