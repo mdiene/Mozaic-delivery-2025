@@ -5,58 +5,153 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MASAE Delivery Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              primary: {
-                50: '#ecfdf5',
-                100: '#d1fae5',
-                200: '#a7f3d0',
-                300: '#6ee7b7',
-                400: '#34d399',
-                500: '#10b981',
-                600: '#059669',
-                700: '#047857',
-                800: '#065f46',
-                900: '#064e3b',
-              },
-              secondary: {
-                50: '#f8fafc',
-                100: '#f1f5f9',
-                200: '#e2e8f0',
-                300: '#cbd5e1',
-                400: '#94a3b8',
-                500: '#64748b',
-                600: '#475569',
-                700: '#334155',
-                800: '#1e293b',
-                900: '#0f172a',
-              }
-            }
-          }
-        }
-      }
-    </script>
     <style>
+      :root {
+        /* Default Theme (matches original hardcoded styles) */
+        --background: #f8fafc; /* slate-50 */
+        --foreground: #0f172a; /* slate-900 */
+        --card: #ffffff;
+        --card-foreground: #0f172a;
+        --popover: #ffffff;
+        --popover-foreground: #0f172a;
+        --primary: #059669; /* emerald-600 */
+        --primary-foreground: #ffffff;
+        --secondary: #f1f5f9; /* slate-100 */
+        --secondary-foreground: #0f172a;
+        --muted: #f1f5f9;
+        --muted-foreground: #64748b; /* slate-500 */
+        --accent: #f1f5f9;
+        --accent-foreground: #0f172a;
+        --destructive: #ef4444;
+        --destructive-foreground: #ffffff;
+        --border: #e2e8f0; /* slate-200 */
+        --input: #e2e8f0;
+        --ring: #059669;
+        --radius: 0.5rem;
+        
+        /* Sidebar specific for Default Theme (Dark) */
+        --sidebar: #0f172a; /* slate-900 */
+        --sidebar-foreground: #f8fafc; /* slate-50 */
+        --sidebar-primary: #059669;
+        --sidebar-primary-foreground: #ffffff;
+        --sidebar-accent: #1e293b; /* slate-800 */
+        --sidebar-accent-foreground: #ffffff;
+        --sidebar-border: #1e293b;
+        --sidebar-ring: #059669;
+      }
+
+      [data-theme="shadcn"] {
+        --background: oklch(0.9911 0 0);
+        --foreground: oklch(0.2046 0 0);
+        --card: oklch(0.9911 0 0);
+        --card-foreground: oklch(0.2046 0 0);
+        --popover: oklch(0.9911 0 0);
+        --popover-foreground: oklch(0.4386 0 0);
+        --primary: oklch(0.8348 0.1302 160.9080);
+        --primary-foreground: oklch(0.2626 0.0147 166.4589);
+        --secondary: oklch(0.9940 0 0);
+        --secondary-foreground: oklch(0.2046 0 0);
+        --muted: oklch(0.9461 0 0);
+        --muted-foreground: oklch(0.2435 0 0);
+        --accent: oklch(0.9461 0 0);
+        --accent-foreground: oklch(0.2435 0 0);
+        --destructive: oklch(0.5523 0.1927 32.7272);
+        --border: oklch(0.9037 0 0);
+        --input: oklch(0.9731 0 0);
+        --ring: oklch(0.8348 0.1302 160.9080);
+        --chart-1: oklch(0.8348 0.1302 160.9080);
+        --chart-2: oklch(0.6231 0.1880 259.8145);
+        --chart-3: oklch(0.6056 0.2189 292.7172);
+        --chart-4: oklch(0.7686 0.1647 70.0804);
+        --chart-5: oklch(0.6959 0.1491 162.4796);
+        --sidebar: oklch(0.9911 0 0);
+        --sidebar-foreground: oklch(0.5452 0 0);
+        --sidebar-primary: oklch(0.8348 0.1302 160.9080);
+        --sidebar-primary-foreground: oklch(0.2626 0.0147 166.4589);
+        --sidebar-accent: oklch(0.9461 0 0);
+        --sidebar-accent-foreground: oklch(0.2435 0 0);
+        --sidebar-border: oklch(0.9037 0 0);
+        --sidebar-ring: oklch(0.8348 0.1302 160.9080);
+        --destructive-foreground: oklch(1.0000 0 0);
+        --radius: 0.5rem;
+      }
+
       /* Custom scrollbar for webkit */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
+        background: var(--muted-foreground);
         border-radius: 3px;
+        opacity: 0.5;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
+        background: var(--foreground);
       }
     </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              border: 'var(--border)',
+              input: 'var(--input)',
+              ring: 'var(--ring)',
+              background: 'var(--background)',
+              foreground: 'var(--foreground)',
+              primary: {
+                DEFAULT: 'var(--primary)',
+                foreground: 'var(--primary-foreground)',
+              },
+              secondary: {
+                DEFAULT: 'var(--secondary)',
+                foreground: 'var(--secondary-foreground)',
+              },
+              destructive: {
+                DEFAULT: 'var(--destructive)',
+                foreground: 'var(--destructive-foreground)',
+              },
+              muted: {
+                DEFAULT: 'var(--muted)',
+                foreground: 'var(--muted-foreground)',
+              },
+              accent: {
+                DEFAULT: 'var(--accent)',
+                foreground: 'var(--accent-foreground)',
+              },
+              popover: {
+                DEFAULT: 'var(--popover)',
+                foreground: 'var(--popover-foreground)',
+              },
+              card: {
+                DEFAULT: 'var(--card)',
+                foreground: 'var(--card-foreground)',
+              },
+              sidebar: {
+                DEFAULT: 'var(--sidebar)',
+                foreground: 'var(--sidebar-foreground)',
+                primary: 'var(--sidebar-primary)',
+                'primary-foreground': 'var(--sidebar-primary-foreground)',
+                accent: 'var(--sidebar-accent)',
+                'accent-foreground': 'var(--sidebar-accent-foreground)',
+                border: 'var(--sidebar-border)',
+                ring: 'var(--sidebar-ring)',
+              },
+            },
+            borderRadius: {
+              lg: 'var(--radius)',
+              md: 'calc(var(--radius) - 2px)',
+              sm: 'calc(var(--radius) - 4px)',
+            },
+          }
+        }
+      }
+    </script>
   <script type="importmap">
 {
   "imports": {
@@ -75,7 +170,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-50 text-slate-900 antialiased font-sans">
+  <body class="bg-background text-foreground antialiased font-sans">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

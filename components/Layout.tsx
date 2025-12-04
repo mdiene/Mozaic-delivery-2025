@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -10,16 +10,16 @@ import {
   User, 
   LogOut,
   Bell,
-  Search
+  Search,
+  Palette
 } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
-const Sidebar = () => {
+const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v: boolean) => void }) => {
   const location = useLocation();
-  const [expanded, setExpanded] = useState(false);
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -31,14 +31,14 @@ const Sidebar = () => {
 
   return (
     <aside 
-      className={`fixed left-0 top-0 z-50 h-screen bg-slate-900 text-white transition-all duration-300 ease-in-out ${expanded ? 'w-64' : 'w-20'}`}
+      className={`fixed left-0 top-0 z-50 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out ${expanded ? 'w-64' : 'w-20'}`}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
       {/* Logo Area */}
-      <div className="flex h-16 items-center justify-center border-b border-slate-800">
+      <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-emerald-500 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-500/30">
+          <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center font-bold text-sidebar-primary-foreground shadow-lg shadow-black/10">
             M
           </div>
           {expanded && (
@@ -59,12 +59,12 @@ const Sidebar = () => {
               to={item.path}
               className={`group flex items-center gap-4 rounded-lg px-3 py-3 transition-all duration-200
                 ${isActive 
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/20' 
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-emerald-400'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md' 
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 }
               `}
             >
-              <item.icon size={22} className={`${isActive ? 'text-white' : 'group-hover:text-emerald-400'} min-w-[22px]`} />
+              <item.icon size={22} className={`${isActive ? 'text-sidebar-primary-foreground' : 'group-hover:text-sidebar-accent-foreground'} min-w-[22px]`} />
               <span className={`whitespace-nowrap transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
                 {item.name}
               </span>
@@ -74,19 +74,19 @@ const Sidebar = () => {
       </nav>
 
       {/* Footer / User Profile */}
-      <div className="absolute bottom-0 w-full border-t border-slate-800 p-4">
+      <div className="absolute bottom-0 w-full border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 text-slate-300">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground">
             <User size={20} />
           </div>
           {expanded && (
             <div className="flex flex-col overflow-hidden">
               <span className="truncate text-sm font-medium">Admin User</span>
-              <span className="truncate text-xs text-slate-500">Logistics Manager</span>
+              <span className="truncate text-xs text-sidebar-foreground/60">Logistics Manager</span>
             </div>
           )}
           {expanded && (
-            <button className="ml-auto text-slate-500 hover:text-red-400">
+            <button className="ml-auto text-sidebar-foreground/60 hover:text-destructive">
               <LogOut size={18} />
             </button>
           )}
@@ -96,34 +96,48 @@ const Sidebar = () => {
   );
 };
 
-const Header = () => {
+const Header = ({ theme, setTheme }: { theme: string, setTheme: (t: string) => void }) => {
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/80 px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md">
       <div className="flex items-center gap-4">
-        <button className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-md">
+        <button className="lg:hidden p-2 text-muted-foreground hover:bg-muted rounded-md">
            <Menu size={20} />
         </button>
-        <div className="hidden md:flex items-center text-sm text-slate-500">
-          <span className="hover:text-slate-800 cursor-pointer">Project Phase 1</span>
+        <div className="hidden md:flex items-center text-sm text-muted-foreground">
+          <span className="hover:text-foreground cursor-pointer">Project Phase 1</span>
           <span className="mx-2">/</span>
-          <span className="font-medium text-slate-800">Overview</span>
+          <span className="font-medium text-foreground">Overview</span>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
+        
+        {/* Theme Toggle */}
+        <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-2 py-1 border border-border">
+          <Palette size={14} className="text-muted-foreground" />
+          <select 
+            value={theme} 
+            onChange={(e) => setTheme(e.target.value)}
+            className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer"
+          >
+            <option value="default">Default Theme</option>
+            <option value="shadcn">Modern Theme</option>
+          </select>
+        </div>
+
         <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
           <input 
             type="text" 
             placeholder="Search BL, Operator..." 
-            className="h-9 w-64 rounded-full border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="h-9 w-64 rounded-full border border-input bg-muted/30 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
-        <button className="relative rounded-full bg-slate-50 p-2 text-slate-600 hover:bg-slate-100 hover:text-emerald-600 transition-colors">
+        <button className="relative rounded-full bg-muted/30 p-2 text-muted-foreground hover:bg-muted hover:text-primary transition-colors">
           <Bell size={20} />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500"></span>
+          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive"></span>
         </button>
-        <div className="h-8 w-8 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-700 flex items-center justify-center font-semibold text-xs">
+        <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-semibold text-xs">
           AD
         </div>
       </div>
@@ -132,11 +146,23 @@ const Header = () => {
 };
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [theme, setTheme] = useState('default');
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'shadcn') {
+      root.setAttribute('data-theme', 'shadcn');
+    } else {
+      root.removeAttribute('data-theme');
+    }
+  }, [theme]);
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="pl-20 transition-all duration-300">
-        <Header />
+    <div className="min-h-screen bg-background text-foreground">
+      <Sidebar expanded={expanded} setExpanded={setExpanded} />
+      <div className={`transition-all duration-300 ${expanded ? 'pl-64' : 'pl-20'}`}>
+        <Header theme={theme} setTheme={setTheme} />
         <main className="p-6 md:p-8 animate-fade-in">
           {children}
         </main>

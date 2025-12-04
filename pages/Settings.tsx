@@ -83,21 +83,21 @@ export const Settings = () => {
     setIsModalOpen(true);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading Settings...</div>;
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Settings...</div>;
 
   return (
     <div className="space-y-6">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold text-slate-800">System Settings</h1>
-        <p className="text-slate-500 text-sm">Manage configuration, reference data, and projects.</p>
+        <h1 className="text-2xl font-bold text-foreground">System Settings</h1>
+        <p className="text-muted-foreground text-sm">Manage configuration, reference data, and projects.</p>
       </div>
 
       {/* Main Tabs */}
-      <div className="flex gap-4 border-b border-slate-200">
+      <div className="flex gap-4 border-b border-border">
         <button
           onClick={() => setActiveTab('geographic')}
           className={`pb-3 px-1 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === 'geographic' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            activeTab === 'geographic' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           Geographic Data
@@ -105,7 +105,7 @@ export const Settings = () => {
         <button
           onClick={() => setActiveTab('projects')}
           className={`pb-3 px-1 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === 'projects' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            activeTab === 'projects' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           Projects
@@ -113,21 +113,21 @@ export const Settings = () => {
       </div>
 
       {activeTab === 'projects' && (
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-              <Briefcase size={20} className="text-emerald-600" /> Projects
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Briefcase size={20} className="text-primary" /> Projects
             </h2>
             <button 
               onClick={() => openModal('project')}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-700"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm hover:bg-primary/90"
             >
               <Plus size={16} /> Add Project
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold">
+              <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
                 <tr>
                   <th className="px-4 py-3">Market #</th>
                   <th className="px-4 py-3">Disp. #</th>
@@ -136,15 +136,15 @@ export const Settings = () => {
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {projects.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-800">{p.numero_marche}</td>
-                    <td className="px-4 py-3 text-slate-600">{p.numero_bon_disposition}</td>
-                    <td className="px-4 py-3 text-slate-600">{p.numero_phase}</td>
-                    <td className="px-4 py-3 text-slate-800 font-mono">{p.tonnage_total} T</td>
+                  <tr key={p.id} className="hover:bg-muted/50">
+                    <td className="px-4 py-3 font-medium text-foreground">{p.numero_marche}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.numero_bon_disposition}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.numero_phase}</td>
+                    <td className="px-4 py-3 text-foreground font-mono">{p.tonnage_total} T</td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => handleDelete('project', p.id)} className="text-slate-400 hover:text-red-500">
+                      <button onClick={() => handleDelete('project', p.id)} className="text-muted-foreground hover:text-destructive">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -159,11 +159,11 @@ export const Settings = () => {
       {activeTab === 'geographic' && (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar for Geo Tabs */}
-          <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm h-fit">
+          <div className="bg-card p-2 rounded-xl border border-border shadow-sm h-fit">
             <button
               onClick={() => setGeoTab('regions')}
               className={`w-full flex items-center justify-between p-3 rounded-lg text-sm mb-1 ${
-                geoTab === 'regions' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-600 hover:bg-slate-50'
+                geoTab === 'regions' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               <span className="flex items-center gap-2"><Map size={16} /> Regions</span>
@@ -172,7 +172,7 @@ export const Settings = () => {
             <button
               onClick={() => setGeoTab('departments')}
               className={`w-full flex items-center justify-between p-3 rounded-lg text-sm mb-1 ${
-                geoTab === 'departments' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-600 hover:bg-slate-50'
+                geoTab === 'departments' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               <span className="flex items-center gap-2"><MapPin size={16} /> Departments</span>
@@ -181,7 +181,7 @@ export const Settings = () => {
             <button
               onClick={() => setGeoTab('communes')}
               className={`w-full flex items-center justify-between p-3 rounded-lg text-sm ${
-                geoTab === 'communes' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-600 hover:bg-slate-50'
+                geoTab === 'communes' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               <span className="flex items-center gap-2"><MapPin size={16} /> Communes</span>
@@ -190,12 +190,12 @@ export const Settings = () => {
           </div>
 
           {/* Content Area */}
-          <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm min-h-[400px]">
+          <div className="lg:col-span-3 bg-card p-6 rounded-xl border border-border shadow-sm min-h-[400px]">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold text-slate-800 capitalize">{geoTab}</h2>
+              <h2 className="text-lg font-semibold text-foreground capitalize">{geoTab}</h2>
               <button 
                 onClick={() => openModal(geoTab.slice(0, -1))} // remove 's'
-                className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-700"
+                className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm hover:bg-primary/90"
               >
                 <Plus size={16} /> Add {geoTab.slice(0, -1)}
               </button>
@@ -203,7 +203,7 @@ export const Settings = () => {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold">
+                <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
                   <tr>
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Code</th>
@@ -211,33 +211,33 @@ export const Settings = () => {
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {geoTab === 'regions' && regions.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
-                      <td className="px-4 py-3 font-mono text-slate-500 text-xs">{item.code}</td>
+                    <tr key={item.id} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
+                      <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleDelete('regions', item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                        <button onClick={() => handleDelete('regions', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
                   {geoTab === 'departments' && departments.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
-                      <td className="px-4 py-3 font-mono text-slate-500 text-xs">{item.code}</td>
-                      <td className="px-4 py-3 text-sm text-slate-500">{regions.find(r => r.id === item.region_id)?.name}</td>
+                    <tr key={item.id} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
+                      <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{regions.find(r => r.id === item.region_id)?.name}</td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleDelete('departments', item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                        <button onClick={() => handleDelete('departments', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
                   {geoTab === 'communes' && communes.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
-                      <td className="px-4 py-3 font-mono text-slate-500 text-xs">{item.code}</td>
-                      <td className="px-4 py-3 text-sm text-slate-500">{departments.find(d => d.id === item.department_id)?.name}</td>
+                    <tr key={item.id} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
+                      <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{departments.find(d => d.id === item.department_id)?.name}</td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleDelete('communes', item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                        <button onClick={() => handleDelete('communes', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
@@ -250,11 +250,11 @@ export const Settings = () => {
 
       {/* Generic Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
-              <h3 className="font-semibold text-slate-800 capitalize">Add {modalType}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border border-border">
+            <div className="flex justify-between items-center p-4 border-b border-border bg-muted/30">
+              <h3 className="font-semibold text-foreground capitalize">Add {modalType}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="p-6 space-y-4">
               
@@ -262,15 +262,15 @@ export const Settings = () => {
               {modalType !== 'project' && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
-                    <input required className="w-full border border-slate-300 rounded-lg p-2 text-sm" 
+                    <label className="block text-sm font-medium text-foreground mb-1">Name</label>
+                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                       value={formData.name || ''} 
                       onChange={e => setFormData({...formData, name: e.target.value})} 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Code</label>
-                    <input required className="w-full border border-slate-300 rounded-lg p-2 text-sm" 
+                    <label className="block text-sm font-medium text-foreground mb-1">Code</label>
+                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                       value={formData.code || ''} 
                       onChange={e => setFormData({...formData, code: e.target.value})} 
                     />
@@ -281,8 +281,8 @@ export const Settings = () => {
               {/* Specific Logic */}
               {modalType === 'department' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Region</label>
-                  <select required className="w-full border border-slate-300 rounded-lg p-2 text-sm"
+                  <label className="block text-sm font-medium text-foreground mb-1">Region</label>
+                  <select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     onChange={e => setFormData({...formData, region_id: e.target.value})}
                   >
                     <option value="">Select Region...</option>
@@ -293,8 +293,8 @@ export const Settings = () => {
 
               {modalType === 'commune' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
-                  <select required className="w-full border border-slate-300 rounded-lg p-2 text-sm"
+                  <label className="block text-sm font-medium text-foreground mb-1">Department</label>
+                  <select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     onChange={e => setFormData({...formData, department_id: e.target.value})}
                   >
                     <option value="">Select Department...</option>
@@ -307,38 +307,38 @@ export const Settings = () => {
               {modalType === 'project' && (
                  <>
                    <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Numero Marche</label>
-                    <input required className="w-full border border-slate-300 rounded-lg p-2 text-sm" 
+                    <label className="block text-sm font-medium text-foreground mb-1">Numero Marche</label>
+                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                       value={formData.numero_marche || ''} 
                       onChange={e => setFormData({...formData, numero_marche: e.target.value})} 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Numero Bon Disposition</label>
-                    <input required className="w-full border border-slate-300 rounded-lg p-2 text-sm" 
+                    <label className="block text-sm font-medium text-foreground mb-1">Numero Bon Disposition</label>
+                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                       value={formData.numero_bon_disposition || ''} 
                       onChange={e => setFormData({...formData, numero_bon_disposition: e.target.value})} 
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Phase</label>
-                      <input type="number" required className="w-full border border-slate-300 rounded-lg p-2 text-sm" 
+                      <label className="block text-sm font-medium text-foreground mb-1">Phase</label>
+                      <input type="number" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                         value={formData.numero_phase || ''} 
                         onChange={e => setFormData({...formData, numero_phase: e.target.value})} 
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Tonnage Total</label>
-                      <input type="number" required className="w-full border border-slate-300 rounded-lg p-2 text-sm" 
+                      <label className="block text-sm font-medium text-foreground mb-1">Tonnage Total</label>
+                      <input type="number" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                         value={formData.tonnage_total || ''} 
                         onChange={e => setFormData({...formData, tonnage_total: e.target.value})} 
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Date Mise Disposition</label>
-                    <input type="date" required className="w-full border border-slate-300 rounded-lg p-2 text-sm" 
+                    <label className="block text-sm font-medium text-foreground mb-1">Date Mise Disposition</label>
+                    <input type="date" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
                       value={formData.date_mise_disposition || ''} 
                       onChange={e => setFormData({...formData, date_mise_disposition: e.target.value})} 
                     />
@@ -347,8 +347,8 @@ export const Settings = () => {
               )}
 
               <div className="pt-4 flex justify-end gap-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">Save</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90">Save</button>
               </div>
             </form>
           </div>
