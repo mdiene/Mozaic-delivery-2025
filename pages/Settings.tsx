@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
-import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone } from 'lucide-react';
+import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
 
 type Tab = 'geographic' | 'projects' | 'operators';
@@ -108,12 +109,14 @@ export const Settings = () => {
       if (modalType === 'operator') {
         payload.operateur_coop_gie = payload.is_coop; // Map frontend bool to DB column
         if (!payload.is_coop) payload.coop_name = null; // Clear coop name if individual
-        payload.contact_info = { phone: payload.phone }; // Map phone to jsonb
+        payload.contact_info = payload.phone; // Map phone directly to varchar column
+        // projet_id is already in payload from formData
         
         // Remove UI helper props
         delete payload.is_coop;
         delete payload.phone;
         delete payload.commune_name;
+        delete payload.project_name;
       }
       
       // Remove ID if it's empty or null to allow DB to generate it
@@ -212,58 +215,169 @@ export const Settings = () => {
                       <Phone size={14} /> Phone
                     </div>
                   </th>
+                  <th className="px-4 py-3">Project</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {operators.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">No operators found. Add one to get started.</td>
+                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No operators found. Add one to get started.</td>
                   </tr>
                 )}
-                {operators.map((op) => (
-                  <tr key={op.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">{op.name}</div>
-                      {op.is_coop && <div className="text-xs text-muted-foreground">{op.coop_name}</div>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        op.is_coop 
-                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200' 
-                        : 'bg-secondary text-secondary-foreground'
-                      }`}>
-                        {op.is_coop ? 'Cooperative / GIE' : 'Individual'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-foreground">{op.commune_name}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
-                      {op.phone ? (
-                        <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">
-                           {op.phone}
-                        </a>
-                      ) : (
-                        <span className="opacity-50">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right flex justify-end gap-2">
-                      <button 
-                        onClick={() => handleEdit('operator', op)} 
-                        className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                        title="Edit Operator"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete('operators', op.id)} 
-                        className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                        title="Delete Operator"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                
+                {/* Group Operators by Project */}
+                {projects.map((proj) => {
+                  const groupOps = operators.filter(op => op.projet_id === proj.id);
+                  if (groupOps.length === 0) return null;
+
+                  return (
+                    <React.Fragment key={proj.id}>
+                      <tr className="bg-muted/50 border-y border-border">
+                        <td colSpan={6} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
+                          Project: Phase {proj.numero_phase} {proj.numero_marche ? `- ${proj.numero_marche}` : ''}
+                        </td>
+                      </tr>
+                      {groupOps.map((op) => (
+                        <tr key={op.id} className="hover:bg-muted/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-foreground pl-4">{op.name}</div>
+                            {op.is_coop && <div className="text-xs text-muted-foreground pl-4">{op.coop_name}</div>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {op.is_coop ? (
+                              <div className="flex items-center gap-2" title="Cooperative / GIE">
+                                <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
+                                  <Building2 size={16} />
+                                </span>
+                                <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Coop</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2" title="Individual">
+                                <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-secondary text-secondary-foreground">
+                                  <User size={16} />
+                                </span>
+                                <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Indiv.</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground">{op.commune_name}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
+                            {op.phone ? (
+                              <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">
+                                {op.phone}
+                              </a>
+                            ) : (
+                              <span className="opacity-50">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground">
+                            {op.project_name !== '-' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
+                                {op.project_name}
+                              </span>
+                            ) : (
+                              <span className="opacity-50">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right flex justify-end gap-2">
+                            <button 
+                              onClick={() => handleEdit('operator', op)} 
+                              className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+                              title="Edit Operator"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete('operators', op.id)} 
+                              className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
+                              title="Delete Operator"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Unassigned Operators */}
+                {(() => {
+                  const unassignedOps = operators.filter(op => !op.projet_id);
+                  if (unassignedOps.length === 0) return null;
+
+                  return (
+                    <React.Fragment key="unassigned">
+                      <tr className="bg-muted/50 border-y border-border">
+                        <td colSpan={6} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
+                          Unassigned
+                        </td>
+                      </tr>
+                      {unassignedOps.map((op) => (
+                        <tr key={op.id} className="hover:bg-muted/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-foreground pl-4">{op.name}</div>
+                            {op.is_coop && <div className="text-xs text-muted-foreground pl-4">{op.coop_name}</div>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {op.is_coop ? (
+                              <div className="flex items-center gap-2" title="Cooperative / GIE">
+                                <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
+                                  <Building2 size={16} />
+                                </span>
+                                <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Coop</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2" title="Individual">
+                                <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-secondary text-secondary-foreground">
+                                  <User size={16} />
+                                </span>
+                                <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Indiv.</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground">{op.commune_name}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
+                            {op.phone ? (
+                              <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">
+                                {op.phone}
+                              </a>
+                            ) : (
+                              <span className="opacity-50">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground">
+                            {op.project_name !== '-' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
+                                {op.project_name}
+                              </span>
+                            ) : (
+                              <span className="opacity-50">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right flex justify-end gap-2">
+                            <button 
+                              onClick={() => handleEdit('operator', op)} 
+                              className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+                              title="Edit Operator"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete('operators', op.id)} 
+                              className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
+                              title="Delete Operator"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })()}
+
               </tbody>
             </table>
           </div>
@@ -393,43 +507,95 @@ export const Settings = () => {
                   <tr>
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Code</th>
-                    {geoTab !== 'regions' && <th className="px-4 py-3">Parent</th>}
+                    {/* Header logic adjusted since we now use group rows */}
+                    {geoTab === 'regions' && <th className="px-4 py-3"></th>}
+                    {geoTab === 'departments' && <th className="px-4 py-3">Region</th>}
+                    {geoTab === 'communes' && <th className="px-4 py-3">Department</th>}
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {geoTab === 'regions' && regions.map((item) => (
+                  
+                  {/* REGIONS */}
+                  {geoTab === 'regions' && regions
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((item) => (
                     <tr key={item.id} className="hover:bg-muted/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
+                      <td className="px-4 py-3"></td>
                       <td className="px-4 py-3 text-right flex justify-end gap-2">
                         <button onClick={() => handleEdit('regions', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete('regions', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
-                  {geoTab === 'departments' && departments.map((item) => (
-                    <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
-                      <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{regions.find(r => r.id === item.region_id)?.name}</td>
-                      <td className="px-4 py-3 text-right flex justify-end gap-2">
-                        <button onClick={() => handleEdit('departments', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('departments', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                      </td>
-                    </tr>
-                  ))}
-                  {geoTab === 'communes' && communes.map((item) => (
-                    <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
-                      <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{departments.find(d => d.id === item.department_id)?.name}</td>
-                      <td className="px-4 py-3 text-right flex justify-end gap-2">
-                         <button onClick={() => handleEdit('communes', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('communes', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                      </td>
-                    </tr>
-                  ))}
+
+                  {/* DEPARTMENTS - Grouped by Region */}
+                  {geoTab === 'departments' && regions
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((region) => {
+                      const regionDepts = departments
+                        .filter(d => d.region_id === region.id)
+                        .sort((a, b) => a.name.localeCompare(b.name));
+                      
+                      if (regionDepts.length === 0) return null;
+
+                      return (
+                        <React.Fragment key={region.id}>
+                          <tr className="bg-muted/50 border-y border-border">
+                            <td colSpan={4} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
+                              Region: {region.name}
+                            </td>
+                          </tr>
+                          {regionDepts.map((item) => (
+                            <tr key={item.id} className="hover:bg-muted/50 transition-colors">
+                              <td className="px-4 py-3 font-medium text-foreground pl-8">{item.name}</td>
+                              <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">{region.name}</td>
+                              <td className="px-4 py-3 text-right flex justify-end gap-2">
+                                <button onClick={() => handleEdit('departments', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDelete('departments', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })
+                  }
+
+                  {/* COMMUNES - Grouped by Department */}
+                  {geoTab === 'communes' && departments
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((dept) => {
+                       const deptCommunes = communes
+                        .filter(c => c.department_id === dept.id)
+                        .sort((a, b) => a.name.localeCompare(b.name));
+                       
+                       if (deptCommunes.length === 0) return null;
+
+                       return (
+                         <React.Fragment key={dept.id}>
+                           <tr className="bg-muted/50 border-y border-border">
+                             <td colSpan={4} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
+                               Department: {dept.name}
+                             </td>
+                           </tr>
+                           {deptCommunes.map((item) => (
+                             <tr key={item.id} className="hover:bg-muted/50 transition-colors">
+                               <td className="px-4 py-3 font-medium text-foreground pl-8">{item.name}</td>
+                               <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
+                               <td className="px-4 py-3 text-sm text-muted-foreground">{dept.name}</td>
+                               <td className="px-4 py-3 text-right flex justify-end gap-2">
+                                  <button onClick={() => handleEdit('communes', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                 <button onClick={() => handleDelete('communes', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                               </td>
+                             </tr>
+                           ))}
+                         </React.Fragment>
+                       );
+                    })
+                  }
                 </tbody>
               </table>
             </div>
@@ -554,6 +720,24 @@ export const Settings = () => {
                       onChange={e => setFormData({...formData, name: e.target.value})} 
                     />
                   </div>
+                  
+                  {/* Project Select */}
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Project</label>
+                     <select 
+                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                       value={formData.projet_id || ''}
+                       onChange={e => setFormData({...formData, projet_id: e.target.value})}
+                     >
+                       <option value="">Select Project...</option>
+                       {projects.map(p => (
+                         <option key={p.id} value={p.id}>
+                           Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
+                         </option>
+                       ))}
+                     </select>
+                  </div>
+
                   <div className="flex items-center gap-3 py-2">
                     <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                       <input type="checkbox" className="rounded border-input text-primary focus:ring-primary"

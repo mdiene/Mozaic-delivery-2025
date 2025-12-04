@@ -30,6 +30,8 @@ export interface Operator {
   is_coop: boolean;
   coop_name?: string;
   phone?: string;
+  projet_id?: string;
+  project_name?: string;
 }
 
 export interface Truck {

@@ -1,3 +1,4 @@
+
 import { supabase } from '../lib/supabaseClient';
 import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator } from '../types';
 
@@ -113,24 +114,36 @@ export const db = {
     });
   },
 
-  getChartData: async () => {
+  getChartData: async (projectId?: string) => {
     // Fetch regions
     const { data: regions } = await supabase.from('regions').select('id, name');
     if (!regions) return [];
 
-    const { data: allocations } = await supabase.from('allocations').select('region_id, target_tonnage');
+    // Fetch allocations (Target)
+    let allocQuery = supabase.from('allocations').select('region_id, target_tonnage');
+    if (projectId && projectId !== 'all') {
+      allocQuery = allocQuery.eq('project_id', projectId);
+    }
+    const { data: allocations } = await allocQuery;
     
     // Fetch validated deliveries joined with allocation to get region
-    // Fix: Use 'validation_status' in filter
-    const { data: deliveries } = await supabase
+    let delQuery = supabase
       .from('deliveries')
       .select(`
         tonnage_delivered,
         allocations!inner (
-          region_id
+          region_id,
+          project_id
         )
       `)
       .eq('validation_status', 'VALIDATED');
+    
+    if (projectId && projectId !== 'all') {
+       // Filter on the joined table
+       delQuery = delQuery.eq('allocations.project_id', projectId);
+    }
+
+    const { data: deliveries } = await delQuery;
 
     const chartData: Record<string, { name: string; planned: number; delivered: number }> = {};
     
@@ -228,15 +241,25 @@ export const db = {
       .from('communes')
       .select('id, name');
 
-    // 3. Create Map for O(1) lookup
+    // 3. Fetch raw projects to map names
+    const { data: projects } = await supabase
+      .from('project')
+      .select('id, numero_marche, numero_phase');
+
+    // Create Maps for O(1) lookup
     const communeMap = new Map((communes || []).map((c: any) => [c.id, c.name]));
+    const projectMap = new Map((projects || []).map((p: any) => [
+      p.id, 
+      `Phase ${p.numero_phase}${p.numero_marche ? ` - ${p.numero_marche}` : ''}`
+    ]));
 
     // 4. Map data
     return (operators || []).map((op: any) => ({
       ...op,
       commune_name: communeMap.get(op.commune_id) || 'Unknown',
+      project_name: op.projet_id ? (projectMap.get(op.projet_id) || 'Unknown Project') : '-',
       is_coop: op.operateur_coop_gie, // Map DB column to frontend prop
-      phone: op.contact_info?.phone // Extract phone from jsonb
+      phone: op.contact_info // Direct map since column is varchar now
     })) as Operator[];
   },
 
