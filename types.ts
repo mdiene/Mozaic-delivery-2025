@@ -40,6 +40,8 @@ export interface Truck {
   capacity_tonnes: number;
   status: 'AVAILABLE' | 'IN_TRANSIT' | 'MAINTENANCE';
   driver_id?: string;
+  driver_name?: string;
+  trailer_number?: string;
 }
 
 export interface Driver {
@@ -48,6 +50,7 @@ export interface Driver {
   phone: string;
   license_number: string;
   status: 'ACTIVE' | 'INACTIVE';
+  truck_id?: string;
 }
 
 export interface Project {

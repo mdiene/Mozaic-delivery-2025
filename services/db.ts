@@ -171,15 +171,73 @@ export const db = {
 
   // Fleet
   getTrucks: async (): Promise<Truck[]> => {
-    const { data, error } = await supabase.from('trucks').select('*');
-    if (error) return [];
-    return data as Truck[];
+    // 1. Fetch Trucks
+    const { data: trucks, error: truckError } = await supabase
+      .from('trucks')
+      .select('*')
+      .order('plate_number');
+
+    if (truckError) {
+      console.error('Error fetching trucks:', JSON.stringify(truckError));
+      return [];
+    }
+
+    // 2. Fetch Drivers with assignments
+    // We cannot join from trucks -> drivers because FK is on drivers table (truck_id)
+    const { data: drivers, error: driverError } = await supabase
+      .from('drivers')
+      .select('id, name, truck_id')
+      .not('truck_id', 'is', null);
+
+    if (driverError) {
+       console.error('Error fetching drivers for trucks:', JSON.stringify(driverError));
+    }
+
+    // 3. Map
+    // Create a map of truck_id -> driver
+    const truckDriverMap = new Map();
+    drivers?.forEach((d: any) => {
+      truckDriverMap.set(d.truck_id, d);
+    });
+
+    return trucks.map((t: any) => {
+      const driver = truckDriverMap.get(t.id);
+      return {
+        ...t,
+        driver_id: driver?.id, // For UI selection state
+        driver_name: driver?.name // For UI display
+      };
+    }) as Truck[];
+  },
+
+  updateTruckDriverAssignment: async (truckId: string, newDriverId: string | null) => {
+    // 1. Unassign any driver currently assigned to this truck to avoid unique constraint issues if 1:1 or just cleanliness
+    const { error: clearError } = await supabase
+      .from('drivers')
+      .update({ truck_id: null })
+      .eq('truck_id', truckId);
+    
+    if (clearError) throw clearError;
+
+    // 2. If newDriverId is present, assign it to the truck
+    if (newDriverId) {
+       const { error: assignError } = await supabase
+         .from('drivers')
+         .update({ truck_id: truckId })
+         .eq('id', newDriverId);
+       
+       if (assignError) throw assignError;
+    }
   },
 
   getDrivers: async (): Promise<Driver[]> => {
-    const { data, error } = await supabase.from('drivers').select('*');
+    const { data, error } = await supabase.from('drivers').select('*').order('name');
     if (error) return [];
-    return data as Driver[];
+    // Map phone_normalized to phone for UI consistency
+    return data.map((d: any) => ({
+      ...d,
+      phone: d.phone_normalized
+    })) as Driver[];
   },
 
   // Settings / Geographic
