@@ -195,6 +195,21 @@ export const db = {
     return (data as any[]) || [];
   },
 
+  getUsedProjectIds: async (): Promise<Set<string>> => {
+    const { data, error } = await supabase
+      .from('allocations')
+      .select('project_id');
+    
+    if (error) {
+       console.error('Error checking project usage:', error);
+       return new Set();
+    }
+    
+    // Filter out nulls and create set of IDs
+    const ids = new Set((data || []).map((a: any) => a.project_id).filter(Boolean));
+    return ids;
+  },
+
   getOperators: async (): Promise<Operator[]> => {
     const { data } = await supabase.from('operators').select('*').order('name');
     return (data as Operator[]) || [];

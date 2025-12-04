@@ -85,8 +85,8 @@ export const Fleet = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      <button className="p-2 text-muted-foreground hover:text-primary"><Edit2 size={16} /></button>
-                      <button className="p-2 text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
+                      <button className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                      <button className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))}
@@ -117,8 +117,8 @@ export const Fleet = () => {
                     <td className="px-6 py-4 text-sm text-foreground">{driver.phone}</td>
                     <td className="px-6 py-4 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      <button className="p-2 text-muted-foreground hover:text-primary"><Edit2 size={16} /></button>
-                      <button className="p-2 text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
+                      <button className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                      <button className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))}

@@ -17,6 +17,7 @@ export const Settings = () => {
   
   // Project State
   const [projects, setProjects] = useState<Project[]>([]);
+  const [usedProjectIds, setUsedProjectIds] = useState<Set<string>>(new Set());
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -27,16 +28,18 @@ export const Settings = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [r, d, c, p] = await Promise.all([
+      const [r, d, c, p, used] = await Promise.all([
         db.getRegions(),
         db.getDepartments(),
         db.getCommunes(),
-        db.getProjects()
+        db.getProjects(),
+        db.getUsedProjectIds()
       ]);
       setRegions(r);
       setDepartments(d);
       setCommunes(c);
       setProjects(p);
+      setUsedProjectIds(used);
     } catch (error) {
       console.error("Error fetching settings data", error);
     } finally {
@@ -167,31 +170,39 @@ export const Settings = () => {
                     <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No projects found. Add one to get started.</td>
                   </tr>
                 )}
-                {projects.map((p) => (
-                  <tr key={p.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium text-foreground">{p.numero_marche}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.numero_bon_disposition}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.numero_phase}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString() : '-'}</td>
-                    <td className="px-4 py-3 text-foreground font-mono">{p.tonnage_total} T</td>
-                    <td className="px-4 py-3 text-right flex justify-end gap-2">
-                      <button 
-                        onClick={() => handleEdit('project', p)} 
-                        className="p-1.5 bg-muted hover:bg-primary/10 hover:text-primary rounded-md transition-colors"
-                        title="Edit Project"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete('project', p.id)} 
-                        className="p-1.5 bg-muted hover:bg-destructive/10 hover:text-destructive rounded-md transition-colors"
-                        title="Delete Project"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {projects.map((p) => {
+                  const isUsed = usedProjectIds.has(p.id);
+                  return (
+                    <tr key={p.id} className="hover:bg-muted/50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-foreground">{p.numero_marche}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{p.numero_bon_disposition}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{p.numero_phase}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString() : '-'}</td>
+                      <td className="px-4 py-3 text-foreground font-mono">{p.tonnage_total} T</td>
+                      <td className="px-4 py-3 text-right flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleEdit('project', p)} 
+                          className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+                          title="Edit Project"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button 
+                          onClick={() => !isUsed && handleDelete('project', p.id)} 
+                          disabled={isUsed}
+                          className={`p-2 rounded-lg transition-colors ${
+                            isUsed 
+                              ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50' 
+                              : 'bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700'
+                          }`}
+                          title={isUsed ? "Cannot delete: Project is currently assigned to allocations" : "Delete Project"}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -255,34 +266,34 @@ export const Settings = () => {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {geoTab === 'regions' && regions.map((item) => (
-                    <tr key={item.id} className="hover:bg-muted/50">
+                    <tr key={item.id} className="hover:bg-muted/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
                       <td className="px-4 py-3 text-right flex justify-end gap-2">
-                        <button onClick={() => handleEdit('regions', item)} className="text-muted-foreground hover:text-primary"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('regions', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
+                        <button onClick={() => handleEdit('regions', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete('regions', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
                   {geoTab === 'departments' && departments.map((item) => (
-                    <tr key={item.id} className="hover:bg-muted/50">
+                    <tr key={item.id} className="hover:bg-muted/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{regions.find(r => r.id === item.region_id)?.name}</td>
                       <td className="px-4 py-3 text-right flex justify-end gap-2">
-                        <button onClick={() => handleEdit('departments', item)} className="text-muted-foreground hover:text-primary"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('departments', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
+                        <button onClick={() => handleEdit('departments', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete('departments', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
                   {geoTab === 'communes' && communes.map((item) => (
-                    <tr key={item.id} className="hover:bg-muted/50">
+                    <tr key={item.id} className="hover:bg-muted/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
                       <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{departments.find(d => d.id === item.department_id)?.name}</td>
                       <td className="px-4 py-3 text-right flex justify-end gap-2">
-                         <button onClick={() => handleEdit('communes', item)} className="text-muted-foreground hover:text-primary"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('communes', item.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
+                         <button onClick={() => handleEdit('communes', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete('communes', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
