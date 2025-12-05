@@ -1,9 +1,10 @@
 
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView } from '../types';
-import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User } from 'lucide-react';
+import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter } from 'lucide-react';
+
+type GroupBy = 'none' | 'truck' | 'commune' | 'region';
 
 export const Logistics = () => {
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
@@ -13,6 +14,9 @@ export const Logistics = () => {
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Grouping State
+  const [groupBy, setGroupBy] = useState<GroupBy>('none');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -93,9 +97,6 @@ export const Logistics = () => {
 
     try {
       // Allowlist Strategy: Only include fields that exist in the 'deliveries' table
-      // Schema: id, allocation_id, bl_number, truck_id, driver_id, tonnage_loaded, delivery_date
-      // Removed validation_status
-      
       const dbPayload: any = {
         allocation_id: formData.allocation_id,
         bl_number: formData.bl_number,
@@ -137,12 +138,59 @@ export const Logistics = () => {
     d.operator_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Grouping Logic
+  const groupedDeliveries = useMemo(() => {
+    // 1. First Group by Project Phase (Always)
+    const projectGroups: Record<string, DeliveryView[]> = {};
+    
+    filteredDeliveries.forEach(d => {
+      const phase = d.project_phase || 'Unassigned Phase';
+      if (!projectGroups[phase]) projectGroups[phase] = [];
+      projectGroups[phase].push(d);
+    });
+
+    // 2. If no sub-grouping, return simple project structure
+    if (groupBy === 'none') {
+      return Object.entries(projectGroups).map(([phase, items]) => ({
+        phase,
+        subGroups: [{
+           key: 'All',
+           items,
+           totalLoad: items.reduce((sum, d) => sum + Number(d.tonnage_loaded), 0)
+        }]
+      }));
+    }
+
+    // 3. Apply Sub-grouping (Truck, Commune, Region)
+    return Object.entries(projectGroups).map(([phase, phaseItems]) => {
+       const subGroupMap: Record<string, DeliveryView[]> = {};
+       
+       phaseItems.forEach(d => {
+         let key = 'Unknown';
+         if (groupBy === 'truck') key = d.truck_plate || 'No Truck';
+         if (groupBy === 'commune') key = d.commune_name || 'No Commune';
+         if (groupBy === 'region') key = d.region_name || 'No Region';
+         
+         if (!subGroupMap[key]) subGroupMap[key] = [];
+         subGroupMap[key].push(d);
+       });
+
+       const subGroups = Object.entries(subGroupMap).map(([key, items]) => ({
+         key,
+         items,
+         totalLoad: items.reduce((sum, d) => sum + Number(d.tonnage_loaded), 0)
+       })).sort((a, b) => b.totalLoad - a.totalLoad); // Sort by highest load
+
+       return { phase, subGroups };
+    });
+
+  }, [filteredDeliveries, groupBy]);
+
   const selectedAllocation = allocations.find(a => a.id === formData.allocation_id);
   const selectedTruck = trucks.find(t => t.id === formData.truck_id);
   const assignedDriverName = selectedTruck?.driver_name || (formData.driver_id ? drivers.find(d => d.id === formData.driver_id)?.name : '');
 
   // Calculate real-time stats for the selected allocation
-  // Summing up tonnage_loaded for ALL deliveries associated with this allocation (since status is removed)
   const calculatedDelivered = React.useMemo(() => {
     if (!formData.allocation_id) return 0;
     return deliveries
@@ -170,8 +218,10 @@ export const Logistics = () => {
       </div>
 
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
-        <div className="p-4 border-b border-border flex gap-4">
-           <div className="relative flex-1 max-w-md">
+        
+        {/* Toolbar: Search and Grouping */}
+        <div className="p-4 border-b border-border flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+           <div className="relative flex-1 max-w-md w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <input 
               type="text" 
@@ -181,7 +231,41 @@ export const Logistics = () => {
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0">
+             <span className="text-xs font-semibold text-muted-foreground uppercase mr-1 whitespace-nowrap flex items-center gap-1">
+               <Layers size={14} /> Group By:
+             </span>
+             <button 
+               onClick={() => setGroupBy('truck')}
+               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'truck' ? 'bg-primary/10 text-primary border-primary' : 'bg-background hover:bg-muted text-muted-foreground border-border'}`}
+             >
+               Truck
+             </button>
+             <button 
+               onClick={() => setGroupBy('commune')}
+               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'commune' ? 'bg-primary/10 text-primary border-primary' : 'bg-background hover:bg-muted text-muted-foreground border-border'}`}
+             >
+               Commune
+             </button>
+             <button 
+               onClick={() => setGroupBy('region')}
+               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'region' ? 'bg-primary/10 text-primary border-primary' : 'bg-background hover:bg-muted text-muted-foreground border-border'}`}
+             >
+               Region
+             </button>
+             {groupBy !== 'none' && (
+               <button 
+                 onClick={() => setGroupBy('none')}
+                 className="px-2 py-1.5 text-muted-foreground hover:text-foreground"
+                 title="Clear Grouping"
+               >
+                 <X size={14} />
+               </button>
+             )}
+          </div>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-muted/50 border-b border-border">
@@ -195,61 +279,96 @@ export const Logistics = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredDeliveries.length === 0 && (
+              {groupedDeliveries.length === 0 && (
                 <tr>
                    <td colSpan={6} className="p-8 text-center text-muted-foreground">No dispatches found. Create one to get started.</td>
                 </tr>
               )}
-              {filteredDeliveries.map((del) => (
-                <tr key={del.id} className="hover:bg-muted/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-primary" />
-                      <span className="font-medium text-foreground">{del.bl_number}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">{del.operator_name}</span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin size={10} /> {del.region_name}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-muted rounded text-muted-foreground">
-                        <TruckIcon size={14} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'No Truck'}</p>
-                        <p className="text-xs text-muted-foreground">{del.driver_name || 'No Driver'}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-medium text-foreground">{del.tonnage_loaded} T</span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">
-                    {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}
-                  </td>
-                  <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    <button 
-                      onClick={() => handleOpenModal(del)}
-                      className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                      title="Edit Dispatch"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(del.id)}
-                      className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                      title="Delete Dispatch"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
+              
+              {/* Group Iteration: Project Phase */}
+              {groupedDeliveries.map((projectGroup) => (
+                <React.Fragment key={projectGroup.phase}>
+                   <tr className="bg-slate-100 dark:bg-slate-800/50">
+                      <td colSpan={6} className="px-6 py-3 text-sm font-bold text-foreground border-y border-border">
+                         {projectGroup.phase}
+                      </td>
+                   </tr>
+
+                   {/* Sub-Group Iteration */}
+                   {projectGroup.subGroups.map((subGroup) => (
+                     <React.Fragment key={subGroup.key}>
+                        {/* Sub-Group Header (Only if grouping is active) */}
+                        {groupBy !== 'none' && (
+                          <tr className="bg-muted/30">
+                             <td colSpan={6} className="px-6 py-2 text-xs font-medium text-foreground border-b border-border/50 pl-10 flex items-center justify-between">
+                                <span className="flex items-center gap-2">
+                                   {groupBy === 'truck' && <TruckIcon size={14} className="text-muted-foreground" />}
+                                   {groupBy === 'commune' && <MapPin size={14} className="text-muted-foreground" />}
+                                   {groupBy === 'region' && <MapPin size={14} className="text-muted-foreground" />}
+                                   <span className="uppercase tracking-wide">{subGroup.key}</span>
+                                </span>
+                                <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[10px]">
+                                   Subtotal: {subGroup.totalLoad.toFixed(2)} T
+                                </span>
+                             </td>
+                          </tr>
+                        )}
+
+                        {/* Items */}
+                        {subGroup.items.map((del) => (
+                          <tr key={del.id} className="hover:bg-muted/50 transition-colors">
+                            <td className="px-6 py-4 pl-10"> {/* Indent slightly if grouped? Keep standard for now or subtle indent */}
+                              <div className="flex items-center gap-2">
+                                <FileText size={16} className="text-primary" />
+                                <span className="font-medium text-foreground">{del.bl_number}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-foreground">{del.operator_name}</span>
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <MapPin size={10} /> {del.commune_name}, {del.region_name}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-muted rounded text-muted-foreground">
+                                  <TruckIcon size={14} />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'No Truck'}</p>
+                                  <p className="text-xs text-muted-foreground">{del.driver_name || 'No Driver'}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-medium text-foreground">{del.tonnage_loaded} T</span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="px-6 py-4 text-right flex justify-end gap-2">
+                              <button 
+                                onClick={() => handleOpenModal(del)}
+                                className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+                                title="Edit Dispatch"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(del.id)}
+                                className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
+                                title="Delete Dispatch"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                     </React.Fragment>
+                   ))}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

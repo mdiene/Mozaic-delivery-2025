@@ -1,5 +1,4 @@
 
-
 import { supabase } from '../lib/supabaseClient';
 import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator } from '../types';
 
@@ -60,10 +59,10 @@ export const db = {
       .from('allocations')
       .select(`
         *,
-        regions:region_id(name),
-        departments:department_id(name),
-        communes:commune_id(name),
-        operators:operator_id(name)
+        regions(name),
+        departments(name),
+        communes(name),
+        operators(name)
       `);
 
     if (error) {
@@ -104,8 +103,10 @@ export const db = {
         allocations:allocation_id (
           operator_id,
           region_id,
-          operators:operator_id(name),
-          regions:region_id(name)
+          operators(name),
+          regions(name),
+          communes(name),
+          project:project_id(numero_phase, numero_marche)
         )
       `);
 
@@ -116,11 +117,19 @@ export const db = {
 
     return data.map((del: any) => {
       const alloc = del.allocations; // The joined object
+      const proj = alloc?.project;
+      
+      const phaseStr = proj 
+        ? `Phase ${proj.numero_phase}${proj.numero_marche ? ` - ${proj.numero_marche}` : ''}`
+        : 'Unassigned Phase';
+
       return {
         ...del,
         // status removed
         operator_name: alloc?.operators?.name || 'Unknown',
         region_name: alloc?.regions?.name || 'Unknown',
+        commune_name: alloc?.communes?.name || 'Unknown',
+        project_phase: phaseStr,
         truck_plate: del.trucks?.plate_number || 'Unknown',
         driver_name: del.drivers?.name || 'Unknown'
       };
@@ -297,11 +306,11 @@ export const db = {
     
     if (error) {
        safeLog('Error checking project usage:', error);
-       return new Set();
+       return new Set<string>();
     }
     
     // Filter out nulls and create set of IDs
-    const ids = new Set((data || []).map((a: any) => a.project_id).filter(Boolean));
+    const ids = new Set<string>((data || []).map((a: any) => a.project_id).filter(Boolean));
     return ids;
   },
 
@@ -347,13 +356,13 @@ export const db = {
 
   // Generic CRUD
   createItem: async (table: string, payload: any) => {
-    const { data, error } = await supabase.from(table).insert(payload).select();
+    const { data, error } = await supabase.from(table).insert(payload).select('*');
     if (error) throw error;
     return data;
   },
 
   updateItem: async (table: string, id: string, payload: any) => {
-    const { data, error } = await supabase.from(table).update(payload).eq('id', id).select();
+    const { data, error } = await supabase.from(table).update(payload).eq('id', id).select('*');
     if (error) throw error;
     return data;
   },
