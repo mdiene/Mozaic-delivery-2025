@@ -9,8 +9,8 @@ import { Project } from '../types';
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="min-w-[150px] rounded-lg border-0 bg-white/90 backdrop-blur-md px-3 py-2 text-sm text-slate-700 shadow-soft-md">
-        <div className="mb-2 font-semibold text-slate-800">{label}</div>
+      <div className="min-w-[150px] rounded-lg border border-border bg-popover/95 backdrop-blur-md px-3 py-2 text-sm text-popover-foreground shadow-soft-md">
+        <div className="mb-2 font-semibold text-foreground">{label}</div>
         <div className="grid gap-1.5">
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-4">
@@ -19,11 +19,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                   className="h-2 w-2 rounded-full" 
                   style={{ backgroundColor: entry.stroke || entry.fill }}
                 />
-                <span className="capitalize text-slate-500">
+                <span className="capitalize text-muted-foreground">
                   {entry.name}
                 </span>
               </div>
-              <span className="font-mono font-bold text-slate-700">
+              <span className="font-mono font-bold text-foreground">
                 {entry.value}
               </span>
             </div>
@@ -78,18 +78,18 @@ export const Dashboard = () => {
   const completionRate = stats.totalTarget > 0 ? (stats.totalDelivered / stats.totalTarget) * 100 : 0;
 
   if (loading && projects.length === 0) {
-    return <div className="p-8 text-center text-slate-400">Loading Dashboard...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Loading Dashboard...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-700">Campaign Dashboard</h1>
+        <h1 className="text-2xl font-bold text-foreground">Campaign Dashboard</h1>
         <div className="flex gap-2">
-          <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold shadow-soft-xs">
+          <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-soft-xs border border-emerald-100 dark:border-emerald-800">
             Live Updates
           </span>
-          <span className="text-sm text-slate-400">Last updated: Just now</span>
+          <span className="text-sm text-muted-foreground">Last updated: Just now</span>
         </div>
       </div>
 
@@ -129,11 +129,11 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Soft UI Chart Card */}
-        <div className="lg:col-span-2 rounded-2xl bg-white text-slate-700 shadow-soft-xl border-0 min-w-0 flex flex-col">
+        <div className="lg:col-span-2 rounded-2xl bg-card text-card-foreground shadow-soft-xl border border-border/50 min-w-0 flex flex-col">
           <div className="flex flex-col md:flex-row md:items-center justify-between p-6 pb-2 gap-4">
             <div className="space-y-1">
-              <h3 className="font-bold text-lg text-slate-700 tracking-tight">Regional Performance</h3>
-              <p className="text-sm text-slate-400 font-medium">Planned vs Actual Delivery Tonnage</p>
+              <h3 className="font-bold text-lg text-foreground tracking-tight">Regional Performance</h3>
+              <p className="text-sm text-muted-foreground font-medium">Planned vs Actual Delivery Tonnage</p>
             </div>
             
             {/* Controls */}
@@ -141,7 +141,7 @@ export const Dashboard = () => {
               {/* Project Filter */}
               <div className="relative">
                 <select 
-                  className="h-9 rounded-lg border-0 bg-slate-50 px-3 py-1 text-sm text-slate-600 shadow-soft-xs focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer font-medium"
+                  className="h-9 rounded-lg border-0 bg-muted/50 px-3 py-1 text-sm text-foreground shadow-soft-xs focus:ring-2 focus:ring-primary/20 focus:outline-none cursor-pointer font-medium"
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
                 >
@@ -155,17 +155,17 @@ export const Dashboard = () => {
               </div>
 
               {/* Chart Toggle */}
-              <div className="flex items-center rounded-lg bg-slate-50 p-1 shadow-soft-xs">
+              <div className="flex items-center rounded-lg bg-muted/50 p-1 shadow-soft-xs">
                 <button 
                   onClick={() => setChartType('bar')}
-                  className={`p-1.5 rounded-md transition-all ${chartType === 'bar' ? 'bg-white text-slate-700 shadow-soft-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`p-1.5 rounded-md transition-all ${chartType === 'bar' ? 'bg-card text-foreground shadow-soft-sm' : 'text-muted-foreground hover:text-foreground'}`}
                   title="Bar Chart"
                 >
                   <BarChart3 size={16} />
                 </button>
                 <button 
                   onClick={() => setChartType('line')}
-                  className={`p-1.5 rounded-md transition-all ${chartType === 'line' ? 'bg-white text-slate-700 shadow-soft-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`p-1.5 rounded-md transition-all ${chartType === 'line' ? 'bg-card text-foreground shadow-soft-sm' : 'text-muted-foreground hover:text-foreground'}`}
                   title="Area Chart"
                 >
                   <LineChartIcon size={16} />
@@ -179,19 +179,19 @@ export const Dashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'bar' ? (
                   <BarChart accessibilityLayer data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(203, 213, 225, 0.4)" />
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
                     <XAxis
                       dataKey="name"
                       tickLine={false}
                       tickMargin={10}
                       axisLine={false}
                       tickFormatter={(value) => value.slice(0, 3)}
-                      tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600 }}
                     />
                     <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}} />
-                    {/* Chart 2 (Secondary/Planned - Indigo-ish in shadcn, we use Slate-400 here for soft look) */}
-                    <Bar dataKey="planned" name="Planned" fill="#cbd5e1" radius={[6, 6, 0, 0]} barSize={20} />
-                    {/* Chart 1 (Primary/Delivered - Emerald Gradient Simulation) */}
+                    {/* Chart 2 (Secondary/Planned - Muted color) */}
+                    <Bar dataKey="planned" name="Planned" fill="var(--muted)" radius={[6, 6, 0, 0]} barSize={20} />
+                    {/* Chart 1 (Primary/Delivered - Primary color) */}
                     <Bar dataKey="delivered" name="Delivered" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={20} />
                   </BarChart>
                 ) : (
@@ -202,18 +202,18 @@ export const Dashboard = () => {
                         <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="fillPlanned" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#cbd5e1" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#cbd5e1" stopOpacity={0} />
+                        <stop offset="5%" stopColor="var(--muted)" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="var(--muted)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(203, 213, 225, 0.4)" />
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
                     <XAxis
                       dataKey="name"
                       tickLine={false}
                       tickMargin={10}
                       axisLine={false}
                       tickFormatter={(value) => value.slice(0, 3)}
-                      tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600 }}
                     />
                     <Tooltip content={<CustomTooltip />} cursor={false} />
                     {/* Render Planned first so it's in the background if larger */}
@@ -222,7 +222,7 @@ export const Dashboard = () => {
                       dataKey="planned"
                       name="Planned"
                       fill="url(#fillPlanned)"
-                      stroke="#94a3b8"
+                      stroke="var(--muted-foreground)"
                       strokeWidth={3}
                       fillOpacity={1}
                     />
@@ -241,7 +241,7 @@ export const Dashboard = () => {
             </div>
           </div>
           <div className="p-6 pt-0 mt-auto">
-            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
               <span className="flex items-center gap-1 text-emerald-500 font-bold">
                  +5.2% <TrendingUp className="h-4 w-4" />
               </span>
@@ -253,41 +253,41 @@ export const Dashboard = () => {
         {/* Quick Activity / Recent Feed (Soft UI Style) */}
         <div className="flex flex-col gap-6">
            {/* Shortcuts Card */}
-          <div className="bg-white p-6 rounded-2xl shadow-soft-xl border-0">
-             <h2 className="text-lg font-bold text-slate-700 mb-4">Quick Actions</h2>
+          <div className="bg-card p-6 rounded-2xl shadow-soft-xl border border-border/50">
+             <h2 className="text-lg font-bold text-foreground mb-4">Quick Actions</h2>
              <Link 
                to="/settings" 
-               className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 hover:bg-white hover:shadow-soft-md transition-all group border border-transparent"
+               className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 hover:bg-muted/60 transition-all group border border-transparent"
              >
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-tl from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-soft-md group-hover:scale-110 transition-transform">
                   <Users size={20} />
                 </div>
                 <div>
-                   <h3 className="font-bold text-slate-700">Manage Operators</h3>
-                   <p className="text-xs text-slate-400 font-medium">Add new GIE or individual operators</p>
+                   <h3 className="font-bold text-foreground">Manage Operators</h3>
+                   <p className="text-xs text-muted-foreground font-medium">Add new GIE or individual operators</p>
                 </div>
              </Link>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-soft-xl border-0 flex-1">
-            <h2 className="text-lg font-bold text-slate-700 mb-4">Recent Activity</h2>
+          <div className="bg-card p-6 rounded-2xl shadow-soft-xl border border-border/50 flex-1">
+            <h2 className="text-lg font-bold text-foreground mb-4">Recent Activity</h2>
             <div className="space-y-6">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex gap-4">
                   <div className="flex flex-col items-center">
-                     <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 border border-white shadow-soft-xs z-10">
+                     <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-card shadow-soft-xs z-10">
                         <Truck size={14} />
                      </div>
-                     {i !== 3 && <div className="w-0.5 h-full bg-slate-100 my-1"></div>}
+                     {i !== 3 && <div className="w-0.5 h-full bg-muted my-1"></div>}
                   </div>
                   <div className="pb-1">
-                    <p className="text-sm font-bold text-slate-700">Truck dispatched</p>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">BL25000{i} • 2 hours ago</p>
+                    <p className="text-sm font-bold text-foreground">Truck dispatched</p>
+                    <p className="text-xs text-muted-foreground font-medium mt-0.5">BL25000{i} • 2 hours ago</p>
                   </div>
                 </div>
               ))}
             </div>
-            <button className="mt-6 w-full py-2.5 text-xs uppercase font-bold tracking-wider text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+            <button className="mt-6 w-full py-2.5 text-xs uppercase font-bold tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors">
               View All Logs
             </button>
           </div>
@@ -309,13 +309,13 @@ const KpiCard = ({ title, value, subValue, icon: Icon, variant }: any) => {
   const gradientClass = gradients[variant] || gradients.primary;
 
   return (
-    <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+    <div className="relative flex flex-col min-w-0 break-words bg-card shadow-soft-xl rounded-2xl bg-clip-border border border-border/50">
       <div className="flex-auto p-4">
         <div className="flex flex-row -mx-3">
           <div className="flex-none w-2/3 max-w-full px-3">
             <div>
-              <p className="mb-0 font-sans font-semibold leading-normal text-sm text-slate-400">{title}</p>
-              <h5 className="mb-0 font-bold text-xl text-slate-700 mt-1">
+              <p className="mb-0 font-sans font-semibold leading-normal text-sm text-muted-foreground">{title}</p>
+              <h5 className="mb-0 font-bold text-xl text-foreground mt-1">
                 {value}
               </h5>
               <p className="mb-0 leading-normal text-xs font-bold text-emerald-500 mt-1">{subValue}</p>

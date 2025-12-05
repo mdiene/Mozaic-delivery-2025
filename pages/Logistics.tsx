@@ -13,7 +13,6 @@ export const Logistics = () => {
   const [allocations, setAllocations] = useState<AllocationView[]>([]);
   
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   
   // Grouping State
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
@@ -132,18 +131,13 @@ export const Logistics = () => {
     }));
   };
 
-  const filteredDeliveries = deliveries.filter(d => 
-    d.bl_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.truck_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.operator_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   // Grouping Logic
   const groupedDeliveries = useMemo(() => {
     // 1. First Group by Project Phase (Always)
     const projectGroups: Record<string, DeliveryView[]> = {};
     
-    filteredDeliveries.forEach(d => {
+    // Use full deliveries list instead of filtered
+    deliveries.forEach(d => {
       const phase = d.project_phase || 'Unassigned Phase';
       if (!projectGroups[phase]) projectGroups[phase] = [];
       projectGroups[phase].push(d);
@@ -184,7 +178,7 @@ export const Logistics = () => {
        return { phase, subGroups };
     });
 
-  }, [filteredDeliveries, groupBy]);
+  }, [deliveries, groupBy]);
 
   const selectedAllocation = allocations.find(a => a.id === formData.allocation_id);
   const selectedTruck = trucks.find(t => t.id === formData.truck_id);
@@ -219,19 +213,8 @@ export const Logistics = () => {
 
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
         
-        {/* Toolbar: Search and Grouping */}
-        <div className="p-4 border-b border-border flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-           <div className="relative flex-1 max-w-md w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search BL, Truck or Operator..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-
+        {/* Toolbar: Grouping Only */}
+        <div className="p-4 border-b border-border flex flex-col lg:flex-row gap-4 justify-end items-start lg:items-center">
           <div className="flex items-center gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0">
              <span className="text-xs font-semibold text-muted-foreground uppercase mr-1 whitespace-nowrap flex items-center gap-1">
                <Layers size={14} /> Group By:
