@@ -70,7 +70,7 @@ export default function RegionalGraph({ regions }: Props) {
     // Central Hub
     nodes.push({
       id: 'hub',
-      label: 'Dakar\nHub',
+      label: 'Mine de Soma',
       shape: 'circle',
       color: { background: '#1e293b', border: '#0f172a' },
       font: { color: '#ffffff', size: 14, bold: true },
