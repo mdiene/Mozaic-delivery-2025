@@ -13,20 +13,33 @@ const safeLog = (prefix: string, error: any) => {
 };
 
 export const db = {
-  getStats: async () => {
+  getStats: async (projectId?: string) => {
     // 1. Get total target tonnage (Allocations)
-    const { data: allocations, error: allocError } = await supabase
-      .from('allocations')
-      .select('id, target_tonnage');
+    let allocQuery = supabase.from('allocations').select('id, target_tonnage');
+    if (projectId && projectId !== 'all') {
+      allocQuery = allocQuery.eq('project_id', projectId);
+    }
+    const { data: allocations, error: allocError } = await allocQuery;
     
     if (allocError) safeLog('Error fetching allocations:', allocError);
     const totalTarget = allocations?.reduce((sum, a) => sum + Number(a.target_tonnage), 0) || 0;
 
     // 2. Get deliveries for calc
-    // Removed validation_status selection as column was dropped
-    const { data: deliveries, error: delError } = await supabase
+    let delQuery = supabase
       .from('deliveries')
-      .select('tonnage_loaded, allocation_id');
+      .select(`
+        tonnage_loaded,
+        allocation_id,
+        allocations!inner (
+          project_id
+        )
+      `);
+      
+    if (projectId && projectId !== 'all') {
+       delQuery = delQuery.eq('allocations.project_id', projectId);
+    }
+
+    const { data: deliveries, error: delError } = await delQuery;
     
     if (delError) safeLog('Error fetching deliveries:', delError);
 
@@ -37,17 +50,27 @@ export const db = {
         return sum + val;
       }, 0) || 0;
 
-    // Cannot determine active trucks without status, defaulting to 0 or logic removal
-    const activeTrucks = 0;
+    // 3. Get Active Trucks (Global count, as trucks move between projects)
+    // We only show this context if looking at global view or we accept it represents fleet status
+    const { count: activeTrucksCount } = await supabase
+      .from('trucks')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'IN_TRANSIT');
 
-    // 3. Calc Alerts (Over delivered)
+    const activeTrucks = activeTrucksCount || 0;
+
+    // 4. Calc Alerts (Over delivered)
     let alerts = 0;
     if (allocations && deliveries) {
+      // Map deliveries by allocation_id for faster lookup
+      const deliveryMap = new Map<string, number>();
+      deliveries.forEach((d: any) => {
+        const current = deliveryMap.get(d.allocation_id) || 0;
+        deliveryMap.set(d.allocation_id, current + (Number(d.tonnage_loaded) || 0));
+      });
+
       allocations.forEach((alloc: any) => {
-        const deliveredForAlloc = deliveries
-          .filter((d: any) => d.allocation_id === alloc.id)
-          .reduce((sum: number, d: any) => sum + (Number(d.tonnage_loaded) || 0), 0);
-        
+        const deliveredForAlloc = deliveryMap.get(alloc.id) || 0;
         if (deliveredForAlloc > Number(alloc.target_tonnage)) alerts++;
       });
     }

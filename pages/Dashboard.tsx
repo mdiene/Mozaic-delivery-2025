@@ -2,9 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { db } from '../services/db';
-import { TrendingUp, Truck, AlertTriangle, CheckCircle, Users, BarChart3, LineChart as LineChartIcon, Activity } from 'lucide-react';
+import { TrendingUp, Truck, AlertTriangle, CheckCircle, Users, BarChart3, LineChart as LineChartIcon, Activity, Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Project } from '../types';
+import { useProject } from '../components/Layout';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -36,43 +36,32 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const Dashboard = () => {
+  const { selectedProject, projects } = useProject(); // Consume global context
   const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, alerts: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // UI Controls
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('all');
 
-  // Load initial data (stats, projects)
+  // Load stats and chart data whenever filter changes (from Header)
   useEffect(() => {
-    const loadInit = async () => {
-       try {
-         const [s, p] = await Promise.all([db.getStats(), db.getProjects()]);
-         setStats(s);
-         setProjects(p);
-       } catch (e: any) {
-         console.error('Error loading dashboard:', e.message || e);
-       }
-    };
-    loadInit();
-  }, []);
-
-  // Load chart data whenever filter changes
-  useEffect(() => {
-    const loadChart = async () => {
+    const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const c = await db.getChartData(selectedProject);
+        const [s, c] = await Promise.all([
+          db.getStats(selectedProject),
+          db.getChartData(selectedProject)
+        ]);
+        setStats(s);
         setChartData(c);
       } catch (e: any) {
-        console.error('Error loading chart:', e.message || e);
+        console.error('Error loading dashboard data:', e.message || e);
       } finally {
         setLoading(false);
       }
     };
-    loadChart();
+    loadDashboardData();
   }, [selectedProject]);
 
   const completionRate = stats.totalTarget > 0 ? (stats.totalDelivered / stats.totalTarget) * 100 : 0;
@@ -83,18 +72,10 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Tableau de Bord Campagne</h1>
-        <div className="flex gap-2">
-          <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-soft-xs border border-emerald-100 dark:border-emerald-800">
-            Mise à jour en direct
-          </span>
-          <span className="text-sm text-muted-foreground">Dernière maj: À l'instant</span>
-        </div>
-      </div>
+      {/* Title and Filter Toolbar removed as they are now in the Header */}
 
       {/* KPI Cards (Soft UI Style) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
         <KpiCard 
           title="Total Livré" 
           value={`${stats.totalDelivered.toLocaleString()} T`} 
@@ -133,27 +114,15 @@ export const Dashboard = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between p-6 pb-2 gap-4">
             <div className="space-y-1">
               <h3 className="font-bold text-lg text-foreground tracking-tight">Performance Régionale</h3>
-              <p className="text-sm text-muted-foreground font-medium">Tonnage Prévu vs Livré</p>
+              <p className="text-sm text-muted-foreground font-medium">
+                 {selectedProject === 'all' 
+                   ? 'Tonnage Prévu vs Livré (Tous Projets)' 
+                   : `Tonnage Prévu vs Livré (${projects.find(p => p.id === selectedProject)?.numero_marche || 'Projet Sélectionné'})`}
+              </p>
             </div>
             
             {/* Controls */}
             <div className="flex items-center gap-3">
-              {/* Project Filter */}
-              <div className="relative">
-                <select 
-                  className="h-9 rounded-lg border-0 bg-muted/50 px-3 py-1 text-sm text-foreground shadow-soft-xs focus:ring-2 focus:ring-primary/20 focus:outline-none cursor-pointer font-medium"
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                >
-                  <option value="all">Tous les Projets</option>
-                  {projects.map(p => (
-                    <option key={p.id} value={p.id}>
-                      Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* Chart Toggle */}
               <div className="flex items-center rounded-lg bg-muted/50 p-1 shadow-soft-xs">
                 <button 

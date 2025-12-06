@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -14,12 +14,30 @@ import {
   Search,
   Sun,
   Moon,
-  Eye
+  Eye,
+  Layers
 } from 'lucide-react';
+import { db } from '../services/db';
+import { Project } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
+
+// Context for sharing Project state between Header and Dashboard
+interface ProjectContextType {
+  projects: Project[];
+  selectedProject: string;
+  setSelectedProject: (id: string) => void;
+}
+
+const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
+
+export const useProject = () => {
+  const context = useContext(ProjectContext);
+  if (!context) throw new Error('useProject must be used within a ProjectProvider');
+  return context;
+};
 
 const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v: boolean) => void }) => {
   const location = useLocation();
@@ -107,20 +125,57 @@ const Header = ({
   isDarkMode: boolean,
   toggleDarkMode: () => void
 }) => {
+  const location = useLocation();
+  const { projects, selectedProject, setSelectedProject } = useProject();
+  const isDashboard = location.pathname === '/';
+
   return (
     <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-1 overflow-hidden mr-4">
         <button className="lg:hidden p-2 text-muted-foreground hover:bg-muted rounded-md">
            <Menu size={20} />
         </button>
-        <div className="hidden md:flex items-center text-sm text-muted-foreground">
-          <span className="hover:text-foreground cursor-pointer">Projet Phase 1</span>
-          <span className="mx-2">/</span>
-          <span className="font-medium text-foreground">Vue d'ensemble</span>
-        </div>
+        
+        {isDashboard ? (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-fade-right py-1">
+             <button
+              onClick={() => setSelectedProject('all')}
+              className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                selectedProject === 'all'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              Vue d'ensemble
+            </button>
+            {projects.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedProject(p.id)}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                  selectedProject === p.id
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="hidden md:flex items-center text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {location.pathname === '/allocations' && 'Allocations'}
+              {location.pathname === '/logistics' && 'Logistique'}
+              {location.pathname === '/fleet' && 'Parc Auto'}
+              {location.pathname === '/views' && 'Vues & Rapports'}
+              {location.pathname === '/settings' && 'Paramètres'}
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 shrink-0">
         
         {/* Day/Night Toggle */}
         <button 
@@ -160,6 +215,14 @@ const Header = ({
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [expanded, setExpanded] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Project State lifted to Layout
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>('all');
+
+  useEffect(() => {
+    db.getProjects().then(setProjects).catch(console.error);
+  }, []);
 
   // Apply Theme
   useEffect(() => {
@@ -176,17 +239,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <Sidebar expanded={expanded} setExpanded={setExpanded} />
-      <div className={`transition-all duration-300 ${expanded ? 'pl-64' : 'pl-20'}`}>
-        <Header 
-          isDarkMode={isDarkMode}
-          toggleDarkMode={toggleDarkMode}
-        />
-        <main className="p-6 md:p-8 animate-fade-in">
-          {children}
-        </main>
+    <ProjectContext.Provider value={{ projects, selectedProject, setSelectedProject }}>
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+        <Sidebar expanded={expanded} setExpanded={setExpanded} />
+        <div className={`transition-all duration-300 ${expanded ? 'pl-64' : 'pl-20'}`}>
+          <Header 
+            isDarkMode={isDarkMode}
+            toggleDarkMode={toggleDarkMode}
+          />
+          <main className="p-6 md:p-8 animate-fade-in">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ProjectContext.Provider>
   );
 };
