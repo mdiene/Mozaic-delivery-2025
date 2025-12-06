@@ -20,7 +20,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                   style={{ backgroundColor: entry.stroke || entry.fill }}
                 />
                 <span className="capitalize text-muted-foreground">
-                  {entry.name}
+                  {entry.name === 'Planned' ? 'Prévu' : 'Livré'}
                 </span>
               </div>
               <span className="font-mono font-bold text-foreground">
@@ -78,48 +78,48 @@ export const Dashboard = () => {
   const completionRate = stats.totalTarget > 0 ? (stats.totalDelivered / stats.totalTarget) * 100 : 0;
 
   if (loading && projects.length === 0) {
-    return <div className="p-8 text-center text-muted-foreground">Loading Dashboard...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Chargement du tableau de bord...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Campaign Dashboard</h1>
+        <h1 className="text-2xl font-bold text-foreground">Tableau de Bord Campagne</h1>
         <div className="flex gap-2">
           <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-soft-xs border border-emerald-100 dark:border-emerald-800">
-            Live Updates
+            Mise à jour en direct
           </span>
-          <span className="text-sm text-muted-foreground">Last updated: Just now</span>
+          <span className="text-sm text-muted-foreground">Dernière maj: À l'instant</span>
         </div>
       </div>
 
       {/* KPI Cards (Soft UI Style) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KpiCard 
-          title="Total Delivered" 
+          title="Total Livré" 
           value={`${stats.totalDelivered.toLocaleString()} T`} 
-          subValue={`Target: ${stats.totalTarget.toLocaleString()} T`}
+          subValue={`Cible: ${stats.totalTarget.toLocaleString()} T`}
           icon={CheckCircle} 
           variant="primary" 
         />
         <KpiCard 
-          title="Completion Rate" 
+          title="Taux de Réalisation" 
           value={`${completionRate.toFixed(1)}%`} 
-          subValue="Campaign Progress"
+          subValue="Progression"
           icon={TrendingUp} 
           variant="info" 
         />
         <KpiCard 
-          title="Active Trucks" 
+          title="Camions Actifs" 
           value={stats.activeTrucks} 
-          subValue="Currently Dispatched"
+          subValue="En cours d'expédition"
           icon={Truck} 
           variant="warning" 
         />
         <KpiCard 
-          title="Alerts" 
+          title="Alertes" 
           value={stats.alerts} 
-          subValue="Requires Attention"
+          subValue="Nécessite Attention"
           icon={AlertTriangle} 
           variant="danger" 
         />
@@ -132,8 +132,8 @@ export const Dashboard = () => {
         <div className="lg:col-span-2 rounded-2xl bg-card text-card-foreground shadow-soft-xl border border-border/50 min-w-0 flex flex-col">
           <div className="flex flex-col md:flex-row md:items-center justify-between p-6 pb-2 gap-4">
             <div className="space-y-1">
-              <h3 className="font-bold text-lg text-foreground tracking-tight">Regional Performance</h3>
-              <p className="text-sm text-muted-foreground font-medium">Planned vs Actual Delivery Tonnage</p>
+              <h3 className="font-bold text-lg text-foreground tracking-tight">Performance Régionale</h3>
+              <p className="text-sm text-muted-foreground font-medium">Tonnage Prévu vs Livré</p>
             </div>
             
             {/* Controls */}
@@ -145,7 +145,7 @@ export const Dashboard = () => {
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
                 >
-                  <option value="all">All Projects</option>
+                  <option value="all">Tous les Projets</option>
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>
                       Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
@@ -159,14 +159,14 @@ export const Dashboard = () => {
                 <button 
                   onClick={() => setChartType('bar')}
                   className={`p-1.5 rounded-md transition-all ${chartType === 'bar' ? 'bg-card text-foreground shadow-soft-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                  title="Bar Chart"
+                  title="Graphique en Barres"
                 >
                   <BarChart3 size={16} />
                 </button>
                 <button 
                   onClick={() => setChartType('line')}
                   className={`p-1.5 rounded-md transition-all ${chartType === 'line' ? 'bg-card text-foreground shadow-soft-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                  title="Area Chart"
+                  title="Graphique en Aire"
                 >
                   <LineChartIcon size={16} />
                 </button>
@@ -245,7 +245,7 @@ export const Dashboard = () => {
               <span className="flex items-center gap-1 text-emerald-500 font-bold">
                  +5.2% <TrendingUp className="h-4 w-4" />
               </span>
-              <span>increase in delivery efficiency this month</span>
+              <span>augmentation de l'efficacité ce mois-ci</span>
             </div>
           </div>
         </div>
@@ -254,7 +254,7 @@ export const Dashboard = () => {
         <div className="flex flex-col gap-6">
            {/* Shortcuts Card */}
           <div className="bg-card p-6 rounded-2xl shadow-soft-xl border border-border/50">
-             <h2 className="text-lg font-bold text-foreground mb-4">Quick Actions</h2>
+             <h2 className="text-lg font-bold text-foreground mb-4">Actions Rapides</h2>
              <Link 
                to="/settings" 
                className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 hover:bg-muted/60 transition-all group border border-transparent"
@@ -263,14 +263,14 @@ export const Dashboard = () => {
                   <Users size={20} />
                 </div>
                 <div>
-                   <h3 className="font-bold text-foreground">Manage Operators</h3>
-                   <p className="text-xs text-muted-foreground font-medium">Add new GIE or individual operators</p>
+                   <h3 className="font-bold text-foreground">Gérer les Opérateurs</h3>
+                   <p className="text-xs text-muted-foreground font-medium">Ajouter GIE ou opérateurs individuels</p>
                 </div>
              </Link>
           </div>
 
           <div className="bg-card p-6 rounded-2xl shadow-soft-xl border border-border/50 flex-1">
-            <h2 className="text-lg font-bold text-foreground mb-4">Recent Activity</h2>
+            <h2 className="text-lg font-bold text-foreground mb-4">Activité Récente</h2>
             <div className="space-y-6">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex gap-4">
@@ -281,14 +281,14 @@ export const Dashboard = () => {
                      {i !== 3 && <div className="w-0.5 h-full bg-muted my-1"></div>}
                   </div>
                   <div className="pb-1">
-                    <p className="text-sm font-bold text-foreground">Truck dispatched</p>
-                    <p className="text-xs text-muted-foreground font-medium mt-0.5">BL25000{i} • 2 hours ago</p>
+                    <p className="text-sm font-bold text-foreground">Camion expédié</p>
+                    <p className="text-xs text-muted-foreground font-medium mt-0.5">BL25000{i} • il y a 2h</p>
                   </div>
                 </div>
               ))}
             </div>
             <button className="mt-6 w-full py-2.5 text-xs uppercase font-bold tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors">
-              View All Logs
+              Voir tout l'historique
             </button>
           </div>
         </div>

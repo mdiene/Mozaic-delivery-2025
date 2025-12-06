@@ -73,12 +73,12 @@ export const Allocations = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this allocation?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette allocation ?')) return;
     try {
       await db.deleteItem('allocations', id);
       fetchData();
     } catch (e) {
-      alert('Error deleting allocation. It might have associated deliveries.');
+      alert('Erreur lors de la suppression. Elle peut être liée à des livraisons existantes.');
     }
   };
 
@@ -146,17 +146,16 @@ export const Allocations = () => {
     
     // Client-side Validation
     if (Number(formData.target_tonnage) <= 0) {
-      alert("Target Tonnage must be greater than 0");
+      alert("Le tonnage cible doit être supérieur à 0");
       return;
     }
     if (!formData.allocation_key) {
-      alert("Allocation Key is required");
+      alert("La clé d'allocation est requise");
       return;
     }
 
     try {
       // Allowlist Strategy: Explicitly construct payload with ONLY columns that exist in 'allocations' table
-      // This prevents "column 'delivered_tonnage' does not exist" errors
       const dbPayload: any = {
         allocation_key: formData.allocation_key,
         region_id: formData.region_id,
@@ -185,7 +184,7 @@ export const Allocations = () => {
       console.error("Save Error:", error);
       // Try to extract readable error
       const msg = error.details || error.hint || error.message || JSON.stringify(error);
-      alert(`Failed to save allocation: ${msg}`);
+      alert(`Échec de l'enregistrement: ${msg}`);
     }
   };
 
@@ -215,19 +214,22 @@ export const Allocations = () => {
   // Calculate assigned operator IDs to filter dropdown
   const assignedOperatorIds = new Set(allocations.map(a => a.operator_id));
 
+  // Helper to get selected project object
+  const selectedProject = projects.find(p => p.id === formData.project_id);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Allocations</h1>
-          <p className="text-muted-foreground text-sm">Manage regional quotas and operator assignments.</p>
+          <p className="text-muted-foreground text-sm">Gérer les quotas régionaux et l'affectation des opérateurs.</p>
         </div>
         <button 
           onClick={() => handleOpenModal()}
           className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
         >
           <Plus size={18} />
-          New Allocation
+          Nouvelle Allocation
         </button>
       </div>
 
@@ -237,7 +239,7 @@ export const Allocations = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input 
             type="text" 
-            placeholder="Search operator, region, key..."
+            placeholder="Rechercher opérateur, région, clé..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
@@ -246,7 +248,7 @@ export const Allocations = () => {
         <div className="flex gap-2">
           <button className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-muted-foreground hover:bg-muted bg-background">
             <Filter size={18} />
-            <span>Filter</span>
+            <span>Filtrer</span>
           </button>
         </div>
       </div>
@@ -257,23 +259,23 @@ export const Allocations = () => {
           <table className="w-full text-left">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Allocation Key</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Operator</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Region / Commune</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Progress</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Clé d'Allocation</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Opérateur</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Région / Commune</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Progression</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Statut</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && (
                 <tr>
-                   <td colSpan={6} className="p-8 text-center text-muted-foreground">Loading allocations...</td>
+                   <td colSpan={6} className="p-8 text-center text-muted-foreground">Chargement des allocations...</td>
                 </tr>
               )}
               {!loading && filteredAllocations.length === 0 && (
                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-muted-foreground">No allocations found.</td>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune allocation trouvée.</td>
                  </tr>
               )}
               {filteredAllocations.map((alloc) => (
@@ -312,21 +314,21 @@ export const Allocations = () => {
                       ${alloc.status === 'CLOSED' ? 'bg-primary/10 text-primary' : ''}
                       ${alloc.status === 'OVER_DELIVERED' ? 'bg-destructive/10 text-destructive' : ''}
                     `}>
-                      {alloc.status?.replace('_', ' ')}
+                      {alloc.status === 'OPEN' ? 'OUVERT' : alloc.status === 'IN_PROGRESS' ? 'EN COURS' : alloc.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right flex justify-end gap-2">
                     <button 
                       onClick={() => handleOpenModal(alloc)}
                       className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                      title="Edit Allocation"
+                      title="Modifier Allocation"
                     >
                       <Edit2 size={16} />
                     </button>
                     <button 
                       onClick={() => handleDelete(alloc.id)}
                       className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                      title="Delete Allocation"
+                      title="Supprimer Allocation"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -343,7 +345,7 @@ export const Allocations = () => {
            <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
              <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
                <h3 className="font-semibold text-foreground">
-                 {formData.id ? 'Edit Allocation' : 'New Allocation'}
+                 {formData.id ? 'Modifier Allocation' : 'Nouvelle Allocation'}
                </h3>
                <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
              </div>
@@ -352,17 +354,25 @@ export const Allocations = () => {
                 
                 {/* Project */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-foreground mb-1">Project Phase</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Phase Projet</label>
                   <select 
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.project_id || ''}
                     onChange={(e) => {
                       const newProjectId = e.target.value;
+                      const newProject = projects.find(p => p.id === newProjectId);
+                      
                       setFormData((prev: any) => {
                         const currentOp = operators.find(o => o.id === prev.operator_id);
-                        // If current operator does not match the new project, clear selection
-                        const isOpValid = !prev.operator_id || (currentOp && currentOp.projet_id === newProjectId);
+                        // If current operator's project phase matches new project phase, keep selection
+                        const currentOpProject = projects.find(p => p.id === currentOp?.projet_id);
+                        
+                        const isOpValid = !prev.operator_id || (
+                            currentOpProject && 
+                            newProject && 
+                            currentOpProject.numero_phase === newProject.numero_phase
+                        );
                         
                         return {
                           ...prev,
@@ -372,7 +382,7 @@ export const Allocations = () => {
                       });
                     }}
                   >
-                    <option value="">Select Project...</option>
+                    <option value="">Sélectionner Projet...</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>
                         Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
@@ -383,18 +393,25 @@ export const Allocations = () => {
 
                 {/* Operator (Triggers auto-fill) */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-foreground mb-1">Operator</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Opérateur</label>
                   <select 
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.operator_id || ''}
                     onChange={(e) => handleOperatorChange(e.target.value)}
                   >
-                    <option value="">Select Operator...</option>
+                    <option value="">Sélectionner Opérateur...</option>
                     {operators
                       .filter(o => {
-                         // Must match project if selected
-                         if (formData.project_id && o.projet_id !== formData.project_id) return false;
+                         // Filter by Phase Number if a project is selected
+                         if (selectedProject) {
+                           const opProject = projects.find(p => p.id === o.projet_id);
+                           // Match if op has same phase number
+                           if (!opProject || opProject.numero_phase !== selectedProject.numero_phase) {
+                              return false;
+                           }
+                         }
+                         
                          // Must NOT be already assigned, UNLESS it's the current one (for editing)
                          if (assignedOperatorIds.has(o.id) && o.id !== formData.operator_id) return false;
                          return true;
@@ -407,17 +424,17 @@ export const Allocations = () => {
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">
                      {formData.project_id 
-                      ? "Only operators assigned to the selected project and not yet allocated are shown."
-                      : "Showing all unallocated operators across all projects."}
+                      ? "Seuls les opérateurs de la même Phase sont affichés."
+                      : "Affichage de tous les opérateurs non alloués."}
                   </p>
                 </div>
                 
                 {/* Responsible Person Section (DB Requirement) */}
                 <div className="md:col-span-2 grid grid-cols-2 gap-4 p-4 bg-muted/20 rounded-lg border border-border">
-                   <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Responsible Person Details</div>
+                   <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Détails Responsable</div>
                    <div>
                       <label className="block text-sm font-medium text-foreground mb-1 flex items-center gap-1">
-                        <User size={14} /> Full Name
+                        <User size={14} /> Nom Complet
                       </label>
                       <input 
                         type="text"
@@ -425,46 +442,46 @@ export const Allocations = () => {
                         className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                         value={formData.responsible_name || ''}
                         onChange={(e) => setFormData({...formData, responsible_name: e.target.value})}
-                        placeholder="Name of person in charge"
+                        placeholder="Nom du responsable"
                       />
                    </div>
                    <div>
                       <label className="block text-sm font-medium text-foreground mb-1 flex items-center gap-1">
-                        <Phone size={14} /> Phone
+                        <Phone size={14} /> Téléphone
                       </label>
                       <input 
                         type="text"
                         className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                         value={formData.responsible_phone || ''}
                         onChange={(e) => setFormData({...formData, responsible_phone: e.target.value})}
-                        placeholder="Contact number"
+                        placeholder="Numéro de contact"
                       />
                    </div>
                 </div>
 
                 {/* Location Fields */}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Region</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Région</label>
                   <select 
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.region_id || ''}
                     onChange={(e) => setFormData({...formData, region_id: e.target.value})}
                   >
-                     <option value="">Select Region...</option>
+                     <option value="">Sélectionner Région...</option>
                      {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Department</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Département</label>
                   <select 
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.department_id || ''}
                     onChange={(e) => setFormData({...formData, department_id: e.target.value})}
                   >
-                     <option value="">Select Department...</option>
+                     <option value="">Sélectionner Département...</option>
                      {departments
                        .filter(d => !formData.region_id || d.region_id === formData.region_id)
                        .map(d => <option key={d.id} value={d.id}>{d.name}</option>)
@@ -480,18 +497,18 @@ export const Allocations = () => {
                     value={formData.commune_id || ''}
                     onChange={(e) => handleCommuneChange(e.target.value)}
                   >
-                     <option value="">Select Commune...</option>
+                     <option value="">Sélectionner Commune...</option>
                      {getAvailableCommunes()
                        .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
                      }
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Selecting a commune will automatically update the Region and Department fields.
+                    Sélectionner une commune mettra automatiquement à jour la Région et le Département.
                   </p>
                 </div>
 
                 <div>
-                   <label className="block text-sm font-medium text-foreground mb-1">Target Tonnage</label>
+                   <label className="block text-sm font-medium text-foreground mb-1">Tonnage Cible</label>
                    <input 
                      type="number" 
                      required 
@@ -503,13 +520,13 @@ export const Allocations = () => {
 
                 <div className="md:col-span-2">
                    <div className="flex justify-between items-center mb-1">
-                      <label className="block text-sm font-medium text-foreground">Allocation Key</label>
+                      <label className="block text-sm font-medium text-foreground">Clé d'Allocation</label>
                       <button 
                         type="button" 
                         onClick={generateKey}
                         className="text-xs text-primary flex items-center gap-1 hover:underline"
                       >
-                        <RefreshCw size={12} /> Auto-Generate
+                        <RefreshCw size={12} /> Auto-Générer
                       </button>
                    </div>
                    <input 
@@ -518,27 +535,27 @@ export const Allocations = () => {
                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground font-mono uppercase"
                      value={formData.allocation_key || ''}
                      onChange={(e) => setFormData({...formData, allocation_key: e.target.value.toUpperCase()})}
-                     placeholder="e.g. PH1-DK-OP-1234"
+                     placeholder="ex: PH1-DK-OP-1234"
                    />
                 </div>
 
                 <div className="md:col-span-2">
-                   <label className="block text-sm font-medium text-foreground mb-1">Status</label>
+                   <label className="block text-sm font-medium text-foreground mb-1">Statut</label>
                    <select 
                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                      value={formData.status || 'OPEN'}
                      onChange={(e) => setFormData({...formData, status: e.target.value})}
                    >
-                     <option value="OPEN">Open</option>
-                     <option value="IN_PROGRESS">In Progress</option>
-                     <option value="CLOSED">Closed</option>
+                     <option value="OPEN">Ouvert</option>
+                     <option value="IN_PROGRESS">En Cours</option>
+                     <option value="CLOSED">Fermé</option>
                    </select>
                 </div>
 
                 <div className="md:col-span-2 flex justify-end gap-2 pt-2 border-t border-border mt-2">
-                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Cancel</button>
+                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
                    <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
-                     <Save size={16} /> Save Allocation
+                     <Save size={16} /> Enregistrer
                    </button>
                 </div>
              </form>

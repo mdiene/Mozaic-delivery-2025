@@ -24,11 +24,11 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
   const location = useLocation();
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Tableau de bord', path: '/', icon: LayoutDashboard },
     { name: 'Allocations', path: '/allocations', icon: Map },
-    { name: 'Logistics', path: '/logistics', icon: Package },
-    { name: 'Fleet', path: '/fleet', icon: Truck },
-    { name: 'Settings', path: '/settings', icon: Settings },
+    { name: 'Logistique', path: '/logistics', icon: Package },
+    { name: 'Parc Auto', path: '/fleet', icon: Truck },
+    { name: 'Paramètres', path: '/settings', icon: Settings },
   ];
 
   return (
@@ -83,8 +83,8 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
           </div>
           {expanded && (
             <div className="flex flex-col overflow-hidden">
-              <span className="truncate text-sm font-medium">Admin User</span>
-              <span className="truncate text-xs text-sidebar-foreground/60">Logistics Manager</span>
+              <span className="truncate text-sm font-medium">Administrateur</span>
+              <span className="truncate text-xs text-sidebar-foreground/60">Resp. Logistique</span>
             </div>
           )}
           {expanded && (
@@ -112,9 +112,9 @@ const Header = ({
            <Menu size={20} />
         </button>
         <div className="hidden md:flex items-center text-sm text-muted-foreground">
-          <span className="hover:text-foreground cursor-pointer">Project Phase 1</span>
+          <span className="hover:text-foreground cursor-pointer">Projet Phase 1</span>
           <span className="mx-2">/</span>
-          <span className="font-medium text-foreground">Overview</span>
+          <span className="font-medium text-foreground">Vue d'ensemble</span>
         </div>
       </div>
 
@@ -128,7 +128,7 @@ const Header = ({
               ? 'bg-slate-800 border-slate-700 text-yellow-400 hover:text-yellow-300' 
               : 'bg-orange-50 border-orange-200 text-orange-500 hover:text-orange-600'
           }`}
-          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          title={isDarkMode ? "Passer en Mode Clair" : "Passer en Mode Sombre"}
         >
           {isDarkMode ? <Moon size={16} /> : <Sun size={16} />}
         </button>
@@ -139,7 +139,7 @@ const Header = ({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
           <input 
             type="text" 
-            placeholder="Search..." 
+            placeholder="Rechercher..." 
             className="h-9 w-48 lg:w-64 rounded-full border border-input bg-muted/30 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>

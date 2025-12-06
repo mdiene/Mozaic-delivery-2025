@@ -42,12 +42,12 @@ export const Fleet = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ?')) return;
     try {
       await db.deleteItem(activeTab, id);
       fetchData();
     } catch (e) {
-      alert('Cannot delete. Item might be in use.');
+      alert("Impossible de supprimer. L'élément est peut-être utilisé.");
     }
   };
 
@@ -115,11 +115,11 @@ export const Fleet = () => {
       fetchData();
     } catch (error) {
       console.error("Error saving:", JSON.stringify(error));
-      alert(`Failed to save: ${JSON.stringify(error)}`);
+      alert(`Échec de l'enregistrement: ${JSON.stringify(error)}`);
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Fleet Data...</div>;
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Chargement du Parc...</div>;
 
   // Split drivers for grouping
   const assignedDrivers = drivers.filter(d => d.truck_plate);
@@ -128,13 +128,13 @@ export const Fleet = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Fleet Management</h1>
+        <h1 className="text-2xl font-bold text-foreground">Gestion du Parc Automobile</h1>
         <button 
           onClick={openModal}
           className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
         >
           <Plus size={18} />
-          Add {activeTab === 'trucks' ? 'Truck' : 'Driver'}
+          Ajouter {activeTab === 'trucks' ? 'Camion' : 'Chauffeur'}
         </button>
       </div>
 
@@ -145,13 +145,13 @@ export const Fleet = () => {
             onClick={() => setActiveTab('trucks')}
             className={`flex-1 py-4 text-sm font-medium text-center transition-colors border-b-2 ${activeTab === 'trucks' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           >
-            Trucks
+            Camions
           </button>
           <button 
             onClick={() => setActiveTab('drivers')}
             className={`flex-1 py-4 text-sm font-medium text-center transition-colors border-b-2 ${activeTab === 'drivers' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           >
-            Drivers
+            Chauffeurs
           </button>
         </div>
 
@@ -161,15 +161,15 @@ export const Fleet = () => {
             <table className="w-full text-left">
               <thead className="bg-muted/50 border-b border-border">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Plate Number</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Capacity</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Assigned Driver</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Immatriculation</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Capacité</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Chauffeur Assigné</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Statut</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {trucks.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No trucks found.</td></tr>}
+                {trucks.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Aucun camion trouvé.</td></tr>}
                 {trucks.map(truck => (
                   <tr key={truck.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-6 py-4">
@@ -179,7 +179,7 @@ export const Fleet = () => {
                         </div>
                         <div>
                           <p className="font-mono font-medium text-foreground">{truck.plate_number}</p>
-                          {truck.trailer_number && <p className="text-xs text-muted-foreground">Trailer: {truck.trailer_number}</p>}
+                          {truck.trailer_number && <p className="text-xs text-muted-foreground">Remorque: {truck.trailer_number}</p>}
                         </div>
                       </div>
                     </td>
@@ -191,7 +191,7 @@ export const Fleet = () => {
                           <span className="text-sm font-medium text-foreground">{truck.driver_name}</span>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                        <span className="text-xs text-muted-foreground italic">Non assigné</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -200,7 +200,7 @@ export const Fleet = () => {
                         ${truck.status === 'IN_TRANSIT' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200' : ''}
                         ${truck.status === 'MAINTENANCE' ? 'bg-destructive/10 text-destructive' : ''}
                        `}>
-                        {truck.status?.replace('_', ' ') || 'AVAILABLE'}
+                        {truck.status === 'AVAILABLE' ? 'DISPONIBLE' : truck.status === 'IN_TRANSIT' ? 'EN TRANSIT' : 'MAINTENANCE'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
@@ -215,22 +215,22 @@ export const Fleet = () => {
             <table className="w-full text-left">
               <thead className="bg-muted/50 border-b border-border">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Name</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Phone</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">License</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Assigned Truck</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Nom</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Téléphone</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Permis</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Statut</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Camion Assigné</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {drivers.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No drivers found.</td></tr>}
+                {drivers.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Aucun chauffeur trouvé.</td></tr>}
                 
                 {/* ASSIGNED DRIVERS GROUP */}
                 {assignedDrivers.length > 0 && (
                   <>
                     <tr className="bg-muted/30">
-                       <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider border-y border-border">Assigned</td>
+                       <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider border-y border-border">Assignés</td>
                     </tr>
                     {assignedDrivers.map(driver => (
                       <tr key={driver.id} className="hover:bg-muted/50 transition-colors">
@@ -248,7 +248,7 @@ export const Fleet = () => {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
                             ${driver.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
                           `}>
-                            {driver.status}
+                            {driver.status === 'ACTIVE' ? 'ACTIF' : 'INACTIF'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm">
@@ -270,7 +270,7 @@ export const Fleet = () => {
                 {unassignedDrivers.length > 0 && (
                   <>
                     <tr className="bg-muted/30">
-                       <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider border-y border-border">Unassigned</td>
+                       <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider border-y border-border">Non Assignés</td>
                     </tr>
                     {unassignedDrivers.map(driver => (
                       <tr key={driver.id} className="hover:bg-muted/50 transition-colors">
@@ -288,18 +288,18 @@ export const Fleet = () => {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
                             ${driver.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
                           `}>
-                            {driver.status}
+                            {driver.status === 'ACTIVE' ? 'ACTIF' : 'INACTIF'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <span className="text-xs text-muted-foreground italic">None</span>
+                          <span className="text-xs text-muted-foreground italic">Aucun</span>
                         </td>
                         <td className="px-6 py-4 text-right flex justify-end gap-2">
                           {/* Assign Truck Action */}
                           <button 
                             onClick={() => handleAssignTruck(driver)}
                             className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-colors"
-                            title="Assign to New Truck"
+                            title="Assigner un Camion"
                           >
                             <LinkIcon size={16} />
                           </button>
@@ -322,7 +322,7 @@ export const Fleet = () => {
           <div className="bg-card rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-border">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
               <h3 className="font-semibold text-foreground capitalize">
-                {formData.id ? 'Edit' : 'Add'} {activeTab === 'trucks' ? 'Truck' : 'Driver'}
+                {formData.id ? 'Modifier' : 'Ajouter'} {activeTab === 'trucks' ? 'Camion' : 'Chauffeur'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
@@ -331,17 +331,17 @@ export const Fleet = () => {
               {activeTab === 'trucks' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Plate Number</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Immatriculation</label>
                     <input 
                       required 
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase placeholder:normal-case"
-                      placeholder="e.g., DK-2025-AA"
+                      placeholder="ex: DK-2025-AA"
                       value={formData.plate_number || ''}
                       onChange={e => setFormData({...formData, plate_number: e.target.value.toUpperCase()})}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Trailer Number (Optional)</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Numéro Remorque (Optionnel)</label>
                     <input 
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase"
                       value={formData.trailer_number || ''}
@@ -349,7 +349,7 @@ export const Fleet = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Capacity (Tonnes)</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Capacité (Tonnes)</label>
                     <input 
                       type="number" 
                       required 
@@ -359,25 +359,25 @@ export const Fleet = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Status</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Statut</label>
                     <select 
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                       value={formData.status || 'AVAILABLE'}
                       onChange={e => setFormData({...formData, status: e.target.value})}
                     >
-                      <option value="AVAILABLE">Available</option>
-                      <option value="IN_TRANSIT">In Transit</option>
+                      <option value="AVAILABLE">Disponible</option>
+                      <option value="IN_TRANSIT">En Transit</option>
                       <option value="MAINTENANCE">Maintenance</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Assigned Driver</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Chauffeur Assigné</label>
                     <select 
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                       value={formData.driver_id || ''}
                       onChange={e => setFormData({...formData, driver_id: e.target.value})}
                     >
-                      <option value="">Select a driver...</option>
+                      <option value="">Sélectionner un chauffeur...</option>
                       {drivers
                         .filter(d => !d.truck_id || (formData.id && d.truck_id === formData.id) || d.id === formData.driver_id)
                         .map(d => (
@@ -389,7 +389,7 @@ export const Fleet = () => {
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Full Name</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Nom Complet</label>
                     <input 
                       required 
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
@@ -398,7 +398,7 @@ export const Fleet = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Phone Number</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Numéro de Téléphone</label>
                     <input 
                       required 
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
@@ -407,7 +407,7 @@ export const Fleet = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">License Number</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Numéro de Permis</label>
                     <input 
                       required 
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase"
@@ -416,24 +416,24 @@ export const Fleet = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Status</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Statut</label>
                     <select 
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                       value={formData.status || 'ACTIVE'}
                       onChange={e => setFormData({...formData, status: e.target.value})}
                     >
-                      <option value="ACTIVE">Active</option>
-                      <option value="INACTIVE">Inactive</option>
+                      <option value="ACTIVE">Actif</option>
+                      <option value="INACTIVE">Inactif</option>
                     </select>
                   </div>
                 </>
               )}
 
               <div className="pt-4 flex justify-end gap-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Cancel</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
                 <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
                   <Save size={16} />
-                  Save
+                  Enregistrer
                 </button>
               </div>
             </form>

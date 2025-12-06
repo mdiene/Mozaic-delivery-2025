@@ -72,12 +72,12 @@ export const Logistics = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this dispatch?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette expédition ?')) return;
     try {
       await db.deleteItem('deliveries', id);
       fetchData();
     } catch (e) {
-      alert('Error deleting item.');
+      alert("Erreur lors de la suppression de l'élément.");
     }
   };
 
@@ -86,11 +86,11 @@ export const Logistics = () => {
     
     // Client Validation
     if (!formData.allocation_id) {
-       alert("Allocation is required");
+       alert("L'allocation est requise");
        return;
     }
     if (Number(formData.tonnage_loaded) <= 0) {
-       alert("Load must be greater than 0");
+       alert("La charge doit être supérieure à 0");
        return;
     }
 
@@ -115,7 +115,7 @@ export const Logistics = () => {
     } catch (error: any) {
       console.error("Save Error:", error);
       const msg = error.details || error.hint || error.message || JSON.stringify(error);
-      alert(`Failed to save dispatch: ${msg}`);
+      alert(`Échec de l'enregistrement: ${msg}`);
     }
   };
 
@@ -138,7 +138,7 @@ export const Logistics = () => {
     
     // Use full deliveries list instead of filtered
     deliveries.forEach(d => {
-      const phase = d.project_phase || 'Unassigned Phase';
+      const phase = d.project_phase || 'Phase Non Assignée';
       if (!projectGroups[phase]) projectGroups[phase] = [];
       projectGroups[phase].push(d);
     });
@@ -160,10 +160,10 @@ export const Logistics = () => {
        const subGroupMap: Record<string, DeliveryView[]> = {};
        
        phaseItems.forEach(d => {
-         let key = 'Unknown';
-         if (groupBy === 'truck') key = d.truck_plate || 'No Truck';
-         if (groupBy === 'commune') key = d.commune_name || 'No Commune';
-         if (groupBy === 'region') key = d.region_name || 'No Region';
+         let key = 'Inconnu';
+         if (groupBy === 'truck') key = d.truck_plate || 'Aucun Camion';
+         if (groupBy === 'commune') key = d.commune_name || 'Aucune Commune';
+         if (groupBy === 'region') key = d.region_name || 'Aucune Région';
          
          if (!subGroupMap[key]) subGroupMap[key] = [];
          subGroupMap[key].push(d);
@@ -199,15 +199,15 @@ export const Logistics = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Logistics & Dispatch</h1>
-          <p className="text-muted-foreground text-sm">Manage truck dispatches and generate delivery notes (BL).</p>
+          <h1 className="text-2xl font-bold text-foreground">Logistique & Expédition</h1>
+          <p className="text-muted-foreground text-sm">Gérer les expéditions de camions et générer les bons de livraison (BL).</p>
         </div>
         <button 
           onClick={() => handleOpenModal()}
           className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
         >
           <Plus size={18} />
-          New Dispatch
+          Nouvelle Expédition
         </button>
       </div>
 
@@ -217,13 +217,13 @@ export const Logistics = () => {
         <div className="p-4 border-b border-border flex flex-col lg:flex-row gap-4 justify-end items-start lg:items-center">
           <div className="flex items-center gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0">
              <span className="text-xs font-semibold text-muted-foreground uppercase mr-1 whitespace-nowrap flex items-center gap-1">
-               <Layers size={14} /> Group By:
+               <Layers size={14} /> Grouper par:
              </span>
              <button 
                onClick={() => setGroupBy('truck')}
                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'truck' ? 'bg-primary/10 text-primary border-primary' : 'bg-background hover:bg-muted text-muted-foreground border-border'}`}
              >
-               Truck
+               Camion
              </button>
              <button 
                onClick={() => setGroupBy('commune')}
@@ -235,13 +235,13 @@ export const Logistics = () => {
                onClick={() => setGroupBy('region')}
                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'region' ? 'bg-primary/10 text-primary border-primary' : 'bg-background hover:bg-muted text-muted-foreground border-border'}`}
              >
-               Region
+               Région
              </button>
              {groupBy !== 'none' && (
                <button 
                  onClick={() => setGroupBy('none')}
                  className="px-2 py-1.5 text-muted-foreground hover:text-foreground"
-                 title="Clear Grouping"
+                 title="Effacer le regroupement"
                >
                  <X size={14} />
                </button>
@@ -253,10 +253,10 @@ export const Logistics = () => {
           <table className="w-full text-left">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">BL Number</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">N° BL</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Destination</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transport</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Load</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Charge</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
                 <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Actions</th>
               </tr>
@@ -264,7 +264,7 @@ export const Logistics = () => {
             <tbody className="divide-y divide-border">
               {groupedDeliveries.length === 0 && (
                 <tr>
-                   <td colSpan={6} className="p-8 text-center text-muted-foreground">No dispatches found. Create one to get started.</td>
+                   <td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune expédition trouvée. Créez-en une pour commencer.</td>
                 </tr>
               )}
               
@@ -291,7 +291,7 @@ export const Logistics = () => {
                                    <span className="uppercase tracking-wide">{subGroup.key}</span>
                                 </span>
                                 <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[10px]">
-                                   Subtotal: {subGroup.totalLoad.toFixed(2)} T
+                                   Sous-total: {subGroup.totalLoad.toFixed(2)} T
                                 </span>
                              </td>
                           </tr>
@@ -300,7 +300,7 @@ export const Logistics = () => {
                         {/* Items */}
                         {subGroup.items.map((del) => (
                           <tr key={del.id} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-6 py-4 pl-10"> {/* Indent slightly if grouped? Keep standard for now or subtle indent */}
+                            <td className="px-6 py-4 pl-10">
                               <div className="flex items-center gap-2">
                                 <FileText size={16} className="text-primary" />
                                 <span className="font-medium text-foreground">{del.bl_number}</span>
@@ -320,8 +320,8 @@ export const Logistics = () => {
                                   <TruckIcon size={14} />
                                 </div>
                                 <div>
-                                  <p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'No Truck'}</p>
-                                  <p className="text-xs text-muted-foreground">{del.driver_name || 'No Driver'}</p>
+                                  <p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'Aucun Camion'}</p>
+                                  <p className="text-xs text-muted-foreground">{del.driver_name || 'Aucun Chauffeur'}</p>
                                 </div>
                               </div>
                             </td>
@@ -335,14 +335,14 @@ export const Logistics = () => {
                               <button 
                                 onClick={() => handleOpenModal(del)}
                                 className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                                title="Edit Dispatch"
+                                title="Modifier"
                               >
                                 <Edit2 size={16} />
                               </button>
                               <button 
                                 onClick={() => handleDelete(del.id)}
                                 className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                                title="Delete Dispatch"
+                                title="Supprimer"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -362,7 +362,7 @@ export const Logistics = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-card rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden border border-border">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="font-semibold text-foreground">{formData.id ? 'Edit Dispatch' : 'New Dispatch'}</h3>
+              <h3 className="font-semibold text-foreground">{formData.id ? 'Modifier Expédition' : 'Nouvelle Expédition'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
             
@@ -372,17 +372,17 @@ export const Logistics = () => {
                 {/* Left Column: Allocation Info */}
                 <div className="space-y-4">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <MapPin size={14} /> Assignment
+                    <MapPin size={14} /> Affectation
                   </h4>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Select Allocation / Operator</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Sélectionner Allocation / Opérateur</label>
                     <select 
                       required
                       className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
                       value={formData.allocation_id || ''}
                       onChange={(e) => setFormData({...formData, allocation_id: e.target.value})}
                     >
-                      <option value="">Choose Operator...</option>
+                      <option value="">Choisir Opérateur...</option>
                       {allocations.map(alloc => (
                         <option key={alloc.id} value={alloc.id}>
                           {alloc.operator_name} ({alloc.region_name})
@@ -393,17 +393,17 @@ export const Logistics = () => {
                     {selectedAllocation ? (
                       <div className="mt-3 grid grid-cols-3 gap-2 text-center bg-muted/30 p-3 rounded-lg border border-border border-dashed">
                         <div className="flex flex-col">
-                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Target</span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Cible Totale</span>
                             <span className="font-mono text-sm font-medium text-foreground">{targetTonnage} T</span>
                         </div>
                         <div className="flex flex-col border-l border-border relative">
                             {/* Blue dashed emphasis for Delivered */}
                             <div className="absolute -inset-1 border border-dashed border-blue-400 rounded-md pointer-events-none opacity-50"></div>
-                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Delivered</span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Livré</span>
                             <span className="font-mono text-sm font-medium text-primary">{calculatedDelivered} T</span>
                         </div>
                         <div className="flex flex-col border-l border-border">
-                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Remaining</span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Restant</span>
                             <span className="font-mono text-sm font-medium text-foreground">
                                 {remainingTonnage} T
                             </span>
@@ -411,20 +411,20 @@ export const Logistics = () => {
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Shows Operators with active quotas.
+                        Affiche les Opérateurs avec des quotas actifs.
                       </p>
                     )}
                   </div>
                   
                   <div className="p-4 bg-muted/50 rounded-lg border border-border">
                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-foreground">BL Number</span>
+                        <span className="text-sm font-medium text-foreground">Numéro BL</span>
                         <button 
                           type="button" 
                           onClick={() => setFormData({...formData, bl_number: generateBL()})}
                           className="text-xs flex items-center gap-1 text-primary hover:underline"
                         >
-                          <RefreshCw size={12} /> Regenerate
+                          <RefreshCw size={12} /> Régénérer
                         </button>
                      </div>
                      <input 
@@ -440,18 +440,18 @@ export const Logistics = () => {
                 {/* Right Column: Transport */}
                 <div className="space-y-4">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <TruckIcon size={14} /> Transport Details
+                    <TruckIcon size={14} /> Détails Transport
                   </h4>
                   
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Truck (Plate Number)</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Camion (Immatriculation)</label>
                     <select 
                       required
                       className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
                       value={formData.truck_id || ''}
                       onChange={(e) => handleTruckChange(e.target.value)}
                     >
-                       <option value="">Select Truck...</option>
+                       <option value="">Sélectionner Camion...</option>
                        {trucks.map(t => (
                          <option key={t.id} value={t.id}>{t.plate_number} ({t.capacity_tonnes}T)</option>
                        ))}
@@ -460,27 +460,27 @@ export const Logistics = () => {
 
                   {/* Driver Field - Read Only based on Truck */}
                   <div className="relative">
-                     <label className="block text-sm font-medium text-foreground mb-1">Driver</label>
+                     <label className="block text-sm font-medium text-foreground mb-1">Chauffeur</label>
                      {/* Dashed border effect container */}
                      <div className="relative">
                         <input 
                           type="text"
                           readOnly
                           disabled
-                          placeholder="Select a truck to load driver..."
+                          placeholder="Sélectionnez un camion..."
                           className="w-full rounded-lg border border-input bg-muted/50 p-2 pl-9 text-sm text-foreground focus:outline-none cursor-not-allowed"
                           value={assignedDriverName}
                         />
                         <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                      </div>
                      {!assignedDriverName && formData.truck_id && (
-                       <p className="text-xs text-amber-500 mt-1">This truck has no assigned driver.</p>
+                       <p className="text-xs text-amber-500 mt-1">Ce camion n'a pas de chauffeur assigné.</p>
                      )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                      <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Load (Tonnes)</label>
+                      <label className="block text-sm font-medium text-foreground mb-1">Charge (Tonnes)</label>
                       <input 
                         type="number" 
                         required
@@ -512,14 +512,14 @@ export const Logistics = () => {
                   onClick={() => setIsModalOpen(false)} 
                   className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg"
                 >
-                  Cancel
+                  Annuler
                 </button>
                 <button 
                   type="submit" 
                   className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg shadow-sm flex items-center gap-2"
                 >
                   <Save size={16} />
-                  {formData.id ? 'Update Dispatch' : 'Confirm Dispatch'}
+                  {formData.id ? "Mettre à jour" : "Confirmer Expédition"}
                 </button>
               </div>
             </form>
