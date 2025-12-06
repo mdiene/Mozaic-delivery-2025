@@ -1,6 +1,7 @@
 
+
 import { supabase } from '../lib/supabaseClient';
-import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView } from '../types';
+import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView } from '../types';
 
 // Helper to stringify errors safely
 const safeLog = (prefix: string, error: any) => {
@@ -401,6 +402,18 @@ export const db = {
       return [];
     }
     return data as BonLivraisonView[];
+  },
+
+  getFinDeCessionViews: async (): Promise<FinDeCessionView[]> => {
+    const { data, error } = await supabase
+      .from('view_fin_de_cession')
+      .select('*');
+    
+    if (error) {
+      safeLog('Error fetching view_fin_de_cession:', error);
+      return [];
+    }
+    return data as FinDeCessionView[];
   },
 
   // Generic CRUD

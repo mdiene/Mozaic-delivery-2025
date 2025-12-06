@@ -1,4 +1,5 @@
 
+
 export type AllocationStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED';
 
 export interface Region {
@@ -129,4 +130,16 @@ export interface BonLivraisonView {
   region: string;
   project_num_bon: string;
   numero_phase: number;
+}
+
+export interface FinDeCessionView {
+  region: string;
+  department: string;
+  commune: string;
+  operator_name: string;
+  operator_coop_name?: string;
+  operator_contact_info?: string;
+  project_phase: number;
+  deliveries_count: number;
+  total_tonnage: number;
 }
