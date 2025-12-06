@@ -1,13 +1,19 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
 import { AllocationView, Project, Operator, Region, Department, Commune } from '../types';
-import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone } from 'lucide-react';
+import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Unlock } from 'lucide-react';
+
+type GroupBy = 'none' | 'project';
 
 export const Allocations = () => {
   const [allocations, setAllocations] = useState<AllocationView[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filter & Grouping State
+  const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<string>('all');
+  const [groupBy, setGroupBy] = useState<GroupBy>('none');
 
   // Dropdown Data
   const [projects, setProjects] = useState<Project[]>([]);
@@ -37,6 +43,21 @@ export const Allocations = () => {
       setRegions(reg);
       setDepartments(dep);
       setCommunes(com);
+      
+      // Auto-Status Update Logic
+      all.forEach(async (a) => {
+        // Auto-Close if 100%
+        if (a.progress >= 100 && (a.status === 'OPEN' || a.status === 'IN_PROGRESS')) {
+           console.log(`Auto-closing allocation ${a.allocation_key}`);
+           await db.updateItem('allocations', a.id, { status: 'CLOSED' });
+        }
+        // Auto-Start if > 0% and OPEN
+        else if (a.progress > 0 && a.status === 'OPEN') {
+           console.log(`Auto-starting allocation ${a.allocation_key}`);
+           await db.updateItem('allocations', a.id, { status: 'IN_PROGRESS' });
+        }
+      });
+      
     } catch (e) {
       console.error('Error fetching allocation data:', e);
     } finally {
@@ -188,11 +209,23 @@ export const Allocations = () => {
     }
   };
 
-  const filteredAllocations = allocations.filter(a => 
-    a.operator_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.allocation_key?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.region_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      // Optimistic Update
+      setAllocations(prev => prev.map(a => a.id === id ? { ...a, status: newStatus as any } : a));
+      
+      await db.updateItem('allocations', id, { status: newStatus });
+    } catch (e) {
+      alert("Erreur lors de la mise à jour du statut.");
+      fetchData(); // Revert
+    }
+  };
+
+  const handleCloseAllocation = async (id: string) => {
+    if (confirm("Confirmez-vous la clôture de cette allocation ?")) {
+      await handleStatusChange(id, 'CLOSED');
+    }
+  };
 
   // Helper to filter communes based on selected region/dept
   const getAvailableCommunes = () => {
@@ -217,6 +250,40 @@ export const Allocations = () => {
   // Helper to get selected project object
   const selectedProject = projects.find(p => p.id === formData.project_id);
 
+  // Grouping and Filtering Logic
+  const filteredAllocations = useMemo(() => {
+    return allocations.filter(a => {
+      // Search Term
+      const matchesSearch = 
+        a.operator_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.allocation_key?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.region_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (!matchesSearch) return false;
+
+      // Project Filter
+      if (selectedPhaseFilter === 'all') return true;
+      if (selectedPhaseFilter === 'unassigned') return !a.project_id;
+      return a.project_id === selectedPhaseFilter;
+    });
+  }, [allocations, searchTerm, selectedPhaseFilter]);
+
+  const groupedAllocations = useMemo(() => {
+    if (groupBy === 'none') {
+      return [{ key: 'All', items: filteredAllocations }];
+    }
+    
+    // Group by Project
+    const groups: Record<string, AllocationView[]> = {};
+    filteredAllocations.forEach(a => {
+      const key = a.project_phase || 'Phase Non Assignée';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(a);
+    });
+
+    return Object.entries(groups).map(([key, items]) => ({ key, items }));
+  }, [filteredAllocations, groupBy]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -233,23 +300,75 @@ export const Allocations = () => {
         </button>
       </div>
 
-      {/* Filters & Search */}
-      <div className="flex flex-col md:flex-row gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <input 
-            type="text" 
-            placeholder="Rechercher opérateur, région, clé..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
-          />
+      {/* Filters & Search Toolbar */}
+      <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <input 
+              type="text" 
+              placeholder="Rechercher opérateur, région, clé..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+             <button
+                onClick={() => setGroupBy(prev => prev === 'none' ? 'project' : 'none')}
+                className={`px-3 py-2 rounded-lg border flex items-center gap-2 text-sm transition-colors ${
+                  groupBy === 'project' 
+                    ? 'bg-primary/10 text-primary border-primary' 
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+             >
+               <Layers size={16} /> Grouper par Phase
+             </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-muted-foreground hover:bg-muted bg-background">
-            <Filter size={18} />
-            <span>Filtrer</span>
-          </button>
+
+        {/* Phase Filters - Horizontal Scroll */}
+        <div className="overflow-x-auto pb-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedPhaseFilter('all')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                selectedPhaseFilter === 'all' 
+                  ? 'bg-primary text-primary-foreground border-primary' 
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
+              }`}
+            >
+              Tous <span className="opacity-70">({allocations.length})</span>
+            </button>
+            <button
+              onClick={() => setSelectedPhaseFilter('unassigned')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                selectedPhaseFilter === 'unassigned'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
+              }`}
+            >
+              Non Assignés <span className="opacity-70">({allocations.filter(a => !a.project_id).length})</span>
+            </button>
+            {projects.map(p => {
+              const count = allocations.filter(a => a.project_id === p.id).length;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedPhaseFilter(p.id)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                    selectedPhaseFilter === p.id
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  Phase {p.numero_phase} <span className="opacity-70">({count})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -278,62 +397,102 @@ export const Allocations = () => {
                     <td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune allocation trouvée.</td>
                  </tr>
               )}
-              {filteredAllocations.map((alloc) => (
-                <tr key={alloc.id} className="hover:bg-muted/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <span className="font-mono text-xs font-medium text-foreground bg-muted px-2 py-1 rounded border border-border">
-                      {alloc.allocation_key}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-foreground">{alloc.operator_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                       {alloc.responsible_name !== alloc.operator_name ? `Resp: ${alloc.responsible_name}` : ''}
-                    </p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm text-foreground">{alloc.region_name}</p>
-                    <p className="text-xs text-muted-foreground">{alloc.commune_name}</p>
-                  </td>
-                  <td className="px-6 py-4 w-48">
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">{alloc.delivered_tonnage} / {alloc.target_tonnage} T</span>
-                      <span className="font-medium text-primary">{alloc.progress.toFixed(0)}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(alloc.progress, 100)}%` }}
-                      ></div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${alloc.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200' : ''}
-                      ${alloc.status === 'OPEN' ? 'bg-secondary text-secondary-foreground' : ''}
-                      ${alloc.status === 'CLOSED' ? 'bg-primary/10 text-primary' : ''}
-                      ${alloc.status === 'OVER_DELIVERED' ? 'bg-destructive/10 text-destructive' : ''}
-                    `}>
-                      {alloc.status === 'OPEN' ? 'OUVERT' : alloc.status === 'IN_PROGRESS' ? 'EN COURS' : alloc.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    <button 
-                      onClick={() => handleOpenModal(alloc)}
-                      className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                      title="Modifier Allocation"
+              
+              {groupedAllocations.map((group) => (
+                <React.Fragment key={group.key}>
+                  {groupBy !== 'none' && (
+                    <tr className="bg-muted/30 border-y border-border">
+                      <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
+                        {group.key} ({group.items.length})
+                      </td>
+                    </tr>
+                  )}
+                  {group.items.map((alloc) => (
+                    <tr 
+                      key={alloc.id} 
+                      className={`hover:bg-muted/50 transition-colors group ${alloc.status === 'CLOSED' ? 'opacity-60 bg-muted/20 grayscale-[0.5]' : ''}`}
                     >
-                      <Edit2 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(alloc.id)}
-                      className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                      title="Supprimer Allocation"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-xs font-medium text-foreground bg-muted px-2 py-1 rounded border border-border">
+                          {alloc.allocation_key}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-medium text-foreground">{alloc.operator_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                           {alloc.responsible_name !== alloc.operator_name ? `Resp: ${alloc.responsible_name}` : ''}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm text-foreground">{alloc.region_name}</p>
+                        <p className="text-xs text-muted-foreground">{alloc.commune_name}</p>
+                      </td>
+                      <td className="px-6 py-4 w-48">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-muted-foreground">{alloc.delivered_tonnage} / {alloc.target_tonnage} T</span>
+                          <span className="font-medium text-primary">{alloc.progress.toFixed(0)}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(alloc.progress, 100)}%` }}
+                          ></div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {/* Status Select - Always Enabled to allow re-opening */}
+                        <select
+                          className={`text-xs font-medium border-none bg-transparent focus:ring-0 cursor-pointer rounded px-2 py-1
+                            ${alloc.status === 'IN_PROGRESS' ? 'text-blue-600 bg-blue-50' : ''}
+                            ${alloc.status === 'OPEN' ? 'text-emerald-600 bg-emerald-50' : ''}
+                            ${alloc.status === 'CLOSED' ? 'text-slate-500 bg-slate-100' : ''}
+                            ${alloc.status === 'OVER_DELIVERED' ? 'text-red-600 bg-red-50' : ''}
+                          `}
+                          value={alloc.status}
+                          onChange={(e) => handleStatusChange(alloc.id, e.target.value)}
+                        >
+                          <option value="OPEN">OUVERT</option>
+                          <option value="IN_PROGRESS">EN COURS</option>
+                          <option value="CLOSED">FERMÉ</option>
+                          <option value="OVER_DELIVERED">SUR-LIVRÉ</option>
+                        </select>
+                      </td>
+                      <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
+                        
+                        {/* Close Button - Active only if 100% */}
+                        <button
+                          onClick={() => handleCloseAllocation(alloc.id)}
+                          disabled={alloc.progress < 100 || alloc.status === 'CLOSED'}
+                          className={`p-2 rounded-lg transition-colors border ${
+                            alloc.progress >= 100 && alloc.status !== 'CLOSED'
+                              ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200 cursor-pointer shadow-sm'
+                              : 'bg-muted text-muted-foreground border-transparent cursor-not-allowed opacity-50'
+                          }`}
+                          title={alloc.progress >= 100 ? "Clôturer l'allocation (100% atteint)" : "Progression insuffisante pour clôture auto"}
+                        >
+                          {alloc.status === 'CLOSED' ? <CheckCircle size={16} /> : <Lock size={16} />}
+                        </button>
+
+                        <div className="w-px h-4 bg-border mx-1"></div>
+
+                        <button 
+                          onClick={() => handleOpenModal(alloc)}
+                          className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+                          title="Modifier Allocation"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(alloc.id)}
+                          className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
+                          title="Supprimer Allocation"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

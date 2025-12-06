@@ -60,6 +60,7 @@ export interface Project {
   numero_phase: number;
   date_mise_disposition: string;
   tonnage_total: number;
+  total_delivered?: number;
 }
 
 export interface Allocation {
@@ -101,6 +102,7 @@ export interface AllocationView extends Allocation {
   commune_name: string;
   delivered_tonnage: number;
   progress: number;
+  project_phase?: string; // Added for display/grouping
 }
 
 export interface DeliveryView extends Delivery {
@@ -110,4 +112,21 @@ export interface DeliveryView extends Delivery {
   project_phase: string;
   truck_plate: string;
   driver_name: string;
+}
+
+// Database Views
+export interface BonLivraisonView {
+  bl_number: string;
+  tonnage_loaded: number;
+  delivery_date: string;
+  allocation_key: string;
+  target_tonnage: number;
+  operator_name: string;
+  operator_coop_name?: string;
+  operator_contact_info?: string;
+  commune: string;
+  department: string;
+  region: string;
+  project_num_bon: string;
+  numero_phase: number;
 }

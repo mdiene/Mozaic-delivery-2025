@@ -400,13 +400,14 @@ export const Settings = () => {
                   <th className="px-4 py-3">Phase</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Tonnage Total</th>
+                  <th className="px-4 py-3">Tonnage Livré</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {projects.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Aucun projet trouvé.</td>
+                    <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Aucun projet trouvé.</td>
                   </tr>
                 )}
                 {projects.map((p) => {
@@ -418,6 +419,7 @@ export const Settings = () => {
                       <td className="px-4 py-3 text-muted-foreground">{p.numero_phase}</td>
                       <td className="px-4 py-3 text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString() : '-'}</td>
                       <td className="px-4 py-3 text-foreground font-mono">{p.tonnage_total} T</td>
+                      <td className="px-4 py-3 text-emerald-600 font-mono font-medium">{p.total_delivered?.toLocaleString()} T</td>
                       <td className="px-4 py-3 text-right flex justify-end gap-2">
                         <button 
                           onClick={() => handleEdit('project', p)} 
@@ -759,11 +761,11 @@ export const Settings = () => {
                        <div className="mt-2 text-xs text-muted-foreground bg-muted/50 p-2 rounded-lg border border-border grid grid-cols-2 gap-2">
                          <div>
                            <span className="font-semibold block text-primary">Bon de Disp. :</span> 
-                           <span className="font-mono">{projects.find(p => p.id === formData.projet_id)?.numero_bon_disposition || '-'}</span>
+                           <span className="font-mono text-foreground">{projects.find(p => p.id === formData.projet_id)?.numero_bon_disposition || '-'}</span>
                          </div>
                          <div>
                            <span className="font-semibold block text-primary">Tonnage Total :</span> 
-                           <span className="font-mono">{projects.find(p => p.id === formData.projet_id)?.tonnage_total} T</span>
+                           <span className="font-mono text-foreground">{projects.find(p => p.id === formData.projet_id)?.tonnage_total} T</span>
                          </div>
                        </div>
                      )}

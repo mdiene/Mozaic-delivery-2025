@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
 import { Truck as TruckType, Driver as DriverType } from '../types';
-import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon } from 'lucide-react';
+import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon, Search, ChevronDown } from 'lucide-react';
 
 export const Fleet = () => {
   const [activeTab, setActiveTab] = useState<'trucks' | 'drivers'>('trucks');
@@ -13,6 +13,10 @@ export const Fleet = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  
+  // Search State for Truck (Searchable Select)
+  const [truckSearch, setTruckSearch] = useState('');
+  const [isTruckDropdownOpen, setIsTruckDropdownOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -33,11 +37,15 @@ export const Fleet = () => {
 
   const openModal = () => {
     setFormData({});
+    setTruckSearch('');
     setIsModalOpen(true);
   };
 
   const handleEdit = (item: any) => {
     setFormData({ ...item });
+    if (activeTab === 'trucks') {
+      setTruckSearch(item.plate_number);
+    }
     setIsModalOpen(true);
   };
 
@@ -60,6 +68,7 @@ export const Fleet = () => {
       status: 'AVAILABLE',
       capacity_tonnes: 0
     });
+    setTruckSearch('');
     setIsModalOpen(true);
   };
 
@@ -117,6 +126,18 @@ export const Fleet = () => {
       console.error("Error saving:", JSON.stringify(error));
       alert(`Échec de l'enregistrement: ${JSON.stringify(error)}`);
     }
+  };
+
+  // Handler when a truck is selected from search
+  const handleTruckSelect = (truck: TruckType) => {
+    setFormData({
+      ...formData,
+      ...truck,
+      // Ensure we keep the correct structure
+      id: truck.id
+    });
+    setTruckSearch(truck.plate_number);
+    setIsTruckDropdownOpen(false);
   };
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Chargement du Parc...</div>;
@@ -330,23 +351,67 @@ export const Fleet = () => {
             <form onSubmit={handleSave} className="p-6 space-y-4">
               {activeTab === 'trucks' ? (
                 <>
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-foreground mb-1">Immatriculation</label>
-                    <input 
-                      required 
-                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase placeholder:normal-case"
-                      placeholder="ex: DK-2025-AA"
-                      value={formData.plate_number || ''}
-                      onChange={e => setFormData({...formData, plate_number: e.target.value.toUpperCase()})}
-                    />
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+                      <input 
+                        required 
+                        className="w-full pl-9 pr-8 border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase placeholder:normal-case focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                        placeholder="Rechercher ou saisir ex: DK-2025-AA"
+                        value={truckSearch}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          setTruckSearch(val);
+                          // If user types, we clear the ID to imply "New Entry" unless they select from list
+                          if (formData.id) setFormData({ ...formData, plate_number: val, id: undefined });
+                          else setFormData({ ...formData, plate_number: val });
+                          setIsTruckDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsTruckDropdownOpen(true)}
+                        onBlur={() => setTimeout(() => setIsTruckDropdownOpen(false), 200)} // Delay to allow click
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+                    </div>
+                    {isTruckDropdownOpen && truckSearch && (
+                      <ul className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {trucks
+                          .filter(t => t.plate_number.includes(truckSearch))
+                          .map(t => (
+                            <li 
+                              key={t.id}
+                              className="px-4 py-2 hover:bg-muted text-sm cursor-pointer text-popover-foreground flex justify-between items-center"
+                              onClick={() => handleTruckSelect(t)}
+                            >
+                              <span>{t.plate_number}</span>
+                              {t.trailer_number && <span className="text-xs text-muted-foreground">{t.trailer_number}</span>}
+                            </li>
+                          ))
+                        }
+                        {trucks.filter(t => t.plate_number.includes(truckSearch)).length === 0 && (
+                          <li 
+                            className="px-4 py-2 text-sm text-primary cursor-pointer hover:bg-muted flex items-center gap-2"
+                            onClick={() => {
+                              // Confirm creation logic (handled by onChange)
+                              setIsTruckDropdownOpen(false);
+                            }}
+                          >
+                            <Plus size={14} /> Créer nouveau : {truckSearch}
+                          </li>
+                        )}
+                      </ul>
+                    )}
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Numéro Remorque (Optionnel)</label>
                     <input 
-                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase"
+                      className={`w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase ${formData.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                       value={formData.trailer_number || ''}
                       onChange={e => setFormData({...formData, trailer_number: e.target.value.toUpperCase()})}
+                      disabled={!!formData.id} // Disable if existing truck is selected
                     />
+                    {formData.id && <p className="text-xs text-muted-foreground mt-1">Modifiez d'abord l'immatriculation pour un nouveau camion.</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Capacité (Tonnes)</label>

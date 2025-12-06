@@ -13,7 +13,8 @@ import {
   Bell,
   Search,
   Sun,
-  Moon
+  Moon,
+  Eye
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -28,6 +29,7 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
     { name: 'Allocations', path: '/allocations', icon: Map },
     { name: 'Logistique', path: '/logistics', icon: Package },
     { name: 'Parc Auto', path: '/fleet', icon: Truck },
+    { name: 'Vues', path: '/views', icon: Eye },
     { name: 'Paramètres', path: '/settings', icon: Settings },
   ];
 

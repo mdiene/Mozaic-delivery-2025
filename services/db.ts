@@ -1,6 +1,6 @@
 
 import { supabase } from '../lib/supabaseClient';
-import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator } from '../types';
+import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView } from '../types';
 
 // Helper to stringify errors safely
 const safeLog = (prefix: string, error: any) => {
@@ -62,7 +62,8 @@ export const db = {
         regions(name),
         departments(name),
         communes(name),
-        operators(name)
+        operators(name),
+        project:project_id(numero_phase, numero_marche)
       `);
 
     if (error) {
@@ -81,12 +82,18 @@ export const db = {
         ?.filter((d: any) => d.allocation_id === alloc.id)
         .reduce((sum: number, d: any) => sum + (Number(d.tonnage_loaded) || 0), 0) || 0;
 
+      const proj = alloc.project;
+      const phaseStr = proj 
+        ? `Phase ${proj.numero_phase}${proj.numero_marche ? ` - ${proj.numero_marche}` : ''}`
+        : 'Phase Non Assignée';
+
       return {
         ...alloc,
         region_name: alloc.regions?.name || 'Unknown',
         department_name: alloc.departments?.name || 'Unknown',
         commune_name: alloc.communes?.name || 'Unknown',
         operator_name: alloc.operators?.name || 'Unknown',
+        project_phase: phaseStr,
         delivered_tonnage: delivered,
         progress: alloc.target_tonnage > 0 ? (delivered / alloc.target_tonnage) * 100 : 0
       };
@@ -121,7 +128,7 @@ export const db = {
       
       const phaseStr = proj 
         ? `Phase ${proj.numero_phase}${proj.numero_marche ? ` - ${proj.numero_marche}` : ''}`
-        : 'Unassigned Phase';
+        : 'Phase Non Assignée';
 
       return {
         ...del,
@@ -291,12 +298,41 @@ export const db = {
 
   getProjects: async (): Promise<Project[]> => {
     // Sort by phase descending since created_at is missing in schema
-    const { data, error } = await supabase.from('project').select('*').order('numero_phase', { ascending: false });
+    const { data: projects, error } = await supabase.from('project').select('*').order('numero_phase', { ascending: false });
     if (error) {
       safeLog('Error fetching projects:', error);
       return [];
     }
-    return (data as any[]) || [];
+
+    // Calculate total delivered per project
+    const { data: deliveries, error: delError } = await supabase
+      .from('deliveries')
+      .select(`
+        tonnage_loaded,
+        allocations!inner (
+          project_id
+        )
+      `);
+    
+    if (delError) {
+       safeLog('Error fetching project delivery stats:', delError);
+    }
+
+    const statsMap = new Map<string, number>();
+    if (deliveries) {
+      deliveries.forEach((d: any) => {
+        const pId = d.allocations?.project_id;
+        if (pId) {
+          const current = statsMap.get(pId) || 0;
+          statsMap.set(pId, current + (Number(d.tonnage_loaded) || 0));
+        }
+      });
+    }
+
+    return (projects as any[]).map(p => ({
+      ...p,
+      total_delivered: statsMap.get(p.id) || 0
+    }));
   },
 
   getUsedProjectIds: async (): Promise<Set<string>> => {
@@ -350,8 +386,21 @@ export const db = {
       commune_name: communeMap.get(op.commune_id) || 'Unknown',
       project_name: op.projet_id ? (projectMap.get(op.projet_id) || 'Unknown Project') : '-',
       is_coop: op.operateur_coop_gie, // Map DB column to frontend prop
-      phone: op.contact_info // Direct map since column is varchar now
+      phone: op.contact_info // Direct map since column is varchar column
     })) as Operator[];
+  },
+
+  // Views
+  getBonLivraisonViews: async (): Promise<BonLivraisonView[]> => {
+    const { data, error } = await supabase
+      .from('view_bon_livraison')
+      .select('*');
+    
+    if (error) {
+      safeLog('Error fetching view_bon_livraison:', error);
+      return [];
+    }
+    return data as BonLivraisonView[];
   },
 
   // Generic CRUD
