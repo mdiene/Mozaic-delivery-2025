@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
-import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter } from 'lucide-react';
+import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
 
 type Tab = 'geographic' | 'projects' | 'operators';
@@ -22,6 +22,7 @@ export const Settings = () => {
 
   // Operators State
   const [operators, setOperators] = useState<Operator[]>([]);
+  const [groupOperatorsByPhase, setGroupOperatorsByPhase] = useState(true);
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -169,6 +170,68 @@ export const Settings = () => {
       return `${action} ${typeMap[type] || type}`;
   };
 
+  // Helper to render operator row
+  const renderOperatorRow = (op: Operator) => (
+    <tr key={op.id} className="hover:bg-muted/50 transition-colors">
+      <td className="px-4 py-3">
+        <div className="font-medium text-foreground pl-4">{op.name}</div>
+        {op.is_coop && <div className="text-xs text-muted-foreground pl-4">{op.coop_name}</div>}
+      </td>
+      <td className="px-4 py-3">
+        {op.is_coop ? (
+          <div className="flex items-center gap-2" title="Coopérative / GIE">
+            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
+              <Building2 size={16} />
+            </span>
+            <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Coop</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2" title="Individuel">
+            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-secondary text-secondary-foreground">
+              <User size={16} />
+            </span>
+            <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Indiv.</span>
+          </div>
+        )}
+      </td>
+      <td className="px-4 py-3 text-sm text-foreground">{op.commune_name}</td>
+      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
+        {op.phone ? (
+          <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">
+            {op.phone}
+          </a>
+        ) : (
+          <span className="opacity-50">-</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-sm text-foreground">
+        {op.project_name !== '-' ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
+            {op.project_name}
+          </span>
+        ) : (
+          <span className="opacity-50">-</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-right flex justify-end gap-2">
+        <button 
+          onClick={() => handleEdit('operator', op)} 
+          className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+          title="Modifier Opérateur"
+        >
+          <Edit2 size={18} />
+        </button>
+        <button 
+          onClick={() => handleDelete('operators', op.id)} 
+          className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
+          title="Supprimer Opérateur"
+        >
+          <Trash2 size={18} />
+        </button>
+      </td>
+    </tr>
+  );
+
   return (
     <div className="space-y-6">
       <div className="mb-4">
@@ -208,9 +271,22 @@ export const Settings = () => {
       {activeTab === 'operators' && (
         <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Users size={20} className="text-primary" /> Opérateurs
-            </h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Users size={20} className="text-primary" /> Opérateurs
+              </h2>
+              <button 
+                onClick={() => setGroupOperatorsByPhase(!groupOperatorsByPhase)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  groupOperatorsByPhase 
+                    ? 'bg-primary/10 text-primary border-primary' 
+                    : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                }`}
+              >
+                <Layers size={14} />
+                Grouper par Phase
+              </button>
+            </div>
             <button 
               onClick={() => openModal('operator')}
               className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm hover:bg-primary/90"
@@ -241,154 +317,49 @@ export const Settings = () => {
                   </tr>
                 )}
                 
-                {/* Group Operators by Project */}
-                {projects.map((proj) => {
+                {/* FLAT VIEW */}
+                {!groupOperatorsByPhase && operators.map((op) => renderOperatorRow(op))}
+
+                {/* GROUPED VIEW */}
+                {groupOperatorsByPhase && projects.map((proj) => {
                   const groupOps = operators.filter(op => op.projet_id === proj.id);
                   if (groupOps.length === 0) return null;
 
                   return (
                     <React.Fragment key={proj.id}>
                       <tr className="bg-muted/50 border-y border-border">
-                        <td colSpan={6} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                          Projet: Phase {proj.numero_phase} {proj.numero_marche ? `- ${proj.numero_marche}` : ''}
+                        <td colSpan={6} className="px-4 py-2">
+                          <div className="flex justify-between items-center text-xs font-bold uppercase text-muted-foreground tracking-wider">
+                            <span>Projet: Phase {proj.numero_phase} {proj.numero_marche ? `- ${proj.numero_marche}` : ''}</span>
+                            <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]">
+                              {groupOps.length}
+                            </span>
+                          </div>
                         </td>
                       </tr>
-                      {groupOps.map((op) => (
-                        <tr key={op.id} className="hover:bg-muted/50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-foreground pl-4">{op.name}</div>
-                            {op.is_coop && <div className="text-xs text-muted-foreground pl-4">{op.coop_name}</div>}
-                          </td>
-                          <td className="px-4 py-3">
-                            {op.is_coop ? (
-                              <div className="flex items-center gap-2" title="Coopérative / GIE">
-                                <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
-                                  <Building2 size={16} />
-                                </span>
-                                <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Coop</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2" title="Individuel">
-                                <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-secondary text-secondary-foreground">
-                                  <User size={16} />
-                                </span>
-                                <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Indiv.</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-foreground">{op.commune_name}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
-                            {op.phone ? (
-                              <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">
-                                {op.phone}
-                              </a>
-                            ) : (
-                              <span className="opacity-50">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-foreground">
-                            {op.project_name !== '-' ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
-                                {op.project_name}
-                              </span>
-                            ) : (
-                              <span className="opacity-50">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right flex justify-end gap-2">
-                            <button 
-                              onClick={() => handleEdit('operator', op)} 
-                              className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                              title="Modifier Opérateur"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete('operators', op.id)} 
-                              className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                              title="Supprimer Opérateur"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {groupOps.map((op) => renderOperatorRow(op))}
                     </React.Fragment>
                   );
                 })}
 
-                {/* Unassigned Operators */}
-                {(() => {
+                {/* Unassigned Operators (Grouped View) */}
+                {groupOperatorsByPhase && (() => {
                   const unassignedOps = operators.filter(op => !op.projet_id);
                   if (unassignedOps.length === 0) return null;
 
                   return (
                     <React.Fragment key="unassigned">
                       <tr className="bg-muted/50 border-y border-border">
-                        <td colSpan={6} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                          Non Assignés
+                        <td colSpan={6} className="px-4 py-2">
+                          <div className="flex justify-between items-center text-xs font-bold uppercase text-muted-foreground tracking-wider">
+                            <span>Non Assignés</span>
+                            <span className="ml-2 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px]">
+                              {unassignedOps.length}
+                            </span>
+                          </div>
                         </td>
                       </tr>
-                      {unassignedOps.map((op) => (
-                        <tr key={op.id} className="hover:bg-muted/50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-foreground pl-4">{op.name}</div>
-                            {op.is_coop && <div className="text-xs text-muted-foreground pl-4">{op.coop_name}</div>}
-                          </td>
-                          <td className="px-4 py-3">
-                            {op.is_coop ? (
-                              <div className="flex items-center gap-2" title="Coopérative / GIE">
-                                <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
-                                  <Building2 size={16} />
-                                </span>
-                                <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Coop</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2" title="Individuel">
-                                <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-secondary text-secondary-foreground">
-                                  <User size={16} />
-                                </span>
-                                <span className="text-xs font-medium text-muted-foreground hidden lg:inline">Indiv.</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-foreground">{op.commune_name}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
-                            {op.phone ? (
-                              <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">
-                                {op.phone}
-                              </a>
-                            ) : (
-                              <span className="opacity-50">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-foreground">
-                            {op.project_name !== '-' ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
-                                {op.project_name}
-                              </span>
-                            ) : (
-                              <span className="opacity-50">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right flex justify-end gap-2">
-                            <button 
-                              onClick={() => handleEdit('operator', op)} 
-                              className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                              title="Modifier Opérateur"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete('operators', op.id)} 
-                              className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                              title="Supprimer Opérateur"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {unassignedOps.map((op) => renderOperatorRow(op))}
                     </React.Fragment>
                   );
                 })()}
