@@ -22,7 +22,7 @@ export const Settings = () => {
 
   // Operators State
   const [operators, setOperators] = useState<Operator[]>([]);
-  const [groupOperatorsByPhase, setGroupOperatorsByPhase] = useState(true);
+  const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<string>('all'); // 'all', 'unassigned', or project_id
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -270,30 +270,64 @@ export const Settings = () => {
       {/* OPERATORS TAB */}
       {activeTab === 'operators' && (
         <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Users size={20} className="text-primary" /> Opérateurs
-              </h2>
-              <button 
-                onClick={() => setGroupOperatorsByPhase(!groupOperatorsByPhase)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                  groupOperatorsByPhase 
-                    ? 'bg-primary/10 text-primary border-primary' 
-                    : 'bg-background hover:bg-muted text-muted-foreground border-border'
-                }`}
-              >
-                <Layers size={14} />
-                Grouper par Phase
-              </button>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Users size={20} className="text-primary" /> Opérateurs
+            </h2>
+            
+            {/* Filter Buttons */}
+            <div className="flex-1 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 mx-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedPhaseFilter('all')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                    selectedPhaseFilter === 'all' 
+                      ? 'bg-primary text-primary-foreground border-primary' 
+                      : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  Tous <span className="opacity-70">({operators.length})</span>
+                </button>
+                
+                <button
+                  onClick={() => setSelectedPhaseFilter('unassigned')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                    selectedPhaseFilter === 'unassigned'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  Non Assignés <span className="opacity-70">({operators.filter(o => !o.projet_id).length})</span>
+                </button>
+
+                {projects.map(p => {
+                  const count = operators.filter(o => o.projet_id === p.id).length;
+                  if (count === 0) return null; // Optional: Hide empty phases
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedPhaseFilter(p.id)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                        selectedPhaseFilter === p.id
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                      }`}
+                    >
+                      Phase {p.numero_phase} <span className="opacity-70">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
             <button 
               onClick={() => openModal('operator')}
-              className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm hover:bg-primary/90"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm hover:bg-primary/90 whitespace-nowrap"
             >
               <Plus size={16} /> Ajouter Opérateur
             </button>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
@@ -317,52 +351,25 @@ export const Settings = () => {
                   </tr>
                 )}
                 
-                {/* FLAT VIEW */}
-                {!groupOperatorsByPhase && operators.map((op) => renderOperatorRow(op))}
-
-                {/* GROUPED VIEW */}
-                {groupOperatorsByPhase && projects.map((proj) => {
-                  const groupOps = operators.filter(op => op.projet_id === proj.id);
-                  if (groupOps.length === 0) return null;
-
-                  return (
-                    <React.Fragment key={proj.id}>
-                      <tr className="bg-muted/50 border-y border-border">
-                        <td colSpan={6} className="px-4 py-2">
-                          <div className="flex justify-between items-center text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                            <span>Projet: Phase {proj.numero_phase} {proj.numero_marche ? `- ${proj.numero_marche}` : ''}</span>
-                            <span className="ml-2 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]">
-                              {groupOps.length}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                      {groupOps.map((op) => renderOperatorRow(op))}
-                    </React.Fragment>
-                  );
-                })}
-
-                {/* Unassigned Operators (Grouped View) */}
-                {groupOperatorsByPhase && (() => {
-                  const unassignedOps = operators.filter(op => !op.projet_id);
-                  if (unassignedOps.length === 0) return null;
-
-                  return (
-                    <React.Fragment key="unassigned">
-                      <tr className="bg-muted/50 border-y border-border">
-                        <td colSpan={6} className="px-4 py-2">
-                          <div className="flex justify-between items-center text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                            <span>Non Assignés</span>
-                            <span className="ml-2 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px]">
-                              {unassignedOps.length}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                      {unassignedOps.map((op) => renderOperatorRow(op))}
-                    </React.Fragment>
-                  );
-                })()}
+                {operators
+                  .filter(op => {
+                    if (selectedPhaseFilter === 'all') return true;
+                    if (selectedPhaseFilter === 'unassigned') return !op.projet_id;
+                    return op.projet_id === selectedPhaseFilter;
+                  })
+                  .map((op) => renderOperatorRow(op))
+                }
+                
+                {operators.filter(op => {
+                    if (selectedPhaseFilter === 'all') return true;
+                    if (selectedPhaseFilter === 'unassigned') return !op.projet_id;
+                    return op.projet_id === selectedPhaseFilter;
+                  }).length === 0 && operators.length > 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Aucun opérateur ne correspond au filtre sélectionné.</td>
+                    </tr>
+                  )
+                }
 
               </tbody>
             </table>
