@@ -1,5 +1,6 @@
 
 
+
 export type AllocationStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED';
 
 export interface Region {
@@ -142,4 +143,14 @@ export interface FinDeCessionView {
   project_phase: number;
   deliveries_count: number;
   total_tonnage: number;
+}
+
+// Graph Data Interface
+export interface RegionPerformance {
+  regionId: string;
+  regionName: string;
+  targetTonnage: number;
+  deliveredTonnage: number;
+  deliveryCount: number;
+  completionRate: number;
 }

@@ -1,15 +1,56 @@
 
+
+
 import React, { useEffect, useState } from 'react';
-import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+} from 'recharts';
 import { db } from '../services/db';
-import { TrendingUp, Truck, AlertTriangle, CheckCircle, Users, BarChart3, LineChart as LineChartIcon, Activity, Layers } from 'lucide-react';
+import { 
+  TrendingUp, Truck, AlertTriangle, CheckCircle, Users, 
+  BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
+  Activity, Layers 
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
+import RegionalGraph from '../components/RegionalGraph';
+import { RegionPerformance } from '../types';
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+// Tailwind CSS Color Palette for Chart Nodes
+const COLORS = [
+  '#10b981', // Emerald 500
+  '#3b82f6', // Blue 500
+  '#f59e0b', // Amber 500
+  '#f43f5e', // Rose 500
+  '#8b5cf6', // Violet 500
+  '#06b6d4', // Cyan 500
+  '#84cc16', // Lime 500
+  '#ec4899'  // Pink 500
+];
+
+const CustomTooltip = ({ active, payload, label, chartType }: any) => {
   if (active && payload && payload.length) {
+    // Handle Pie Chart Tooltip (different structure)
+    if (chartType === 'pie') {
+      const data = payload[0];
+      return (
+        <div className="min-w-[150px] rounded-lg border border-border bg-popover/95 backdrop-blur-md px-3 py-2 text-sm text-popover-foreground shadow-soft-md animate-in fade-in zoom-in-95">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: data.fill }} />
+            <span className="font-semibold text-foreground">{data.name}</span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Livré:</span>
+            <span className="font-mono font-bold text-foreground">{data.value.toLocaleString()} T</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Handle Bar/Area Chart Tooltip
     return (
-      <div className="min-w-[150px] rounded-lg border border-border bg-popover/95 backdrop-blur-md px-3 py-2 text-sm text-popover-foreground shadow-soft-md">
+      <div className="min-w-[150px] rounded-lg border border-border bg-popover/95 backdrop-blur-md px-3 py-2 text-sm text-popover-foreground shadow-soft-md animate-in fade-in zoom-in-95">
         <div className="mb-2 font-semibold text-foreground">{label}</div>
         <div className="grid gap-1.5">
           {payload.map((entry: any, index: number) => (
@@ -39,22 +80,25 @@ export const Dashboard = () => {
   const { selectedProject, projects } = useProject(); // Consume global context
   const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, alerts: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
+  const [graphData, setGraphData] = useState<RegionPerformance[]>([]); // New Graph Data
   const [loading, setLoading] = useState(true);
   
   // UI Controls
-  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
 
   // Load stats and chart data whenever filter changes (from Header)
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [s, c] = await Promise.all([
+        const [s, c, g] = await Promise.all([
           db.getStats(selectedProject),
-          db.getChartData(selectedProject)
+          db.getChartData(selectedProject),
+          db.getRegionPerformance(selectedProject) // Fetch new graph data
         ]);
         setStats(s);
         setChartData(c);
+        setGraphData(g);
       } catch (e: any) {
         console.error('Error loading dashboard data:', e.message || e);
       } finally {
@@ -72,8 +116,6 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Title and Filter Toolbar removed as they are now in the Header */}
-
       {/* KPI Cards (Soft UI Style) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
         <KpiCard 
@@ -139,6 +181,13 @@ export const Dashboard = () => {
                 >
                   <LineChartIcon size={16} />
                 </button>
+                <button 
+                  onClick={() => setChartType('pie')}
+                  className={`p-1.5 rounded-md transition-all ${chartType === 'pie' ? 'bg-card text-foreground shadow-soft-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  title="Graphique Circulaire (Répartition)"
+                >
+                  <PieChartIcon size={16} />
+                </button>
               </div>
             </div>
           </div>
@@ -146,7 +195,36 @@ export const Dashboard = () => {
           <div className="p-6 pt-4 flex-1">
             <div className="h-[320px] w-full min-w-0">
               <ResponsiveContainer width="100%" height="100%">
-                {chartType === 'bar' ? (
+                {chartType === 'pie' ? (
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="delivered"
+                      nameKey="name"
+                      stroke="none"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={COLORS[index % COLORS.length]} 
+                          className="stroke-card stroke-2 outline-none"
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip chartType="pie" />} cursor={{fill: 'transparent'}} />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36} 
+                      iconType="circle"
+                      formatter={(value) => <span className="text-sm font-medium text-foreground ml-1">{value}</span>}
+                    />
+                  </PieChart>
+                ) : chartType === 'bar' ? (
                   <BarChart accessibilityLayer data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
                     <XAxis
@@ -157,7 +235,7 @@ export const Dashboard = () => {
                       tickFormatter={(value) => value.slice(0, 3)}
                       tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600 }}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}} />
+                    <Tooltip content={<CustomTooltip chartType="bar" />} cursor={{fill: 'transparent'}} />
                     {/* Chart 2 (Secondary/Planned - Muted color) */}
                     <Bar dataKey="planned" name="Planned" fill="var(--muted)" radius={[6, 6, 0, 0]} barSize={20} />
                     {/* Chart 1 (Primary/Delivered - Primary color) */}
@@ -184,8 +262,7 @@ export const Dashboard = () => {
                       tickFormatter={(value) => value.slice(0, 3)}
                       tick={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600 }}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={false} />
-                    {/* Render Planned first so it's in the background if larger */}
+                    <Tooltip content={<CustomTooltip chartType="area" />} cursor={false} />
                     <Area
                       type="monotone"
                       dataKey="planned"
@@ -262,6 +339,18 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* NEW: Regional Graph View */}
+      <div className="pt-2">
+         {graphData.length > 0 ? (
+           <RegionalGraph regions={graphData} />
+         ) : (
+           <div className="w-full h-[400px] bg-card rounded-2xl border border-border flex items-center justify-center text-muted-foreground">
+             {loading ? 'Chargement du graphique...' : 'Aucune donnée régionale disponible pour ce projet.'}
+           </div>
+         )}
+      </div>
+
     </div>
   );
 };

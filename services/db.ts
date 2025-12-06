@@ -1,7 +1,9 @@
 
 
+
+
 import { supabase } from '../lib/supabaseClient';
-import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView } from '../types';
+import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance } from '../types';
 
 // Helper to stringify errors safely
 const safeLog = (prefix: string, error: any) => {
@@ -221,6 +223,75 @@ export const db = {
     });
 
     return Object.values(chartData);
+  },
+
+  getRegionPerformance: async (projectId?: string): Promise<RegionPerformance[]> => {
+    // 1. Fetch base data: Regions
+    const { data: regions } = await supabase.from('regions').select('id, name');
+    if (!regions) return [];
+
+    // 2. Fetch Allocations (to get target and link to projects)
+    let allocQuery = supabase.from('allocations').select('region_id, target_tonnage, project_id');
+    if (projectId && projectId !== 'all') {
+      allocQuery = allocQuery.eq('project_id', projectId);
+    }
+    const { data: allocations } = await allocQuery;
+
+    // 3. Fetch Deliveries (to get realized tonnage and counts)
+    let delQuery = supabase
+      .from('deliveries')
+      .select(`
+        id,
+        tonnage_loaded,
+        allocations!inner (
+          region_id,
+          project_id
+        )
+      `);
+      
+    if (projectId && projectId !== 'all') {
+      delQuery = delQuery.eq('allocations.project_id', projectId);
+    }
+    const { data: deliveries } = await delQuery;
+
+    // 4. Aggregate
+    const stats: Record<string, RegionPerformance> = {};
+    
+    // Initialize
+    regions.forEach((r: any) => {
+      stats[r.id] = {
+        regionId: r.id,
+        regionName: r.name,
+        targetTonnage: 0,
+        deliveredTonnage: 0,
+        deliveryCount: 0,
+        completionRate: 0
+      };
+    });
+
+    // Aggregate Targets
+    allocations?.forEach((a: any) => {
+      if (stats[a.region_id]) {
+        stats[a.region_id].targetTonnage += Number(a.target_tonnage);
+      }
+    });
+
+    // Aggregate Deliveries
+    deliveries?.forEach((d: any) => {
+      const rid = d.allocations?.region_id;
+      if (rid && stats[rid]) {
+        stats[rid].deliveredTonnage += Number(d.tonnage_loaded) || 0;
+        stats[rid].deliveryCount += 1;
+      }
+    });
+
+    // Calculate Rates and Format
+    return Object.values(stats)
+      .filter(s => s.targetTonnage > 0 || s.deliveredTonnage > 0) // Only return active regions
+      .map(s => ({
+        ...s,
+        completionRate: s.targetTonnage > 0 ? (s.deliveredTonnage / s.targetTonnage) * 100 : 0
+      }));
   },
 
   // Fleet
