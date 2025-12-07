@@ -15,7 +15,8 @@ import {
   Sun,
   Moon,
   Eye,
-  Layers
+  Layers,
+  Network
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -42,14 +43,16 @@ export const useProject = () => {
 const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v: boolean) => void }) => {
   const location = useLocation();
 
-  const navItems = [
+  const mainNavItems = [
     { name: 'Tableau de bord', path: '/', icon: LayoutDashboard },
     { name: 'Allocations', path: '/allocations', icon: Map },
     { name: 'Logistique', path: '/logistics', icon: Package },
     { name: 'Parc Auto', path: '/fleet', icon: Truck },
     { name: 'Vues', path: '/views', icon: Eye },
-    { name: 'Paramètres', path: '/settings', icon: Settings },
+    { name: 'Réseau', path: '/network', icon: Network },
   ];
+
+  const settingsItem = { name: 'Paramètres', path: '/settings', icon: Settings };
 
   return (
     <aside 
@@ -73,7 +76,7 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
 
       {/* Navigation */}
       <nav className="mt-6 flex flex-col gap-2 px-3">
-        {navItems.map((item) => {
+        {mainNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <NavLink
@@ -93,6 +96,27 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
             </NavLink>
           );
         })}
+
+        {/* Separator */}
+        <div className="my-2 px-2">
+          <div className="h-px bg-sidebar-border w-full opacity-60"></div>
+        </div>
+
+        {/* Settings Item */}
+        <NavLink
+          to={settingsItem.path}
+          className={`group flex items-center gap-4 rounded-lg px-3 py-3 transition-all duration-200
+            ${location.pathname === settingsItem.path 
+              ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md' 
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            }
+          `}
+        >
+          <settingsItem.icon size={22} className={`${location.pathname === settingsItem.path ? 'text-sidebar-primary-foreground' : 'group-hover:text-sidebar-accent-foreground'} min-w-[22px]`} />
+          <span className={`whitespace-nowrap transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+            {settingsItem.name}
+          </span>
+        </NavLink>
       </nav>
 
       {/* Footer / User Profile */}
@@ -169,6 +193,7 @@ const Header = ({
               {location.pathname === '/logistics' && 'Logistique'}
               {location.pathname === '/fleet' && 'Parc Auto'}
               {location.pathname === '/views' && 'Vues & Rapports'}
+              {location.pathname === '/network' && 'Réseau de Distribution'}
               {location.pathname === '/settings' && 'Paramètres'}
             </span>
           </div>

@@ -1,6 +1,7 @@
 
 
 
+
 export type AllocationStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED';
 
 export interface Region {
@@ -145,7 +146,7 @@ export interface FinDeCessionView {
   total_tonnage: number;
 }
 
-// Graph Data Interface
+// Graph Data Interface (Old Flat)
 export interface RegionPerformance {
   regionId: string;
   regionName: string;
@@ -154,3 +155,36 @@ export interface RegionPerformance {
   deliveryCount: number;
   completionRate: number;
 }
+
+// Hierarchical Graph Interfaces
+export interface NetworkDeliveryStats {
+  count: number;
+  volume: number;
+}
+
+export interface NetworkCommune {
+  id: string;
+  name: string;
+  target: number;
+  delivered: number;
+  deliveries: NetworkDeliveryStats;
+}
+
+export interface NetworkDepartment {
+  id: string;
+  name: string;
+  communes: NetworkCommune[];
+  target: number;
+  delivered: number;
+}
+
+export interface NetworkRegion {
+  id: string;
+  name: string;
+  departments: NetworkDepartment[];
+  target: number;
+  delivered: number;
+  completionRate: number;
+}
+
+export type NetworkHierarchy = NetworkRegion[];

@@ -8,6 +8,7 @@ import { Logistics } from './pages/Logistics';
 import { Fleet } from './pages/Fleet';
 import { Settings } from './pages/Settings';
 import { Views } from './pages/Views';
+import { NetworkPage } from './pages/Network';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/logistics" element={<Logistics />} />
           <Route path="/fleet" element={<Fleet />} />
           <Route path="/views" element={<Views />} />
+          <Route path="/network" element={<NetworkPage />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

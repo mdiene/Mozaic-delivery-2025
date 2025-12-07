@@ -1,10 +1,9 @@
-
 import React, { useRef, useEffect } from 'react';
 import { Network } from 'vis-network';
-import { RegionPerformance } from '../types';
+import { NetworkHierarchy } from '../types';
 
 interface Props {
-  regions: RegionPerformance[];
+  regions: NetworkHierarchy;
 }
 
 // Generate pie chart SVG as data URI
@@ -73,63 +72,109 @@ export default function RegionalGraph({ regions }: Props) {
       label: 'Mine de Soma',
       shape: 'circle',
       color: { background: '#1e293b', border: '#0f172a' },
-      font: { color: '#ffffff', size: 14, bold: true },
-      size: 40,
-      shadow: true
+      font: { color: '#ffffff', size: 16, bold: true },
+      size: 50,
+      shadow: true,
+      level: 0
     });
 
-    regions.forEach((region, index) => {
-      const color = HEX_COLORS[index % HEX_COLORS.length];
+    regions.forEach((region, rIndex) => {
+      const color = HEX_COLORS[rIndex % HEX_COLORS.length];
       const pieImage = generatePieChartSVG(region.completionRate, color);
 
-      // Region Node (with Pie Chart Image)
+      // --- Level 1: Region (Pie Chart) ---
       nodes.push({
-        id: region.regionId,
-        label: region.regionName,
+        id: region.id,
+        label: region.name,
         shape: 'image',
         image: pieImage,
         size: 40,
-        font: { size: 12, color: '#374151', multi: true, vadjust: 45 },
-        title: `
-          Region: ${region.regionName}
-          Target: ${region.targetTonnage} T
-          Delivered: ${region.deliveredTonnage} T (${region.completionRate.toFixed(1)}%)
-          Deliveries: ${region.deliveryCount}
-        ` // Tooltip
+        font: { size: 14, color: '#374151', bold: true, vadjust: 45 },
+        title: `Région: ${region.name}\nCible: ${region.target} T\nLivré: ${region.delivered} T`
       });
 
-      // Edge Hub -> Region
       edges.push({
         from: 'hub',
-        to: region.regionId,
-        width: Math.max(1, (region.completionRate / 100) * 8), // Thicker line for higher completion
-        color: { color: color, opacity: 0.6 },
-        length: 200, // Spring length
-        dashes: region.completionRate === 0
+        to: region.id,
+        width: 3,
+        color: { color: color, opacity: 0.8 },
+        length: 250
       });
 
-      // Delivery Satellite Nodes (Visual flourish if deliveries exist)
-      if (region.deliveryCount > 0) {
-        const satCount = Math.min(3, Math.ceil(region.deliveryCount / 5)); // Cap at 3 satellites
-        for (let i = 0; i < satCount; i++) {
-           const satId = `${region.regionId}-sat-${i}`;
-           nodes.push({
-             id: satId,
-             label: '',
-             shape: 'dot',
-             size: 5,
-             color: color,
-             group: 'satellite'
-           });
-           edges.push({
-             from: region.regionId,
-             to: satId,
-             length: 30,
-             color: { color: color, opacity: 0.3 },
-             width: 1
-           });
-        }
-      }
+      // --- Level 2: Departments ---
+      region.departments.forEach((dept, dIndex) => {
+        const deptNodeId = dept.id;
+        
+        nodes.push({
+          id: deptNodeId,
+          label: dept.name,
+          shape: 'box',
+          color: { background: '#ffffff', border: color },
+          font: { size: 12, color: '#4b5563' },
+          borderWidth: 2,
+          shapeProperties: { borderRadius: 4 },
+          title: `Département: ${dept.name}\nCible: ${dept.target} T\nLivré: ${dept.delivered} T`
+        });
+
+        edges.push({
+          from: region.id,
+          to: deptNodeId,
+          width: 2,
+          color: { color: color, opacity: 0.5 },
+          length: 120
+        });
+
+        // --- Level 3: Communes ---
+        dept.communes.forEach((commune, cIndex) => {
+          const communeNodeId = commune.id;
+          
+          nodes.push({
+            id: communeNodeId,
+            label: commune.name,
+            shape: 'dot',
+            size: 8,
+            color: { background: color, border: '#ffffff' },
+            font: { size: 10, color: '#6b7280', vadjust: 15 },
+            borderWidth: 2,
+            title: `Commune: ${commune.name}\nLivraisons: ${commune.deliveries.count}\nVolume: ${commune.deliveries.volume} T`
+          });
+
+          edges.push({
+            from: deptNodeId,
+            to: communeNodeId,
+            width: 1,
+            color: { color: '#cbd5e1', opacity: 1 },
+            length: 80
+          });
+
+          // --- Level 4: Deliveries (Dots) ---
+          if (commune.deliveries.count > 0) {
+            // Visual clustering: 1 dot per delivery might be too much, 
+            // let's show up to 5 dots to represent volume density
+            const dotCount = Math.min(5, Math.ceil(commune.deliveries.count / 2)); 
+            
+            for (let i = 0; i < dotCount; i++) {
+               const deliveryId = `${commune.id}-del-${i}`;
+               nodes.push({
+                 id: deliveryId,
+                 label: '',
+                 shape: 'dot',
+                 size: 4,
+                 color: '#10b981', // Emerald for active delivery
+                 group: 'delivery'
+               });
+
+               edges.push({
+                 from: communeNodeId,
+                 to: deliveryId,
+                 length: 20,
+                 color: { color: '#10b981', opacity: 0.4 },
+                 width: 1
+               });
+            }
+          }
+        });
+      });
     });
 
     // 2. Configuration Options
@@ -139,30 +184,33 @@ export default function RegionalGraph({ regions }: Props) {
         shadow: true,
       },
       edges: {
-        width: 2,
+        width: 1,
         shadow: false,
         smooth: {
-          type: 'continuous'
+          enabled: true,
+          type: 'continuous',
+          forceDirection: 'none',
+          roundness: 0.5
         }
       },
       physics: {
         enabled: true,
         stabilization: {
-          iterations: 1000
+          iterations: 2000
         },
         barnesHut: {
-          gravitationalConstant: -3000,
-          centralGravity: 0.3,
-          springLength: 150,
-          springConstant: 0.04,
+          gravitationalConstant: -4000,
+          centralGravity: 0.1,
+          springLength: 100,
+          springConstant: 0.05,
           damping: 0.09,
-          avoidOverlap: 0.2
+          avoidOverlap: 0.5
         }
       },
       interaction: {
         hover: true,
         tooltipDelay: 200,
-        zoomView: false // Disable zoom for cleaner dashboard look
+        zoomView: true
       }
     };
 
@@ -178,27 +226,35 @@ export default function RegionalGraph({ regions }: Props) {
   }, [regions]);
 
   return (
-    <div className="w-full bg-card rounded-2xl shadow-soft-xl border border-border overflow-hidden flex flex-col">
-       <div className="p-6 border-b border-border">
-          <h3 className="font-bold text-lg text-foreground">Réseau de Distribution</h3>
-          <p className="text-sm text-muted-foreground">Visualisation des flux de livraison et performance régionale</p>
+    <div className="w-full bg-card rounded-2xl shadow-soft-xl border border-border overflow-hidden flex flex-col h-full">
+       <div className="p-4 border-b border-border bg-muted/20">
+          <h3 className="font-bold text-lg text-foreground">Carte du Réseau</h3>
+          <p className="text-xs text-muted-foreground">Hub → Région → Département → Commune → Livraisons (•)</p>
        </div>
-       <div className="relative w-full h-[600px] bg-muted/10">
-          <div ref={containerRef} className="w-full h-full" />
+       <div className="relative w-full flex-1 bg-muted/5">
+          <div ref={containerRef} className="w-full h-full min-h-[500px]" />
           
           {/* Legend Overlay */}
-          <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur p-3 rounded-lg border border-border shadow-sm text-xs space-y-2">
+          <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur p-3 rounded-lg border border-border shadow-sm text-xs space-y-2 pointer-events-none">
              <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-slate-800 border border-slate-900"></div>
-                <span className="text-foreground font-medium">Hub Central</span>
+                <span className="text-foreground font-medium">Mine de Soma (Hub)</span>
              </div>
              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full border-2 border-emerald-500 bg-white"></div>
-                <span className="text-foreground font-medium">Région (% Réalisé)</span>
+                <div className="w-3 h-3 rounded-full border-2 border-blue-500 bg-white"></div>
+                <span className="text-foreground font-medium">Région (Taux %)</span>
              </div>
              <div className="flex items-center gap-2">
-                <div className="w-8 h-1 bg-emerald-500 opacity-60 rounded"></div>
-                <span className="text-foreground font-medium">Volume de Flux</span>
+                <div className="w-3 h-3 border border-blue-500 bg-white rounded-sm"></div>
+                <span className="text-foreground font-medium">Département</span>
+             </div>
+             <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <span className="text-foreground font-medium">Commune</span>
+             </div>
+             <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                <span className="text-foreground font-medium">Livraisons Actives</span>
              </div>
           </div>
        </div>

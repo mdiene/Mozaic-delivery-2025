@@ -2,8 +2,10 @@
 
 
 
+
+
 import { supabase } from '../lib/supabaseClient';
-import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance } from '../types';
+import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion } from '../types';
 
 // Helper to stringify errors safely
 const safeLog = (prefix: string, error: any) => {
@@ -292,6 +294,142 @@ export const db = {
         ...s,
         completionRate: s.targetTonnage > 0 ? (s.deliveredTonnage / s.targetTonnage) * 100 : 0
       }));
+  },
+
+  getNetworkHierarchy: async (projectId?: string): Promise<NetworkHierarchy> => {
+    // 1. Fetch Allocations (Source of Truth for Targets & Hierarchy)
+    // We join all the way down to get names
+    let allocQuery = supabase.from('allocations')
+      .select(`
+        id,
+        target_tonnage,
+        region:regions(id, name),
+        department:departments(id, name),
+        commune:communes(id, name),
+        project_id
+      `);
+
+    if (projectId && projectId !== 'all') {
+      allocQuery = allocQuery.eq('project_id', projectId);
+    }
+    const { data: allocations, error: allocError } = await allocQuery;
+    if (allocError) {
+      safeLog('Error fetching allocations for network:', allocError);
+      return [];
+    }
+
+    // 2. Fetch Deliveries (Realized Data)
+    let delQuery = supabase.from('deliveries')
+      .select(`
+        id,
+        tonnage_loaded,
+        allocation:allocations!inner(
+          id,
+          region_id,
+          department_id,
+          commune_id,
+          project_id
+        )
+      `);
+    
+    if (projectId && projectId !== 'all') {
+      delQuery = delQuery.eq('allocation.project_id', projectId);
+    }
+    const { data: deliveries, error: delError } = await delQuery;
+    if (delError) {
+      safeLog('Error fetching deliveries for network:', delError);
+    }
+
+    // 3. Construct Hierarchy Tree
+    // Structure: RegionID -> { ...data, depts: { DeptID -> { ...data, communes: { CommuneID -> ... } } } }
+    const tree: Record<string, {
+      name: string,
+      target: number,
+      delivered: number,
+      depts: Record<string, {
+        name: string,
+        target: number,
+        delivered: number,
+        communes: Record<string, {
+          name: string,
+          target: number,
+          delivered: number,
+          deliveryCount: number
+        }>
+      }>
+    }> = {};
+
+    // Populate Structure & Targets from Allocations
+    allocations?.forEach((a: any) => {
+      const rId = a.region?.id;
+      const dId = a.department?.id;
+      const cId = a.commune?.id;
+
+      if (!rId || !dId || !cId) return; // Skip invalid
+
+      // Init Region
+      if (!tree[rId]) tree[rId] = { name: a.region.name, target: 0, delivered: 0, depts: {} };
+      
+      // Init Dept
+      if (!tree[rId].depts[dId]) tree[rId].depts[dId] = { name: a.department.name, target: 0, delivered: 0, communes: {} };
+      
+      // Init Commune
+      if (!tree[rId].depts[dId].communes[cId]) tree[rId].depts[dId].communes[cId] = { name: a.commune.name, target: 0, delivered: 0, deliveryCount: 0 };
+
+      const t = Number(a.target_tonnage) || 0;
+      
+      // Add Targets
+      tree[rId].target += t;
+      tree[rId].depts[dId].target += t;
+      tree[rId].depts[dId].communes[cId].target += t;
+    });
+
+    // Populate Delivered from Deliveries
+    deliveries?.forEach((d: any) => {
+      const a = d.allocation;
+      if (!a) return;
+
+      const rId = a.region_id;
+      const dId = a.department_id;
+      const cId = a.commune_id;
+      const val = Number(d.tonnage_loaded) || 0;
+
+      // Only add if hierarchy exists (it should if allocation exists)
+      if (tree[rId]) {
+        tree[rId].delivered += val;
+        if (tree[rId].depts[dId]) {
+          tree[rId].depts[dId].delivered += val;
+          if (tree[rId].depts[dId].communes[cId]) {
+            tree[rId].depts[dId].communes[cId].delivered += val;
+            tree[rId].depts[dId].communes[cId].deliveryCount += 1;
+          }
+        }
+      }
+    });
+
+    // 4. Flatten to Interface
+    const hierarchy: NetworkHierarchy = Object.entries(tree).map(([rId, r]) => ({
+      id: rId,
+      name: r.name,
+      target: r.target,
+      delivered: r.delivered,
+      completionRate: r.target > 0 ? (r.delivered / r.target) * 100 : 0,
+      departments: Object.entries(r.depts).map(([dId, d]) => ({
+        id: dId,
+        name: d.name,
+        target: d.target,
+        delivered: d.delivered,
+        communes: Object.entries(d.communes).map(([cId, c]) => ({
+          id: cId,
+          name: c.name,
+          target: c.target,
+          delivered: c.delivered,
+          deliveries: { count: c.deliveryCount, volume: c.delivered }
+        }))
+      }))
+    }));
+
+    return hierarchy;
   },
 
   // Fleet

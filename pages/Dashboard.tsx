@@ -1,6 +1,4 @@
 
-
-
 import React, { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
@@ -10,12 +8,12 @@ import { db } from '../services/db';
 import { 
   TrendingUp, Truck, AlertTriangle, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
-  Activity, Layers 
+  Activity, Layers, Network, ChevronDown
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
 import RegionalGraph from '../components/RegionalGraph';
-import { RegionPerformance } from '../types';
+import { NetworkHierarchy } from '../types';
 
 // Tailwind CSS Color Palette for Chart Nodes
 const COLORS = [
@@ -80,11 +78,12 @@ export const Dashboard = () => {
   const { selectedProject, projects } = useProject(); // Consume global context
   const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, alerts: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
-  const [graphData, setGraphData] = useState<RegionPerformance[]>([]); // New Graph Data
+  const [graphData, setGraphData] = useState<NetworkHierarchy>([]); // New Graph Data
   const [loading, setLoading] = useState(true);
   
   // UI Controls
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
+  const [isGraphExpanded, setIsGraphExpanded] = useState(false);
 
   // Load stats and chart data whenever filter changes (from Header)
   useEffect(() => {
@@ -94,7 +93,7 @@ export const Dashboard = () => {
         const [s, c, g] = await Promise.all([
           db.getStats(selectedProject),
           db.getChartData(selectedProject),
-          db.getRegionPerformance(selectedProject) // Fetch new graph data
+          db.getNetworkHierarchy(selectedProject) // Fetch new graph data
         ]);
         setStats(s);
         setChartData(c);
@@ -340,15 +339,40 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* NEW: Regional Graph View */}
-      <div className="pt-2">
-         {graphData.length > 0 ? (
-           <RegionalGraph regions={graphData} />
-         ) : (
-           <div className="w-full h-[400px] bg-card rounded-2xl border border-border flex items-center justify-center text-muted-foreground">
-             {loading ? 'Chargement du graphique...' : 'Aucune donnée régionale disponible pour ce projet.'}
+      {/* Collapsible Regional Graph View */}
+      <div className="rounded-2xl bg-card shadow-soft-xl border border-border/50 overflow-hidden">
+        <button 
+          onClick={() => setIsGraphExpanded(!isGraphExpanded)}
+          className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/20 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg transition-colors ${isGraphExpanded ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+               <Network size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg text-foreground">Carte du Réseau</h3>
+              <p className="text-sm text-muted-foreground">Visualisation graphique des livraisons et de la couverture régionale</p>
+            </div>
+          </div>
+          <ChevronDown 
+            size={20} 
+            className={`text-muted-foreground transition-transform duration-300 ${isGraphExpanded ? 'rotate-180' : ''}`} 
+          />
+        </button>
+        
+        {isGraphExpanded && (
+           <div className="p-6 pt-0 border-t border-border/50 animate-in slide-in-from-top-2 duration-200">
+             <div className="mt-6 h-[500px] w-full">
+                {graphData.length > 0 ? (
+                   <RegionalGraph regions={graphData} />
+                 ) : (
+                   <div className="w-full h-full bg-muted/10 rounded-xl border border-border flex items-center justify-center text-muted-foreground">
+                     {loading ? 'Chargement du graphique...' : 'Aucune donnée régionale disponible pour ce projet.'}
+                   </div>
+                 )}
+             </div>
            </div>
-         )}
+        )}
       </div>
 
     </div>
