@@ -16,7 +16,8 @@ import {
   Moon,
   Eye,
   Layers,
-  Network
+  Network,
+  ChevronRight
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -48,7 +49,7 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
     { name: 'Allocations', path: '/allocations', icon: Map },
     { name: 'Logistique', path: '/logistics', icon: Package },
     { name: 'Parc Auto', path: '/fleet', icon: Truck },
-    { name: 'Vues', path: '/views', icon: Eye },
+    { name: 'Vues & Rapports', path: '/views', icon: Eye },
     { name: 'Réseau', path: '/network', icon: Network },
   ];
 
@@ -56,84 +57,101 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
 
   return (
     <aside 
-      className={`fixed left-0 top-0 z-50 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out ${expanded ? 'w-64' : 'w-20'}`}
+      className={`fixed left-0 top-0 z-50 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border shadow-2xl ${expanded ? 'w-64' : 'w-20'}`}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
       {/* Logo Area */}
-      <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
+      <div className="flex h-20 items-center justify-center border-b border-sidebar-border/50">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center font-bold text-sidebar-primary-foreground shadow-lg shadow-black/10">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sidebar-primary to-indigo-600 flex items-center justify-center font-bold text-white shadow-glow">
             M
           </div>
           {expanded && (
-            <span className="font-bold text-lg tracking-tight animate-fade-in whitespace-nowrap">
-              MASAE Tracker
-            </span>
+            <div className="flex flex-col animate-fade-in">
+                <span className="font-bold text-lg tracking-tight text-white leading-tight">
+                MASAE
+                </span>
+                <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/70">Tracker</span>
+            </div>
           )}
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="mt-6 flex flex-col gap-2 px-3">
+      <nav className="mt-6 flex flex-col gap-1 px-3">
+        <p className={`text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/50 mb-2 px-3 transition-opacity ${expanded ? 'opacity-100' : 'opacity-0'}`}>
+            Menu Principal
+        </p>
         {mainNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <NavLink
               key={item.path}
               to={item.path}
-              className={`group flex items-center gap-4 rounded-lg px-3 py-3 transition-all duration-200
+              className={`group flex items-center gap-3 rounded-lg px-3 py-3 transition-all duration-200 relative overflow-hidden
                 ${isActive 
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md' 
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white' 
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
                 }
               `}
             >
-              <item.icon size={22} className={`${isActive ? 'text-sidebar-primary-foreground' : 'group-hover:text-sidebar-accent-foreground'} min-w-[22px]`} />
-              <span className={`whitespace-nowrap transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+              {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-sidebar-primary rounded-r-full"></div>}
+              <item.icon size={20} className={`${isActive ? 'text-sidebar-primary' : 'text-sidebar-foreground/70 group-hover:text-white'} min-w-[20px] transition-colors`} />
+              <span className={`whitespace-nowrap text-sm font-medium transition-all duration-200 ${expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 w-0 overflow-hidden'}`}>
                 {item.name}
               </span>
+              {isActive && expanded && <ChevronRight size={14} className="ml-auto text-sidebar-primary" />}
             </NavLink>
           );
         })}
 
         {/* Separator */}
-        <div className="my-2 px-2">
-          <div className="h-px bg-sidebar-border w-full opacity-60"></div>
+        <div className="my-4 px-4">
+          <div className="h-px bg-sidebar-border/50 w-full"></div>
         </div>
+
+        <p className={`text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/50 mb-2 px-3 transition-opacity ${expanded ? 'opacity-100' : 'opacity-0'}`}>
+            Système
+        </p>
 
         {/* Settings Item */}
         <NavLink
           to={settingsItem.path}
-          className={`group flex items-center gap-4 rounded-lg px-3 py-3 transition-all duration-200
+          className={`group flex items-center gap-3 rounded-lg px-3 py-3 transition-all duration-200 relative
             ${location.pathname === settingsItem.path 
-              ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md' 
-              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white' 
+              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
             }
           `}
         >
-          <settingsItem.icon size={22} className={`${location.pathname === settingsItem.path ? 'text-sidebar-primary-foreground' : 'group-hover:text-sidebar-accent-foreground'} min-w-[22px]`} />
-          <span className={`whitespace-nowrap transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+          {location.pathname === settingsItem.path && <div className="absolute left-0 top-0 bottom-0 w-1 bg-sidebar-primary rounded-r-full"></div>}
+          <settingsItem.icon size={20} className={`${location.pathname === settingsItem.path ? 'text-sidebar-primary' : 'text-sidebar-foreground/70 group-hover:text-white'} min-w-[20px]`} />
+          <span className={`whitespace-nowrap text-sm font-medium transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
             {settingsItem.name}
           </span>
         </NavLink>
       </nav>
 
       {/* Footer / User Profile */}
-      <div className="absolute bottom-0 w-full border-t border-sidebar-border p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground">
-            <User size={20} />
+      <div className="absolute bottom-0 w-full p-4">
+        <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${expanded ? 'bg-sidebar-accent' : ''}`}>
+          <div className="relative">
+             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 text-white shadow-lg">
+                <User size={18} />
+             </div>
+             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-sidebar-accent"></span>
           </div>
+          
           {expanded && (
-            <div className="flex flex-col overflow-hidden">
-              <span className="truncate text-sm font-medium">Administrateur</span>
-              <span className="truncate text-xs text-sidebar-foreground/60">Resp. Logistique</span>
+            <div className="flex flex-col overflow-hidden animate-fade-in">
+              <span className="truncate text-sm font-bold text-white">Admin</span>
+              <span className="truncate text-xs text-sidebar-foreground">Logistique</span>
             </div>
           )}
           {expanded && (
-            <button className="ml-auto text-sidebar-foreground/60 hover:text-destructive">
-              <LogOut size={18} />
+            <button className="ml-auto text-sidebar-foreground hover:text-white transition-colors">
+              <LogOut size={16} />
             </button>
           )}
         </div>
@@ -154,7 +172,7 @@ const Header = ({
   const isDashboard = location.pathname === '/';
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-40 flex h-20 w-full items-center justify-between px-6 bg-background/80 backdrop-blur-md transition-all">
       <div className="flex items-center gap-4 flex-1 overflow-hidden mr-4">
         <button className="lg:hidden p-2 text-muted-foreground hover:bg-muted rounded-md">
            <Menu size={20} />
@@ -164,10 +182,10 @@ const Header = ({
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-fade-right py-1">
              <button
               onClick={() => setSelectedProject('all')}
-              className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+              className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
                 selectedProject === 'all'
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+                  ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-glow'
+                  : 'bg-white dark:bg-card text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
               Vue d'ensemble
@@ -176,10 +194,10 @@ const Header = ({
               <button
                 key={p.id}
                 onClick={() => setSelectedProject(p.id)}
-                className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
                   selectedProject === p.id
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                    : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+                    ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-glow'
+                    : 'bg-white dark:bg-card text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
                 Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
@@ -187,51 +205,43 @@ const Header = ({
             ))}
           </div>
         ) : (
-          <div className="hidden md:flex items-center text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">
+          <div className="flex items-center">
+             <h2 className="text-xl font-bold text-foreground tracking-tight">
               {location.pathname === '/allocations' && 'Allocations'}
               {location.pathname === '/logistics' && 'Logistique'}
               {location.pathname === '/fleet' && 'Parc Auto'}
-              {location.pathname === '/views' && 'Vues & Rapports'}
-              {location.pathname === '/network' && 'Réseau de Distribution'}
+              {location.pathname === '/views' && 'Rapports'}
+              {location.pathname === '/network' && 'Réseau'}
               {location.pathname === '/settings' && 'Paramètres'}
-            </span>
+             </h2>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-4 shrink-0 bg-white dark:bg-card p-1.5 pr-4 pl-4 rounded-full shadow-soft-sm border border-border/50">
         
-        {/* Day/Night Toggle */}
-        <button 
-          onClick={toggleDarkMode}
-          className={`p-2 rounded-lg border transition-colors ${
-            isDarkMode 
-              ? 'bg-slate-800 border-slate-700 text-yellow-400 hover:text-yellow-300' 
-              : 'bg-orange-50 border-orange-200 text-orange-500 hover:text-orange-600'
-          }`}
-          title={isDarkMode ? "Passer en Mode Clair" : "Passer en Mode Sombre"}
-        >
-          {isDarkMode ? <Moon size={16} /> : <Sun size={16} />}
-        </button>
-
-        <div className="w-px h-6 bg-border mx-1"></div>
-
         <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+          <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input 
             type="text" 
             placeholder="Rechercher..." 
-            className="h-9 w-48 lg:w-64 rounded-full border border-input bg-muted/30 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="h-9 w-48 bg-transparent pl-8 pr-4 text-sm focus:outline-none placeholder:text-muted-foreground/60"
           />
         </div>
-        <button className="relative rounded-full bg-muted/30 p-2 text-muted-foreground hover:bg-muted hover:text-primary transition-colors">
-          <Bell size={20} />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive"></span>
+
+        <div className="h-6 w-px bg-border"></div>
+
+        <button 
+          onClick={toggleDarkMode}
+          className="text-muted-foreground hover:text-primary transition-colors"
+        >
+          {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
         </button>
-        <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-semibold text-xs">
-          AD
-        </div>
+
+        <button className="relative text-muted-foreground hover:text-primary transition-colors">
+          <Bell size={18} />
+          <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive ring-2 ring-white dark:ring-card"></span>
+        </button>
       </div>
     </header>
   );
@@ -265,14 +275,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <ProjectContext.Provider value={{ projects, selectedProject, setSelectedProject }}>
-      <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-300 font-sans">
         <Sidebar expanded={expanded} setExpanded={setExpanded} />
-        <div className={`transition-all duration-300 ${expanded ? 'pl-64' : 'pl-20'}`}>
+        <div className={`transition-all duration-300 ease-in-out ${expanded ? 'pl-64' : 'pl-20'}`}>
           <Header 
             isDarkMode={isDarkMode}
             toggleDarkMode={toggleDarkMode}
           />
-          <main className="p-6 md:p-8 animate-fade-in">
+          <main className="px-6 pb-6 pt-2 animate-fade-in max-w-screen-2xl mx-auto">
             {children}
           </main>
         </div>

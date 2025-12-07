@@ -4,89 +4,125 @@
 @tailwind utilities;
 
 :root {
-  --radius: 1rem;
+  /* Aquiry Light Mode */
+  --radius: 1.25rem; /* 20px for that rounded modern look */
 
-  /* Light Mode - Soft UI (Emerald/Slate) */
-  --background: #f8fafc; /* slate-50 */
-  --foreground: #0f172a; /* slate-900 */
+  /* Backgrounds: Aquiry uses a very light blue-grey tint for main BG */
+  --background: #f4f5fa; 
+  --foreground: #3e4b5b; /* Dark Slate for text */
+  
+  /* Cards: Pure white with soft shadows */
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #3e4b5b;
+
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #059669; /* emerald-600 */
+  --popover-foreground: #3e4b5b;
+
+  /* Primary: Aquiry Purple / Indigo */
+  --primary: #6f42c1; 
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9; /* slate-100 */
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b; /* slate-500 */
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
-  --destructive: #ef4444;
+
+  /* Secondary */
+  --secondary: #e9ecef;
+  --secondary-foreground: #3e4b5b;
+
+  /* Muted */
+  --muted: #f4f5fa;
+  --muted-foreground: #99a1b7;
+
+  /* Accent */
+  --accent: #f8f9fa;
+  --accent-foreground: #6f42c1;
+
+  /* Destructive */
+  --destructive: #ff5b5c;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0; /* slate-200 */
-  --input: #e2e8f0;
-  --ring: #059669;
 
-  /* Sidebar */
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0f172a;
-  --sidebar-primary: #059669;
+  /* Borders: Very subtle */
+  --border: #eaedf2;
+  --input: #eaedf2;
+  --ring: #6f42c1;
+
+  /* Sidebar: Aquiry often features a dark sidebar even in light mode for contrast */
+  --sidebar: #161925; /* Dark Navy */
+  --sidebar-foreground: #9899ac; /* Muted text */
+  --sidebar-primary: #6f42c1;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f5f9;
-  --sidebar-accent-foreground: #0f172a;
-  --sidebar-border: #e2e8f0;
-  --sidebar-ring: #059669;
+  --sidebar-accent: #1e212d; /* Slightly lighter navy */
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #202336;
+  --sidebar-ring: #6f42c1;
 
-  /* Charts */
-  --chart-1: #059669;
-  --chart-2: #6366f1;
-  --chart-3: #f59e0b;
-  --chart-4: #ef4444;
-  --chart-5: #0ea5e9;
+  /* Chart Colors (Aquiry Palette) */
+  --chart-1: #6f42c1; /* Purple */
+  --chart-2: #00d25b; /* Green/Teal */
+  --chart-3: #ffab00; /* Amber */
+  --chart-4: #ff5b5c; /* Red/Pink */
+  --chart-5: #0090e7; /* Blue */
 }
 
 .dark {
-  /* Dark Mode - Soft UI */
-  --background: #0f172a; /* slate-900 */
-  --foreground: #f8fafc; /* slate-50 */
-  --card: #1e293b; /* slate-800 */
-  --card-foreground: #f8fafc;
-  --popover: #1e293b;
-  --popover-foreground: #f8fafc;
-  --primary: #10b981; /* emerald-500 */
-  --primary-foreground: #0f172a;
-  --secondary: #334155; /* slate-700 */
-  --secondary-foreground: #f8fafc;
-  --muted: #334155;
-  --muted-foreground: #94a3b8; /* slate-400 */
-  --accent: #334155;
-  --accent-foreground: #f8fafc;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #334155;
-  --input: #334155;
-  --ring: #10b981;
-
-  /* Sidebar */
-  --sidebar: #1e293b;
-  --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #10b981;
-  --sidebar-primary-foreground: #0f172a;
-  --sidebar-accent: #334155;
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: #334155;
-  --sidebar-ring: #10b981;
+  /* Aquiry Dark Mode */
+  --background: #0b0c15; /* Very Deep Navy/Black */
+  --foreground: #e1e1e6;
   
-  --chart-1: #10b981;
-  --chart-2: #818cf8;
-  --chart-3: #fbbf24;
-  --chart-4: #f87171;
-  --chart-5: #38bdf8;
+  --card: #161925; /* Sidebar color becomes card color in dark mode */
+  --card-foreground: #e1e1e6;
+
+  --popover: #161925;
+  --popover-foreground: #e1e1e6;
+
+  /* Primary remains vibrant */
+  --primary: #8a5cd6; /* Lighter Purple for dark mode contrast */
+  --primary-foreground: #ffffff;
+
+  --secondary: #202336;
+  --secondary-foreground: #e1e1e6;
+
+  --muted: #202336;
+  --muted-foreground: #7e8299;
+
+  --accent: #202336;
+  --accent-foreground: #8a5cd6;
+
+  --destructive: #ff5b5c;
+  --destructive-foreground: #ffffff;
+
+  --border: #202336;
+  --input: #202336;
+  --ring: #8a5cd6;
+
+  /* Sidebar remains dark but blends more */
+  --sidebar: #0f111a; 
+  --sidebar-foreground: #9899ac;
+  --sidebar-primary: #8a5cd6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #202336;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #202336;
+  --sidebar-ring: #8a5cd6;
+  
+  --chart-1: #8a5cd6;
+  --chart-2: #00d25b;
+  --chart-3: #ffab00;
+  --chart-4: #ff5b5c;
+  --chart-5: #0090e7;
 }
 
 /* Global Styles */
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Public Sans', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Glassmorphism utils */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+}
+.dark .glass {
+  background: rgba(22, 25, 37, 0.7);
 }
 
 /* Scrollbar Styling */
@@ -100,8 +136,8 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--muted-foreground);
   border-radius: 3px;
-  opacity: 0.5;
+  opacity: 0.3;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--foreground);
+  background: var(--primary);
 }

@@ -1,10 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MASAE Delivery Tracker</title>
+    <!-- Fonts: Public Sans for Aquiry Look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -14,13 +18,14 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['"Public Sans"', 'sans-serif'],
             },
             boxShadow: {
-              'soft-xs': '0 2px 9px -5px rgba(20, 20, 20, 0.15)',
-              'soft-sm': '0 5px 10px 0 rgba(17, 12, 46, 0.15)',
-              'soft-md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-              'soft-xl': '0 20px 27px 0 rgba(0, 0, 0, 0.05)',
+              'soft-xs': '0 2px 9px -5px rgba(20, 20, 20, 0.08)',
+              'soft-sm': '0 5px 10px 0 rgba(17, 12, 46, 0.05)',
+              'soft-md': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+              'soft-xl': '0 10px 25px -5px rgba(100, 100, 100, 0.05), 0 8px 10px -6px rgba(100, 100, 100, 0.01)',
+              'glow': '0 0 15px rgba(111, 66, 193, 0.3)',
             },
             colors: {
               border: 'var(--border)',
@@ -95,8 +100,14 @@
   }
 }
 </script>
+<script>
+  // Polyfill for process (for Network.tsx and Gemini SDK)
+  if (typeof process === "undefined") {
+    window.process = { env: {} };
+  }
+</script>
 </head>
-  <body class="bg-background text-foreground antialiased font-sans">
+  <body class="bg-background text-foreground antialiased font-sans transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
