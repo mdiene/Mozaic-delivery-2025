@@ -1,9 +1,8 @@
 
-
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView } from '../types';
-import { FileText, Gift, Download } from 'lucide-react';
+import { FileText, Gift } from 'lucide-react';
 
 export const Views = () => {
   const [activeTab, setActiveTab] = useState<'bon_livraison' | 'fin_cession'>('bon_livraison');
