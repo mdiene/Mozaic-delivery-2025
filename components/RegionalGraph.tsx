@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { Network } from 'vis-network';
 import { NetworkHierarchy } from '../types';
@@ -67,6 +66,11 @@ export default function RegionalGraph({ regions }: Props) {
     const nodes: any[] = [];
     const edges: any[] = [];
 
+    // Calculate Average Target Tonnage for Proportional Sizing
+    const totalTargets = regions.reduce((sum, r) => sum + r.target, 0);
+    const averageTarget = totalTargets / (regions.length || 1);
+    const BASE_SIZE = 45; // Average visual size
+
     // Central Hub
     nodes.push({
       id: 'hub',
@@ -76,12 +80,24 @@ export default function RegionalGraph({ regions }: Props) {
       font: { color: '#ffffff', size: 16, bold: true },
       size: 50,
       shadow: true,
-      level: 0
+      level: 0,
+      title: 'Centre de Distribution Principal\nHamadi Ounare'
     });
 
     regions.forEach((region, rIndex) => {
       const color = HEX_COLORS[rIndex % HEX_COLORS.length];
       const pieImage = generatePieChartSVG(region.completionRate, color);
+
+      // --- Dynamic Sizing Logic ---
+      // Calculate ratio relative to average
+      let sizeRatio = 1;
+      if (averageTarget > 0) {
+        sizeRatio = region.target / averageTarget;
+      }
+      
+      // Apply sqrt to ratio so size represents area, not diameter (better visual perception)
+      // Clamp between min 25 and max 80 to prevent unreadable small or excessively large nodes
+      const nodeSize = Math.max(25, Math.min(80, BASE_SIZE * Math.sqrt(sizeRatio)));
 
       // --- Level 1: Region (Pie Chart) ---
       nodes.push({
@@ -89,9 +105,9 @@ export default function RegionalGraph({ regions }: Props) {
         label: region.name,
         shape: 'image',
         image: pieImage,
-        size: 40,
-        font: { size: 14, color: '#374151', bold: true, vadjust: 45 },
-        title: `Région: ${region.name}\nCible: ${region.target} T\nLivré: ${region.delivered} T`
+        size: nodeSize,
+        font: { size: 14, color: '#374151', bold: true, vadjust: nodeSize + 5 }, // Adjust label position based on size
+        title: `📍 Région: ${region.name}\n📦 Allocation Totale: ${region.target.toLocaleString()} T\n✅ Livré: ${region.delivered.toLocaleString()} T\n📊 Progression: ${region.completionRate.toFixed(1)}%`
       });
 
       edges.push({
@@ -114,7 +130,7 @@ export default function RegionalGraph({ regions }: Props) {
           font: { size: 12, color: '#4b5563' },
           borderWidth: 2,
           shapeProperties: { borderRadius: 4 },
-          title: `Département: ${dept.name}\nCible: ${dept.target} T\nLivré: ${dept.delivered} T`
+          title: `🏢 Département: ${dept.name}\n📦 Cible: ${dept.target.toLocaleString()} T\n✅ Livré: ${dept.delivered.toLocaleString()} T`
         });
 
         edges.push({
@@ -137,7 +153,7 @@ export default function RegionalGraph({ regions }: Props) {
             color: { background: color, border: '#ffffff' },
             font: { size: 10, color: '#6b7280', vadjust: 15 },
             borderWidth: 2,
-            title: `Commune: ${commune.name}\nLivraisons: ${commune.deliveries.length}\nVolume: ${commune.delivered} T`
+            title: `🏘️ Commune: ${commune.name}\n🚚 Nombre de Livraisons: ${commune.deliveries.length}\n✅ Volume Reçu: ${commune.delivered.toLocaleString()} T`
           });
 
           edges.push({
@@ -160,7 +176,7 @@ export default function RegionalGraph({ regions }: Props) {
                  size: 4,
                  color: '#10b981', // Emerald for active delivery
                  group: 'delivery',
-                 title: `Livraison: ${del.bl_number}\nCharge: ${del.tonnage} T\nCamion: ${del.truck_plate}\nChauffeur: ${del.driver_name}`
+                 title: `📄 BL: ${del.bl_number}\n⚖️ Charge: ${del.tonnage} T\n🚛 Camion: ${del.truck_plate}\n👤 Chauffeur: ${del.driver_name}`
                });
 
                edges.push({
@@ -208,7 +224,7 @@ export default function RegionalGraph({ regions }: Props) {
       },
       interaction: {
         hover: true,
-        tooltipDelay: 100, // Faster tooltip
+        tooltipDelay: 50, // Instant tooltip
         zoomView: true
       }
     };
@@ -228,7 +244,7 @@ export default function RegionalGraph({ regions }: Props) {
     <div className="w-full bg-card rounded-2xl shadow-soft-xl border border-border overflow-hidden flex flex-col h-full">
        <div className="p-4 border-b border-border bg-muted/20 shrink-0">
           <h3 className="font-bold text-lg text-foreground">Carte du Réseau</h3>
-          <p className="text-xs text-muted-foreground">Hub → Région → Département → Commune → Livraisons (•)</p>
+          <p className="text-xs text-muted-foreground">La taille des régions est proportionnelle au tonnage alloué.</p>
        </div>
        {/* Use relative positioning for parent and absolute inset-0 for container to prevent infinite resize loop */}
        <div className="relative w-full flex-1 bg-muted/5 min-h-[500px]">
@@ -242,7 +258,7 @@ export default function RegionalGraph({ regions }: Props) {
              </div>
              <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full border-2 border-blue-500 bg-white"></div>
-                <span className="text-foreground font-medium">Région (Taux %)</span>
+                <span className="text-foreground font-medium">Région (Taille = Tonnage)</span>
              </div>
              <div className="flex items-center gap-2">
                 <div className="w-3 h-3 border border-blue-500 bg-white rounded-sm"></div>
