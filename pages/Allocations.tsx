@@ -2,11 +2,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
 import { AllocationView, Project, Operator, Region, Department, Commune } from '../types';
-import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Unlock } from 'lucide-react';
+import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Truck, EyeOff, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 type GroupBy = 'none' | 'project';
 
 export const Allocations = () => {
+  const navigate = useNavigate();
   const [allocations, setAllocations] = useState<AllocationView[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,6 +16,7 @@ export const Allocations = () => {
   // Filter & Grouping State
   const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<string>('all');
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  const [hideClosed, setHideClosed] = useState(false);
 
   // Dropdown Data
   const [projects, setProjects] = useState<Project[]>([]);
@@ -101,6 +104,11 @@ export const Allocations = () => {
     } catch (e) {
       alert('Erreur lors de la suppression. Elle peut être liée à des livraisons existantes.');
     }
+  };
+
+  const handleCreateDelivery = (alloc: AllocationView) => {
+    // Navigate to Logistics page with params to trigger modal
+    navigate(`/logistics?action=new&allocationId=${alloc.id}`);
   };
 
   const generateKey = () => {
@@ -261,12 +269,15 @@ export const Allocations = () => {
       
       if (!matchesSearch) return false;
 
+      // Closed Filter
+      if (hideClosed && a.status === 'CLOSED') return false;
+
       // Project Filter
       if (selectedPhaseFilter === 'all') return true;
       if (selectedPhaseFilter === 'unassigned') return !a.project_id;
       return a.project_id === selectedPhaseFilter;
     });
-  }, [allocations, searchTerm, selectedPhaseFilter]);
+  }, [allocations, searchTerm, selectedPhaseFilter, hideClosed]);
 
   const groupedAllocations = useMemo(() => {
     if (groupBy === 'none') {
@@ -315,6 +326,19 @@ export const Allocations = () => {
           </div>
           
           <div className="flex items-center gap-2">
+             <button
+                onClick={() => setHideClosed(!hideClosed)}
+                className={`px-3 py-2 rounded-lg border flex items-center gap-2 text-sm transition-colors ${
+                  hideClosed
+                    ? 'bg-primary/10 text-primary border-primary' 
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+                title={hideClosed ? "Afficher les allocations fermées" : "Masquer les allocations fermées"}
+             >
+               {hideClosed ? <EyeOff size={16} /> : <Eye size={16} />} 
+               <span className="hidden sm:inline">Masquer Fermés</span>
+             </button>
+
              <button
                 onClick={() => setGroupBy(prev => prev === 'none' ? 'project' : 'none')}
                 className={`px-3 py-2 rounded-lg border flex items-center gap-2 text-sm transition-colors ${
@@ -459,6 +483,22 @@ export const Allocations = () => {
                       </td>
                       <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
                         
+                        {/* Add Delivery Action */}
+                        <button
+                          onClick={() => handleCreateDelivery(alloc)}
+                          disabled={alloc.status === 'CLOSED'}
+                          className={`p-2 rounded-lg transition-colors border ${
+                            alloc.status !== 'CLOSED'
+                              ? 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 cursor-pointer shadow-sm'
+                              : 'bg-muted text-muted-foreground border-transparent cursor-not-allowed opacity-50'
+                          }`}
+                          title="Nouvelle Expédition"
+                        >
+                          <Truck size={16} />
+                        </button>
+
+                        <div className="w-px h-4 bg-border mx-1"></div>
+
                         {/* Close Button - Active only if 100% */}
                         <button
                           onClick={() => handleCloseAllocation(alloc.id)}
@@ -510,7 +550,7 @@ export const Allocations = () => {
              </div>
              
              <form onSubmit={handleSave} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 h-[70vh] overflow-y-auto">
-                
+                {/* ... (Existing form content remains unchanged) ... */}
                 {/* Project */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-foreground mb-1">Phase Projet</label>
@@ -524,7 +564,6 @@ export const Allocations = () => {
                       
                       setFormData((prev: any) => {
                         const currentOp = operators.find(o => o.id === prev.operator_id);
-                        // If current operator's project phase matches new project phase, keep selection
                         const currentOpProject = projects.find(p => p.id === currentOp?.projet_id);
                         
                         const isOpValid = !prev.operator_id || (
@@ -562,16 +601,12 @@ export const Allocations = () => {
                     <option value="">Sélectionner Opérateur...</option>
                     {operators
                       .filter(o => {
-                         // Filter by Phase Number if a project is selected
                          if (selectedProject) {
                            const opProject = projects.find(p => p.id === o.projet_id);
-                           // Match if op has same phase number
                            if (!opProject || opProject.numero_phase !== selectedProject.numero_phase) {
                               return false;
                            }
                          }
-                         
-                         // Must NOT be already assigned, UNLESS it's the current one (for editing)
                          if (assignedOperatorIds.has(o.id) && o.id !== formData.operator_id) return false;
                          return true;
                       })

@@ -1,11 +1,15 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
 import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 type GroupBy = 'none' | 'truck' | 'commune' | 'region';
 
 export const Logistics = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -44,16 +48,42 @@ export const Logistics = () => {
       // Only show open or in-progress allocations for new dispatches
       setAllocations(al); 
       setProjects(proj);
+      return al; // Return allocations for immediate use in effect
     } catch (e) {
       console.error(e);
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const init = async () => {
+      const loadedAllocations = await fetchData();
+      
+      // Check URL params for auto-open action
+      const params = new URLSearchParams(location.search);
+      if (params.get('action') === 'new' && params.get('allocationId')) {
+        const allocId = params.get('allocationId');
+        const targetAlloc = loadedAllocations.find(a => a.id === allocId);
+        
+        if (targetAlloc) {
+          setFormData({
+            allocation_id: targetAlloc.id,
+            bl_number: generateBL(),
+            delivery_date: new Date().toISOString().split('T')[0],
+            tonnage_loaded: 0
+          });
+          setAllocationSearch(targetAlloc.operator_name);
+          setIsModalOpen(true);
+          
+          // Clear URL params to prevent re-opening on reload
+          navigate('/logistics', { replace: true });
+        }
+      }
+    };
+    init();
+  }, [location.search]);
 
   const generateBL = () => {
     const year = new Date().getFullYear().toString().slice(-2);
