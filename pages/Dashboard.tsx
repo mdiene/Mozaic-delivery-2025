@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
@@ -8,7 +7,7 @@ import { db } from '../services/db';
 import { 
   TrendingUp, Truck, AlertTriangle, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
-  Activity, Layers, ChevronDown, ChevronUp, Network, MoreHorizontal
+  Activity, Layers, ChevronDown, ChevronUp, Network, MoreHorizontal, Maximize2, Minimize2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -81,6 +80,7 @@ export const Dashboard = () => {
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
   const [isMounted, setIsMounted] = useState(false);
   const [isGraphOpen, setIsGraphOpen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -341,18 +341,20 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Collapsible Network Graph */}
-      <div className="pt-2">
-        <button
-          onClick={() => setIsGraphOpen(!isGraphOpen)}
-          className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group
-             ${isGraphOpen 
+      {/* Collapsible Network Graph with Fullscreen Mode */}
+      <div className={`pt-2 transition-all duration-300 ${isFullScreen ? 'fixed inset-0 z-50 bg-background p-6 overflow-hidden' : ''}`}>
+        
+        {/* Toggle/Header Bar */}
+        <div 
+           onClick={() => !isFullScreen && setIsGraphOpen(!isGraphOpen)}
+           className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer
+             ${isGraphOpen || isFullScreen 
                ? 'bg-card border-border shadow-soft-xl' 
                : 'bg-card/50 border-transparent hover:bg-card hover:shadow-soft-sm'
              }`}
         >
            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl transition-colors ${isGraphOpen ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+              <div className={`p-3 rounded-xl transition-colors ${isGraphOpen || isFullScreen ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                  <Network size={24} />
               </div>
               <div className="text-left">
@@ -360,15 +362,37 @@ export const Dashboard = () => {
                  <p className="text-sm text-muted-foreground">Visualisation interactive</p>
               </div>
            </div>
-           {isGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />}
-        </button>
+           
+           <div className="flex items-center gap-2">
+              {/* Fullscreen Button - Only visible if open */}
+              {(isGraphOpen || isFullScreen) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFullScreen(!isFullScreen);
+                    // Ensure graph stays open if we exit fullscreen
+                    if (!isFullScreen) setIsGraphOpen(true);
+                  }}
+                  className="p-2 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
+                  title={isFullScreen ? "Réduire" : "Plein écran"}
+                >
+                   {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                </button>
+              )}
+              
+              {!isFullScreen && (
+                 isGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />
+              )}
+           </div>
+        </div>
 
-        {isGraphOpen && (
-          <div className="mt-6 animate-in slide-in-from-top-4 fade-in duration-300">
+        {/* Graph Content */}
+        {(isGraphOpen || isFullScreen) && (
+          <div className={`mt-6 animate-in slide-in-from-top-4 fade-in duration-300 ${isFullScreen ? 'h-[calc(100vh-140px)]' : 'h-[500px]'}`}>
              {graphData.length > 0 ? (
                <RegionalGraph regions={graphData} />
              ) : (
-               <div className="w-full h-[400px] bg-card rounded-2xl border border-border flex items-center justify-center text-muted-foreground shadow-inner">
+               <div className="w-full h-full bg-card rounded-2xl border border-border flex items-center justify-center text-muted-foreground shadow-inner">
                  {loading ? 'Chargement...' : 'Aucune donnée disponible.'}
                </div>
              )}

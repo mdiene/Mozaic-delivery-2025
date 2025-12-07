@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { Network } from 'vis-network';
 import { NetworkHierarchy } from '../types';
@@ -136,7 +137,7 @@ export default function RegionalGraph({ regions }: Props) {
             color: { background: color, border: '#ffffff' },
             font: { size: 10, color: '#6b7280', vadjust: 15 },
             borderWidth: 2,
-            title: `Commune: ${commune.name}\nLivraisons: ${commune.deliveries.count}\nVolume: ${commune.deliveries.volume} T`
+            title: `Commune: ${commune.name}\nLivraisons: ${commune.deliveries.length}\nVolume: ${commune.delivered} T`
           });
 
           edges.push({
@@ -147,21 +148,19 @@ export default function RegionalGraph({ regions }: Props) {
             length: 80
           });
 
-          // --- Level 4: Deliveries (Dots) ---
-          if (commune.deliveries.count > 0) {
-            // Visual clustering: 1 dot per delivery might be too much, 
-            // let's show up to 5 dots to represent volume density
-            const dotCount = Math.min(5, Math.ceil(commune.deliveries.count / 2)); 
-            
-            for (let i = 0; i < dotCount; i++) {
-               const deliveryId = `${commune.id}-del-${i}`;
+          // --- Level 4: Deliveries (Individual Dots) ---
+          if (commune.deliveries && commune.deliveries.length > 0) {
+            commune.deliveries.forEach((del) => {
+               const deliveryId = `del-${del.id}`;
+               
                nodes.push({
                  id: deliveryId,
                  label: '',
                  shape: 'dot',
                  size: 4,
                  color: '#10b981', // Emerald for active delivery
-                 group: 'delivery'
+                 group: 'delivery',
+                 title: `Livraison: ${del.bl_number}\nCharge: ${del.tonnage} T\nCamion: ${del.truck_plate}\nChauffeur: ${del.driver_name}`
                });
 
                edges.push({
@@ -171,7 +170,7 @@ export default function RegionalGraph({ regions }: Props) {
                  color: { color: '#10b981', opacity: 0.4 },
                  width: 1
                });
-            }
+            });
           }
         });
       });
@@ -209,7 +208,7 @@ export default function RegionalGraph({ regions }: Props) {
       },
       interaction: {
         hover: true,
-        tooltipDelay: 200,
+        tooltipDelay: 100, // Faster tooltip
         zoomView: true
       }
     };

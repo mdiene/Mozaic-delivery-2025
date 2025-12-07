@@ -1,11 +1,6 @@
 
-
-
-
-
-
 import { supabase } from '../lib/supabaseClient';
-import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion } from '../types';
+import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion, NetworkDeliveryNode } from '../types';
 
 // Helper to stringify errors safely
 const safeLog = (prefix: string, error: any) => {
@@ -318,11 +313,14 @@ export const db = {
       return [];
     }
 
-    // 2. Fetch Deliveries (Realized Data)
+    // 2. Fetch Deliveries (Realized Data) with detailed truck/driver info
     let delQuery = supabase.from('deliveries')
       .select(`
         id,
         tonnage_loaded,
+        bl_number,
+        trucks(plate_number),
+        drivers(name),
         allocation:allocations!inner(
           id,
           region_id,
@@ -354,7 +352,7 @@ export const db = {
           name: string,
           target: number,
           delivered: number,
-          deliveryCount: number
+          deliveries: NetworkDeliveryNode[]
         }>
       }>
     }> = {};
@@ -374,7 +372,7 @@ export const db = {
       if (!tree[rId].depts[dId]) tree[rId].depts[dId] = { name: a.department.name, target: 0, delivered: 0, communes: {} };
       
       // Init Commune
-      if (!tree[rId].depts[dId].communes[cId]) tree[rId].depts[dId].communes[cId] = { name: a.commune.name, target: 0, delivered: 0, deliveryCount: 0 };
+      if (!tree[rId].depts[dId].communes[cId]) tree[rId].depts[dId].communes[cId] = { name: a.commune.name, target: 0, delivered: 0, deliveries: [] };
 
       const t = Number(a.target_tonnage) || 0;
       
@@ -401,7 +399,15 @@ export const db = {
           tree[rId].depts[dId].delivered += val;
           if (tree[rId].depts[dId].communes[cId]) {
             tree[rId].depts[dId].communes[cId].delivered += val;
-            tree[rId].depts[dId].communes[cId].deliveryCount += 1;
+            
+            // Push detailed delivery node
+            tree[rId].depts[dId].communes[cId].deliveries.push({
+              id: d.id,
+              bl_number: d.bl_number,
+              tonnage: val,
+              truck_plate: d.trucks?.plate_number || 'Inconnu',
+              driver_name: d.drivers?.name || 'Inconnu'
+            });
           }
         }
       }
@@ -424,7 +430,7 @@ export const db = {
           name: c.name,
           target: c.target,
           delivered: c.delivered,
-          deliveries: { count: c.deliveryCount, volume: c.delivered }
+          deliveries: c.deliveries
         }))
       }))
     }));

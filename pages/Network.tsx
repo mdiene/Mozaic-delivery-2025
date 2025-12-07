@@ -1,16 +1,16 @@
-
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { useProject } from '../components/Layout';
 import RegionalGraph from '../components/RegionalGraph';
 import { NetworkHierarchy } from '../types';
 import { GoogleGenAI } from "@google/genai";
-import { Navigation, Clock, MapPin, Layers, Filter } from 'lucide-react';
+import { Navigation, Clock, MapPin, Layers, Filter, Maximize2, Minimize2 } from 'lucide-react';
 
 export const NetworkPage = () => {
   const { selectedProject, projects, setSelectedProject } = useProject();
   const [graphData, setGraphData] = useState<NetworkHierarchy>([]);
   const [loading, setLoading] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   
   // Gemini Route Logic
   const [origin, setOrigin] = useState("Amadi Ounare");
@@ -149,7 +149,21 @@ export const NetworkPage = () => {
            </div>
 
            {/* Graph Container */}
-           <div className="flex-1 min-h-0 bg-card rounded-2xl border border-border overflow-hidden relative shadow-soft-xl">
+           <div className={`
+             bg-card border border-border overflow-hidden relative shadow-soft-xl transition-all duration-300
+             ${isFullScreen ? 'fixed inset-0 z-50 rounded-none h-screen w-screen' : 'flex-1 min-h-0 rounded-2xl'}
+           `}>
+             {/* Fullscreen Toggle */}
+             <div className="absolute top-4 right-4 z-10">
+               <button
+                 onClick={() => setIsFullScreen(!isFullScreen)}
+                 className="p-2 bg-background/90 backdrop-blur border border-border rounded-lg shadow-sm text-foreground hover:text-primary transition-colors"
+                 title={isFullScreen ? "Quitter le plein écran" : "Plein écran"}
+               >
+                 {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+               </button>
+             </div>
+
              {loading ? (
                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                  <div className="flex flex-col items-center gap-2">

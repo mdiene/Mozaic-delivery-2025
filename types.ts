@@ -1,7 +1,4 @@
 
-
-
-
 export type AllocationStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED';
 
 export interface Region {
@@ -157,9 +154,12 @@ export interface RegionPerformance {
 }
 
 // Hierarchical Graph Interfaces
-export interface NetworkDeliveryStats {
-  count: number;
-  volume: number;
+export interface NetworkDeliveryNode {
+  id: string;
+  truck_plate: string;
+  driver_name: string;
+  tonnage: number;
+  bl_number: string;
 }
 
 export interface NetworkCommune {
@@ -167,7 +167,7 @@ export interface NetworkCommune {
   name: string;
   target: number;
   delivered: number;
-  deliveries: NetworkDeliveryStats;
+  deliveries: NetworkDeliveryNode[];
 }
 
 export interface NetworkDepartment {
