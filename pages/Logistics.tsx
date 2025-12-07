@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
-import { DeliveryView, Truck, Driver, AllocationView } from '../types';
-import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter } from 'lucide-react';
+import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
+import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown } from 'lucide-react';
 
 type GroupBy = 'none' | 'truck' | 'commune' | 'region';
 
@@ -11,6 +10,7 @@ export const Logistics = () => {
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [allocations, setAllocations] = useState<AllocationView[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   
   const [loading, setLoading] = useState(true);
   
@@ -20,21 +20,30 @@ export const Logistics = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  
+  // Modal Filter State
+  const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
+  
+  // Searchable Select State (Allocation/Operator)
+  const [allocationSearch, setAllocationSearch] = useState('');
+  const [isAllocationDropdownOpen, setIsAllocationDropdownOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [del, tr, dr, al] = await Promise.all([
+      const [del, tr, dr, al, proj] = await Promise.all([
         db.getDeliveriesView(),
         db.getTrucks(),
         db.getDrivers(),
-        db.getAllocationsView()
+        db.getAllocationsView(),
+        db.getProjects()
       ]);
       setDeliveries(del);
       setTrucks(tr);
       setDrivers(dr);
       // Only show open or in-progress allocations for new dispatches
       setAllocations(al); 
+      setProjects(proj);
     } catch (e) {
       console.error(e);
     } finally {
@@ -60,6 +69,8 @@ export const Logistics = () => {
         // Ensure date is formatted for input type="date"
         delivery_date: delivery.delivery_date ? new Date(delivery.delivery_date).toISOString().split('T')[0] : ''
       });
+      // Pre-fill search with current operator name
+      setAllocationSearch(delivery.operator_name);
     } else {
       // Create Mode
       setFormData({
@@ -67,7 +78,9 @@ export const Logistics = () => {
         delivery_date: new Date().toISOString().split('T')[0],
         tonnage_loaded: 0
       });
+      setAllocationSearch('');
     }
+    setModalPhaseFilter('all');
     setIsModalOpen(true);
   };
 
@@ -194,6 +207,29 @@ export const Logistics = () => {
 
   const targetTonnage = selectedAllocation?.target_tonnage || 0;
   const remainingTonnage = targetTonnage - calculatedDelivered;
+
+  // Filtered Allocations for Dropdown
+  const filteredAllocations = useMemo(() => {
+    return allocations.filter(a => {
+      // 1. Filter by Project Phase
+      if (modalPhaseFilter !== 'all' && a.project_id !== modalPhaseFilter) return false;
+      
+      // 2. Filter by Search Text
+      if (!allocationSearch) return true;
+      const searchLower = allocationSearch.toLowerCase();
+      return (
+        a.operator_name.toLowerCase().includes(searchLower) ||
+        a.region_name.toLowerCase().includes(searchLower) ||
+        a.allocation_key.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [allocations, modalPhaseFilter, allocationSearch]);
+
+  const handleAllocationSelect = (alloc: AllocationView) => {
+    setFormData({ ...formData, allocation_id: alloc.id });
+    setAllocationSearch(alloc.operator_name);
+    setIsAllocationDropdownOpen(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -374,24 +410,97 @@ export const Logistics = () => {
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                     <MapPin size={14} /> Affectation
                   </h4>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Sélectionner Allocation / Opérateur</label>
-                    <select 
-                      required
-                      className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
-                      value={formData.allocation_id || ''}
-                      onChange={(e) => setFormData({...formData, allocation_id: e.target.value})}
-                    >
-                      <option value="">Choisir Opérateur...</option>
-                      {allocations.map(alloc => (
-                        <option key={alloc.id} value={alloc.id}>
-                          {alloc.operator_name} ({alloc.region_name})
-                        </option>
+                  
+                  {/* Phase Filter Buttons */}
+                  <div className="overflow-x-auto pb-2 -mx-1 px-1">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModalPhaseFilter('all')}
+                        className={`whitespace-nowrap px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors border ${
+                          modalPhaseFilter === 'all'
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                        }`}
+                      >
+                        Toutes
+                      </button>
+                      {projects.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setModalPhaseFilter(p.id)}
+                          className={`whitespace-nowrap px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors border ${
+                            modalPhaseFilter === p.id
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                          }`}
+                        >
+                          Phase {p.numero_phase}
+                        </button>
                       ))}
-                    </select>
+                    </div>
+                  </div>
+
+                  {/* Searchable Select for Allocation */}
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-foreground mb-1">Sélectionner Allocation / Opérateur</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+                      <input 
+                        type="text"
+                        required
+                        className="w-full pl-9 pr-8 border border-input rounded-lg p-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                        placeholder="Rechercher par Nom, Région..."
+                        value={allocationSearch}
+                        onChange={(e) => {
+                          setAllocationSearch(e.target.value);
+                          setIsAllocationDropdownOpen(true);
+                          // Clear ID if text changes without selection
+                          if (formData.allocation_id) setFormData({...formData, allocation_id: ''});
+                        }}
+                        onFocus={() => setIsAllocationDropdownOpen(true)}
+                        onBlur={() => setTimeout(() => setIsAllocationDropdownOpen(false), 200)}
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+                    </div>
+                    
+                    {/* Input Validation Helper (Invisible) */}
+                    <input 
+                      type="text" 
+                      className="sr-only" 
+                      required 
+                      value={formData.allocation_id || ''} 
+                      onChange={()=>{}} 
+                      onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("Veuillez sélectionner un opérateur dans la liste.")}
+                      onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")}
+                    />
+
+                    {isAllocationDropdownOpen && (
+                      <ul className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {filteredAllocations.map(alloc => (
+                          <li 
+                            key={alloc.id}
+                            className="px-4 py-2 hover:bg-muted text-sm cursor-pointer text-popover-foreground border-b border-border/50 last:border-0"
+                            onClick={() => handleAllocationSelect(alloc)}
+                          >
+                            <div className="font-medium">{alloc.operator_name}</div>
+                            <div className="text-xs text-muted-foreground flex justify-between">
+                              <span>{alloc.region_name} • {alloc.commune_name}</span>
+                              {alloc.project_phase && <span className="italic">{alloc.project_phase}</span>}
+                            </div>
+                          </li>
+                        ))}
+                        {filteredAllocations.length === 0 && (
+                          <li className="px-4 py-3 text-sm text-muted-foreground text-center">
+                            Aucune allocation trouvée pour ce filtre.
+                          </li>
+                        )}
+                      </ul>
+                    )}
                     
                     {selectedAllocation ? (
-                      <div className="mt-3 grid grid-cols-3 gap-2 text-center bg-muted/30 p-3 rounded-lg border border-border border-dashed">
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-center bg-muted/30 p-3 rounded-lg border border-border border-dashed animate-fade-in">
                         <div className="flex flex-col">
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Cible Totale</span>
                             <span className="font-mono text-sm font-medium text-foreground">{targetTonnage} T</span>
@@ -411,7 +520,7 @@ export const Logistics = () => {
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Affiche les Opérateurs avec des quotas actifs.
+                        Utilisez la recherche ci-dessus pour trouver une allocation active.
                       </p>
                     )}
                   </div>
