@@ -196,10 +196,10 @@ export default function RegionalGraph({ regions }: Props) {
       physics: {
         enabled: true,
         stabilization: {
-          iterations: 2000
+          iterations: 500
         },
         barnesHut: {
-          gravitationalConstant: -4000,
+          gravitationalConstant: -2000,
           centralGravity: 0.1,
           springLength: 100,
           springConstant: 0.05,
