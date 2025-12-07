@@ -1,4 +1,3 @@
-
 export type AllocationStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED';
 
 export interface Region {
@@ -129,6 +128,10 @@ export interface BonLivraisonView {
   region: string;
   project_num_bon: string;
   numero_phase: number;
+  // Added for Print Template
+  truck_plate?: string;
+  driver_name?: string;
+  trailer_number?: string;
 }
 
 export interface FinDeCessionView {

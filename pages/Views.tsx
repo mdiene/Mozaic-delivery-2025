@@ -1,17 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
-import { BonLivraisonView, FinDeCessionView } from '../types';
-import { FileText, Gift, Download, Printer } from 'lucide-react';
+import { BonLivraisonView, FinDeCessionView, Project } from '../types';
+import { FileText, Gift, Download, Printer, Layers, User, MapPin, X, Filter } from 'lucide-react';
 
 export const Views = () => {
   const [activeTab, setActiveTab] = useState<'bon_livraison' | 'fin_cession'>('bon_livraison');
   const [blData, setBlData] = useState<BonLivraisonView[]>([]);
   const [fcData, setFcData] = useState<FinDeCessionView[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Filters
+  const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<number | 'all'>('all');
+  const [blGroupBy, setBlGroupBy] = useState<'none' | 'operator' | 'region'>('none');
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
+      const [proj] = await Promise.all([db.getProjects()]);
+      setProjects(proj);
+
       if (activeTab === 'bon_livraison') {
         const data = await db.getBonLivraisonViews();
         setBlData(data);
@@ -24,7 +32,365 @@ export const Views = () => {
     loadData();
   }, [activeTab]);
 
+  // Filter Logic
+  const filteredBlData = useMemo(() => {
+    if (selectedPhaseFilter === 'all') return blData;
+    return blData.filter(item => item.numero_phase === selectedPhaseFilter);
+  }, [blData, selectedPhaseFilter]);
+
+  const filteredFcData = useMemo(() => {
+    if (selectedPhaseFilter === 'all') return fcData;
+    return fcData.filter(item => item.project_phase === selectedPhaseFilter);
+  }, [fcData, selectedPhaseFilter]);
+
+  // Grouping Logic for BL
+  const groupedBlData = useMemo(() => {
+    if (blGroupBy === 'none') {
+      return [{ key: 'All', items: filteredBlData, total: filteredBlData.reduce((sum, item) => sum + Number(item.tonnage_loaded), 0) }];
+    }
+
+    const groups: Record<string, BonLivraisonView[]> = {};
+    filteredBlData.forEach(item => {
+      let key = 'Inconnu';
+      if (blGroupBy === 'operator') key = item.operator_name || 'Inconnu';
+      if (blGroupBy === 'region') key = item.region || 'Inconnu';
+      
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    });
+
+    return Object.entries(groups).map(([key, items]) => ({
+      key,
+      items,
+      total: items.reduce((sum, item) => sum + Number(item.tonnage_loaded), 0)
+    })).sort((a, b) => a.key.localeCompare(b.key));
+  }, [filteredBlData, blGroupBy]);
+
+  const handlePrintBonLivraison = (item: BonLivraisonView) => {
+    // Format Trailer string: if exists, add separator
+    const trailerStr = item.trailer_number ? ` / ${item.trailer_number}` : '';
+    
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>BL ${item.bl_number} - ${item.operator_name}</title>
+          <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,900" rel="stylesheet">
+          <style>
+            @page { size: A4; margin: 1.5cm; }
+            body { 
+              font-family: 'Lato', sans-serif; 
+              color: #000; 
+              max-width: 210mm; 
+              margin: 0 auto; 
+              background: white;
+              font-size: 13px;
+              line-height: 1.4;
+              position: relative;
+              min-height: 280mm;
+            }
+            
+            /* SOMA Logo Construction */
+            .header-container { display: flex; align-items: center; margin-bottom: 20px; }
+            .logo-container { display: flex; align-items: center; gap: 10px; }
+            .logo-graphic { width: 60px; height: 50px; display: flex; flex-direction: column; gap: 3px; }
+            .logo-bar { height: 12px; border-radius: 20px 0 20px 0; width: 100%; }
+            .logo-bar.top { background-color: #e09b60; width: 80%; align-self: flex-start; }
+            .logo-bar.mid { background-color: #bfa12f; width: 90%; }
+            .logo-bar.bot { background-color: #728c28; width: 85%; border-radius: 0 20px 0 20px; align-self: flex-end; }
+            .logo-divider { width: 5px; height: 55px; background-color: #ff8c00; margin: 0 15px; }
+            .logo-text { font-family: sans-serif; font-weight: 900; font-size: 60px; letter-spacing: -3px; line-height: 1; }
+            .logo-text .dot-o { position: relative; display: inline-block; }
+            .logo-text .dot-o::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; background: black; border-radius: 50%; }
+            
+            .company-name-vertical {
+               border-left: 2px dotted #999;
+               padding-left: 15px;
+               font-weight: 700;
+               text-transform: uppercase;
+               font-size: 16px;
+               line-height: 1.1;
+               color: #000;
+               margin-left: 20px;
+            }
+
+            .main-title-box {
+               background-color: #fff9e6; /* Soft yellow/beige background */
+               padding: 15px;
+               margin-top: 15px;
+               margin-bottom: 20px;
+               border-left: 5px solid #d97706;
+            }
+            .main-title {
+               font-size: 28px;
+               font-weight: bold;
+               color: #555;
+               text-transform: uppercase;
+               letter-spacing: 1px;
+            }
+
+            .grid-container {
+               display: grid;
+               grid-template-columns: 1fr 1fr;
+               gap: 20px;
+               margin-bottom: 20px;
+            }
+
+            .info-block { margin-bottom: 10px; }
+            .info-label { font-weight: bold; text-transform: uppercase; font-size: 11px; color: #444; margin-bottom: 2px; }
+            .info-value { font-size: 14px; border-bottom: 1px dotted #ccc; padding-bottom: 2px; }
+
+            .sender-info { font-size: 12px; margin-bottom: 20px; color: #333; }
+            
+            .modalites-box {
+               border: 1px solid #ddd;
+               padding: 10px;
+               margin: 20px 0;
+               background: #f9fafb;
+            }
+
+            /* Table Style matching PDF */
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th { 
+               text-align: left; 
+               background-color: #fff9e6; 
+               padding: 8px; 
+               font-weight: bold; 
+               text-transform: uppercase; 
+               font-size: 11px;
+               border-bottom: 2px solid #ddd;
+            }
+            td { 
+               padding: 12px 8px; 
+               border-bottom: 1px solid #eee;
+               vertical-align: top;
+            }
+            .row-alt { background-color: #fcfcfc; }
+            .total-row td { 
+               background-color: #f0fdf4; 
+               font-weight: bold; 
+               border-top: 2px solid #ddd;
+            }
+
+            /* Signature Section with Cachet */
+            .footer-section {
+               margin-top: 40px;
+               display: flex;
+               justify-content: space-between;
+            }
+            .signature-box {
+               width: 45%;
+               position: relative;
+               min-height: 150px;
+            }
+            .signature-title {
+               font-weight: bold;
+               font-size: 14px;
+               margin-bottom: 10px;
+               border-bottom: 1px solid #000;
+               display: inline-block;
+               padding-bottom: 2px;
+            }
+            
+            /* CACHET CSS */
+            .cachet-box {
+               border: 4px solid #1e3a8a; /* Blue border */
+               border-radius: 10px;
+               padding: 8px 15px;
+               color: #1e3a8a;
+               font-family: 'Courier New', Courier, monospace;
+               font-weight: 900;
+               text-align: center;
+               transform: rotate(-2deg);
+               position: absolute;
+               top: 40px;
+               left: 20px;
+               background: rgba(255, 255, 255, 0.85);
+               box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.1);
+               z-index: 10;
+               font-size: 14px;
+            }
+            .cachet-title { font-size: 16px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: -0.5px; }
+            .cachet-sub { font-size: 22px; margin-bottom: 2px; }
+            .cachet-addr { font-size: 12px; line-height: 1.2; }
+
+            .watermark {
+               position: fixed;
+               top: 40%;
+               left: 50%;
+               transform: translate(-50%, -50%) rotate(-30deg);
+               font-size: 120px;
+               color: rgba(255, 200, 0, 0.05);
+               font-weight: 900;
+               z-index: -1;
+               pointer-events: none;
+            }
+
+            .doc-footer {
+               position: absolute;
+               bottom: 0;
+               left: 0;
+               right: 0;
+               text-align: center;
+               font-size: 10px;
+               color: #333;
+               border-top: 1px solid #ccc;
+               padding-top: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="watermark">SOMA</div>
+
+          <!-- Header Logo Section -->
+          <div class="header-container">
+             <div class="logo-container">
+               <div class="logo-graphic"><div class="logo-bar top"></div><div class="logo-bar mid"></div><div class="logo-bar bot"></div></div>
+               <div class="logo-divider"></div>
+               <div class="logo-text">S<span class="dot-o">O</span>MA</div>
+             </div>
+             <div class="company-name-vertical">
+               SOCIÉTÉ<br/>MINIÈRE<br/>AFRICAINE
+             </div>
+          </div>
+
+          <!-- Main Title Banner -->
+          <div class="main-title-box">
+             <div class="main-title">BON DE LIVRAISON</div>
+          </div>
+
+          <!-- Top Grid Info -->
+          <div class="grid-container">
+             <div>
+                <div class="sender-info">
+                   <strong>SOCIETE MINIERE AFRICAINE</strong><br/>
+                   11 rue Alfred goux<br/>
+                   Apt N1 1er Etage Dakar Plateau Sénégal<br/>
+                   TEL : 77 260 95 67
+                </div>
+                
+                <div style="margin-top: 20px;">
+                   <div class="info-label">Programme</div>
+                   <div class="info-value" style="border:none; background:#f9f9f9; padding:8px; font-weight:bold;">
+                      MASAE campagne agricole 2025/2026
+                   </div>
+                </div>
+             </div>
+
+             <div style="text-align: right;">
+                <div style="margin-bottom: 15px;">
+                   <span style="font-weight:bold; margin-right: 10px;">DATE DE LIVRAISON</span>
+                   <span style="border-bottom: 1px dotted #000; padding: 0 10px; font-family: monospace; font-size: 14px;">
+                      ${new Date(item.delivery_date).toLocaleDateString('fr-FR')}
+                   </span>
+                </div>
+                <div style="margin-bottom: 15px;">
+                   <span style="font-weight:bold; margin-right: 10px;">NUMERO BL</span>
+                   <span style="background: #eee; padding: 5px 10px; font-family: monospace; font-weight:bold; font-size: 14px;">
+                      ${item.bl_number}
+                   </span>
+                </div>
+                
+                <div style="text-align: left; margin-top: 20px; border: 1px solid #ccc; padding: 10px;">
+                   <div class="info-label">DESTINATAIRE</div>
+                   <div style="font-weight:bold; font-size:16px; margin-bottom:5px;">${item.operator_name}</div>
+                   
+                   <div class="info-label" style="margin-top:10px;">EXPÉDIEZ À</div>
+                   <div>${item.region} / ${item.department}</div>
+                   <div style="font-weight:bold;">${item.commune}</div>
+                   <div style="font-size:11px; color:#666;">${item.operator_coop_name || ''}</div>
+                </div>
+             </div>
+          </div>
+
+          <!-- Modalités Transport -->
+          <div class="modalites-box">
+             <div class="info-label">Modalités</div>
+             <div style="margin-top: 5px; font-size: 14px;">
+                <span style="margin-right: 20px;">
+                   Camion de transport N : <strong>${item.truck_plate || '________________'}${trailerStr}</strong>
+                </span>
+                <span>
+                   Chauffeur : <strong>${item.driver_name || '________________'}</strong>
+                </span>
+             </div>
+          </div>
+
+          <!-- Table -->
+          <table>
+             <thead>
+                <tr>
+                   <th width="70%">DESCRIPTION</th>
+                   <th width="30%" style="text-align:right;">Quantité / Tonnes</th>
+                </tr>
+             </thead>
+             <tbody>
+                <tr>
+                   <td>
+                      <strong>Engrais à base de phosphate naturel</strong><br/>
+                      <span style="font-size:11px; color:#555;">Sac de 50 kg – Campagne agricole 2025-2026</span><br/>
+                      <span style="font-size:11px; color:#555;">Projet Phase ${item.numero_phase} (Bon N° ${item.project_num_bon})</span>
+                   </td>
+                   <td style="text-align:right; font-size:16px; font-weight:bold;">${item.tonnage_loaded}</td>
+                </tr>
+                <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+                <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+                <tr class="total-row">
+                   <td style="text-align:right; padding-right: 20px;">SOUS-TOTAL</td>
+                   <td style="text-align:right;">${item.tonnage_loaded}</td>
+                </tr>
+             </tbody>
+          </table>
+
+          <div style="margin-top: 20px; font-size: 11px; color: #555; font-style: italic;">
+             Remarques /instructions : Marchandise reçue en bon état.
+          </div>
+
+          <!-- Signature Section -->
+          <div class="footer-section">
+             <div class="signature-box">
+                <div class="signature-title">Réceptionnaire</div>
+                <div>${item.operator_name}</div>
+                <div style="margin-top:5px; font-size:11px;">${item.operator_contact_info || ''}</div>
+             </div>
+
+             <div class="signature-box" style="text-align: right;">
+                <div class="signature-title">Signature SOMA</div>
+                
+                <!-- CACHET -->
+                <div class="cachet-box" style="left: auto; right: 0;">
+                   <div class="cachet-title">SOCIETE MINIERE AFRICAINE</div>
+                   <div class="cachet-sub">" SOMA "</div>
+                   <div class="cachet-addr">
+                      11, Rue Alfred Goux<br/>
+                      Le Directeur Général
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          <!-- Legal Footer -->
+          <div class="doc-footer">
+             SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage<br/>
+             Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 mdiene@gmail.com
+          </div>
+
+          <script>
+             window.onload = () => { setTimeout(() => window.print(), 500); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(printContent);
+      win.document.close();
+    }
+  };
+
   const handlePrintFinDeCession = (item: FinDeCessionView) => {
+    // Reused Function for FC Print
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -41,167 +407,71 @@ export const Views = () => {
               padding: 20px;
               background: white;
             }
-            h1, h2, h3, h4, .title-text { font-family: 'Prata', serif; }
-            
-            .header { 
-              display: flex; 
-              justify-content: space-between; 
-              align-items: flex-start; 
-              border-bottom: 2px solid #eab308; 
-              padding-bottom: 20px; 
-              margin-bottom: 30px; 
-            }
-            .logo-section { display: flex; align-items: center; gap: 15px; }
-            .logo-text { font-size: 42px; font-weight: bold; letter-spacing: -1px; }
-            .logo-text span { color: #d97706; } /* SOMA colors */
-            
-            .company-info { 
-              text-align: right; 
-              font-size: 11px; 
-              line-height: 1.5; 
-              color: #444;
-            }
-            .company-info strong { font-size: 12px; color: #000; text-transform: uppercase; }
-
+            .header-container { display: flex; align-items: center; margin-bottom: 20px; }
+            .logo-container { display: flex; align-items: center; gap: 10px; }
+            .logo-graphic { width: 50px; height: 40px; display: flex; flex-direction: column; gap: 3px; }
+            .logo-bar { height: 10px; border-radius: 20px 0 20px 0; width: 100%; }
+            .logo-bar.top { background-color: #e09b60; width: 80%; align-self: flex-start; }
+            .logo-bar.mid { background-color: #bfa12f; width: 90%; }
+            .logo-bar.bot { background-color: #728c28; width: 85%; border-radius: 0 20px 0 20px; align-self: flex-end; }
+            .logo-divider { width: 4px; height: 45px; background-color: #ff8c00; margin: 0 10px; }
+            .logo-text { font-family: sans-serif; font-weight: 900; font-size: 50px; letter-spacing: -2px; line-height: 1; }
+            .logo-text .dot-o { position: relative; display: inline-block; }
+            .logo-text .dot-o::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: black; border-radius: 50%; }
+            .company-name-vertical { border-left: 2px dotted #999; padding-left: 10px; font-weight: 700; text-transform: uppercase; font-size: 14px; line-height: 1.1; color: #000; margin-left: 15px; }
             .date-line { margin-bottom: 30px; font-weight: bold; }
-
-            .doc-title {
-              text-align: center;
-              background: #fffbeb;
-              border: 1px solid #eab308;
-              padding: 20px;
-              border-radius: 8px;
-              margin-bottom: 40px;
-            }
-            .doc-title h2 { 
-              margin: 0; 
-              font-size: 20px; 
-              text-transform: uppercase; 
-              color: #92400e; 
-              letter-spacing: 1px;
-            }
+            .doc-title { text-align: center; background: #fffbeb; border: 1px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 40px; }
+            .doc-title h2 { margin: 0; font-size: 20px; text-transform: uppercase; color: #92400e; letter-spacing: 1px; }
             .doc-title p { margin: 8px 0 0; font-weight: bold; font-size: 14px; }
-
             .content-block { margin-bottom: 25px; line-height: 1.6; text-align: justify; font-size: 14px; }
-            
             table { width: 100%; border-collapse: collapse; margin: 30px 0; }
-            th { 
-              background: #fef3c7; 
-              color: #92400e; 
-              padding: 12px; 
-              border: 1px solid #d1d5db; 
-              font-size: 12px; 
-              text-transform: uppercase; 
-            }
-            td { 
-              border: 1px solid #d1d5db; 
-              padding: 12px; 
-              text-align: center; 
-              font-weight: bold; 
-              font-size: 14px;
-            }
-
+            th { background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase; }
+            td { border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px; }
             .signatures { margin-top: 60px; page-break-inside: avoid; }
             .sig-table { width: 100%; border: none; }
             .sig-table td { border: none; text-align: left; padding: 5px; }
             .sig-line { border-bottom: 1px solid #000 !important; height: 40px; }
             .sig-header { font-weight: bold; font-size: 13px; padding-bottom: 10px; }
-
-            /* Watermark effect */
-            .watermark {
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%) rotate(-45deg);
-              font-size: 100px;
-              color: rgba(234, 179, 8, 0.05);
-              font-weight: bold;
-              z-index: -1;
-              pointer-events: none;
-            }
+            .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 100px; color: rgba(234, 179, 8, 0.05); font-weight: bold; z-index: -1; pointer-events: none; }
           </style>
         </head>
         <body>
           <div class="watermark">SOMA</div>
           
-          <div class="header">
-            <div class="logo-section">
-               <!-- Placeholder for Logo Image, using CSS text for now as per instructions -->
-               <div class="logo-text"><span>S</span>OMA</div>
-            </div>
-            <div class="company-info">
-              <strong>Société Minière Africaine</strong><br/>
-              SARL au capital de 10 000 000 F CFA<br/>
-              11 rue Alfred goux Apt N1 1er Etage<br/>
-              Tel: +221 77 247 25 00<br/>
-              mdiene@gmail.com
-            </div>
+          <div class="header-container">
+             <div class="logo-container">
+               <div class="logo-graphic"><div class="logo-bar top"></div><div class="logo-bar mid"></div><div class="logo-bar bot"></div></div>
+               <div class="logo-divider"></div>
+               <div class="logo-text">S<span class="dot-o">O</span>MA</div>
+             </div>
+             <div class="company-name-vertical">SOCIÉTÉ<br/>MINIÈRE<br/>AFRICAINE</div>
           </div>
 
-          <div class="date-line">
-            Date : ${new Date().toLocaleDateString('fr-FR')}
-          </div>
+          <div class="date-line">Date : ${new Date().toLocaleDateString('fr-FR')}</div>
 
           <div class="doc-title">
             <h2>Procès Verbal de Réception des Intrants Agricoles</h2>
             <p>CAMPAGNE AGRICOLE 2025-2026</p>
           </div>
 
-          <div class="content-block">
-            <strong>COMMUNE DE : <span style="text-transform: uppercase; border-bottom: 1px dotted #000;">${item.commune}</span></strong>
-          </div>
-
-          <div class="content-block">
-            Suite à la notification de mise à disposition d’engrais N° 394/MASAE/DA faite à la société minière africaine 
-            et selon le planning de la lettre N° 0971/DA/BRAFS de mise en place phosphate naturel.
-          </div>
+          <div class="content-block"><strong>COMMUNE DE : <span style="text-transform: uppercase; border-bottom: 1px dotted #000;">${item.commune}</span></strong></div>
+          <div class="content-block">Suite à la notification de mise à disposition d’engrais N° 394/MASAE/DA faite à la société minière africaine et selon le planning de la lettre N° 0971/DA/BRAFS de mise en place phosphate naturel.</div>
 
           <table>
-            <thead>
-              <tr>
-                <th>Nom de l'opérateur</th>
-                <th>Représentant</th>
-                <th>Produit</th>
-                <th>Quantité / Tonnes</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${item.operator_name}</td>
-                <td>${item.operator_coop_name || item.operator_name}</td>
-                <td>Phosphate naturel</td>
-                <td>${item.total_tonnage}</td>
-              </tr>
-            </tbody>
+            <thead><tr><th>Nom de l'opérateur</th><th>Représentant</th><th>Produit</th><th>Quantité / Tonnes</th></tr></thead>
+            <tbody><tr><td>${item.operator_name}</td><td>${item.operator_coop_name || item.operator_name}</td><td>Phosphate naturel</td><td>${item.total_tonnage}</td></tr></tbody>
           </table>
 
-          <div class="content-block">
-            La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> 
-            du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.
-            <br/><br/>
-            Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré 
-            <strong>${item.total_tonnage}</strong> tonnes à l’opérateur.
-          </div>
+          <div class="content-block">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage}</strong> tonnes à l’opérateur.</div>
 
           <div class="signatures">
             <p><strong>Ont signé :</strong></p>
             <table class="sig-table">
-              <tr>
-                <td width="40%" class="sig-header">Prénom et nom</td>
-                <td width="30%" class="sig-header">Fonction</td>
-                <td width="30%" class="sig-header">Signature</td>
-              </tr>
-              <tr>
-                <td class="sig-line" style="vertical-align: bottom;">${item.operator_coop_name || item.operator_name}</td>
-                <td class="sig-line"></td>
-                <td class="sig-line"></td>
-              </tr>
+              <tr><td width="40%" class="sig-header">Prénom et nom</td><td width="30%" class="sig-header">Fonction</td><td width="30%" class="sig-header">Signature</td></tr>
+              <tr><td class="sig-line" style="vertical-align: bottom;">${item.operator_coop_name || item.operator_name}</td><td class="sig-line"></td><td class="sig-line"></td></tr>
             </table>
           </div>
-
-          <script>
-             window.onload = () => { setTimeout(() => window.print(), 500); }
-          </script>
+          <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
         </body>
       </html>
     `;
@@ -220,6 +490,37 @@ export const Views = () => {
           <h1 className="text-2xl font-bold text-foreground">Vues & Rapports</h1>
           <p className="text-muted-foreground text-sm">Consulter les données consolidées des projets.</p>
         </div>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="bg-card p-2 rounded-xl border border-border flex items-center gap-2 overflow-x-auto shadow-sm">
+         <div className="flex items-center gap-2 px-3 border-r border-border text-muted-foreground shrink-0">
+            <Filter size={16} />
+            <span className="text-xs font-semibold uppercase hidden sm:inline">Filtrer</span>
+         </div>
+         <button
+            onClick={() => setSelectedPhaseFilter('all')}
+            className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+               selectedPhaseFilter === 'all'
+               ? 'bg-primary text-primary-foreground shadow-sm'
+               : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+         >
+            Tous les Projets
+         </button>
+         {projects.map(p => (
+            <button
+               key={p.id}
+               onClick={() => setSelectedPhaseFilter(p.numero_phase)}
+               className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+               selectedPhaseFilter === p.numero_phase
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+               }`}
+            >
+               Phase {p.numero_phase}
+            </button>
+         ))}
       </div>
 
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
@@ -241,56 +542,85 @@ export const Views = () => {
 
         <div className="p-0">
           {activeTab === 'bon_livraison' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left whitespace-nowrap">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">N° BL</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Date</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Opérateur</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Localisation</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Projet / Phase</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-right">Tonnage Chargé</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {loading ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Chargement des données...</td></tr>
-                  ) : blData.length === 0 ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune donnée disponible.</td></tr>
-                  ) : (
-                    blData.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-6 py-4 font-mono font-medium text-foreground">{item.bl_number}</td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">
-                          {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
-                            {item.operator_coop_name && (
-                              <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">
-                          {item.commune}, {item.department}, {item.region}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                             <span className="text-sm text-foreground">Phase {item.numero_phase}</span>
-                             <span className="text-xs text-muted-foreground font-mono">Bon: {item.project_num_bon}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono font-medium text-primary">
-                          {item.tonnage_loaded} T
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* Toolbar */}
+              <div className="p-4 border-b border-border flex justify-end">
+                <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg">
+                   <div className="text-xs font-semibold uppercase px-2 text-muted-foreground flex items-center gap-1">
+                     <Layers size={14} /> Grouper:
+                   </div>
+                   <button onClick={() => setBlGroupBy('operator')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'operator' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><User size={14} /> Opérateur</button>
+                   <button onClick={() => setBlGroupBy('region')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'region' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><MapPin size={14} /> Région</button>
+                   {blGroupBy !== 'none' && <button onClick={() => setBlGroupBy('none')} className="p-1.5 hover:bg-background rounded text-muted-foreground"><X size={14} /></button>}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left whitespace-nowrap">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">N° BL</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Date</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Opérateur</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Localisation</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Projet / Phase</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-right">Tonnage Chargé</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {groupedBlData.map((group) => (
+                      <React.Fragment key={group.key}>
+                        {blGroupBy !== 'none' && (
+                          <tr className="bg-muted/30 border-y border-border">
+                            <td colSpan={7} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
+                              {group.key} ({group.items.length}) - Total: {group.total} T
+                            </td>
+                          </tr>
+                        )}
+                        {group.items.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-muted/50 transition-colors">
+                            <td className="px-6 py-4 font-mono font-medium text-foreground">{item.bl_number}</td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
+                                {item.operator_coop_name && (
+                                  <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {item.commune}, {item.department}, {item.region}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                 <span className="text-sm text-foreground">Phase {item.numero_phase}</span>
+                                 <span className="text-xs text-muted-foreground font-mono">Bon: {item.project_num_bon}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right font-mono font-medium text-primary">
+                              {item.tonnage_loaded} T
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                               <button 
+                                 onClick={() => handlePrintBonLivraison(item)}
+                                 className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center gap-1 text-sm font-medium"
+                                 title="Imprimer BL"
+                               >
+                                  <Printer size={16} /> Imprimer
+                               </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {activeTab === 'fin_cession' && (
@@ -307,12 +637,7 @@ export const Views = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {loading ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Chargement des données...</td></tr>
-                  ) : fcData.length === 0 ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune donnée disponible.</td></tr>
-                  ) : (
-                    fcData.map((item, idx) => (
+                  {filteredFcData.map((item, idx) => (
                       <tr key={idx} className="hover:bg-muted/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
@@ -345,7 +670,7 @@ export const Views = () => {
                         </td>
                       </tr>
                     ))
-                  )}
+                  }
                 </tbody>
               </table>
             </div>
