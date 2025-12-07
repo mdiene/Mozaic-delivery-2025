@@ -227,12 +227,13 @@ export default function RegionalGraph({ regions }: Props) {
 
   return (
     <div className="w-full bg-card rounded-2xl shadow-soft-xl border border-border overflow-hidden flex flex-col h-full">
-       <div className="p-4 border-b border-border bg-muted/20">
+       <div className="p-4 border-b border-border bg-muted/20 shrink-0">
           <h3 className="font-bold text-lg text-foreground">Carte du Réseau</h3>
           <p className="text-xs text-muted-foreground">Hub → Région → Département → Commune → Livraisons (•)</p>
        </div>
-       <div className="relative w-full flex-1 bg-muted/5">
-          <div ref={containerRef} className="w-full h-full min-h-[500px]" />
+       {/* Use relative positioning for parent and absolute inset-0 for container to prevent infinite resize loop */}
+       <div className="relative w-full flex-1 bg-muted/5 min-h-[500px]">
+          <div ref={containerRef} className="absolute inset-0" />
           
           {/* Legend Overlay */}
           <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur p-3 rounded-lg border border-border shadow-sm text-xs space-y-2 pointer-events-none">
