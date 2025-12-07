@@ -7,25 +7,14 @@
     <title>MASAE Delivery Tracker</title>
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css?family=Lato:300,700|Prata" rel="stylesheet">
     
     <script>
-      // Polyfill for process.env (Node.js compatibility for client-side)
-      window.process = {
-        env: {
-          NODE_ENV: 'development',
-          API_KEY: '' // Placeholder for Google Maps/Gemini Key
-        }
-      };
-
       tailwind.config = {
         darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Lato', 'sans-serif'],
-              serif: ['Prata', 'serif'],
+              sans: ['Inter', 'sans-serif'],
             },
             boxShadow: {
               'soft-xs': '0 2px 9px -5px rgba(20, 20, 20, 0.15)',

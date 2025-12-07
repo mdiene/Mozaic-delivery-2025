@@ -1,14 +1,13 @@
-
 import React, { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
-  XAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { db } from '../services/db';
 import { 
   TrendingUp, Truck, AlertTriangle, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
-  Network, ChevronDown
+  Activity, Layers 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -83,7 +82,6 @@ export const Dashboard = () => {
   
   // UI Controls
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
-  const [isGraphExpanded, setIsGraphExpanded] = useState(false);
 
   // Load stats and chart data whenever filter changes (from Header)
   useEffect(() => {
@@ -193,7 +191,7 @@ export const Dashboard = () => {
 
           <div className="p-6 pt-4 flex-1">
             <div className="h-[320px] w-full min-w-0">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'pie' ? (
                   <PieChart>
                     <Pie
@@ -339,40 +337,15 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Collapsible Regional Graph View */}
-      <div className="rounded-2xl bg-card shadow-soft-xl border border-border/50 overflow-hidden">
-        <button 
-          onClick={() => setIsGraphExpanded(!isGraphExpanded)}
-          className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/20 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg transition-colors ${isGraphExpanded ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-               <Network size={20} />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-foreground">Carte du Réseau</h3>
-              <p className="text-sm text-muted-foreground">Visualisation graphique des livraisons et de la couverture régionale</p>
-            </div>
-          </div>
-          <ChevronDown 
-            size={20} 
-            className={`text-muted-foreground transition-transform duration-300 ${isGraphExpanded ? 'rotate-180' : ''}`} 
-          />
-        </button>
-        
-        {isGraphExpanded && (
-           <div className="p-6 pt-0 border-t border-border/50 animate-in slide-in-from-top-2 duration-200">
-             <div className="mt-6 h-[500px] w-full">
-                {graphData.length > 0 ? (
-                   <RegionalGraph regions={graphData} />
-                 ) : (
-                   <div className="w-full h-full bg-muted/10 rounded-xl border border-border flex items-center justify-center text-muted-foreground">
-                     {loading ? 'Chargement du graphique...' : 'Aucune donnée régionale disponible pour ce projet.'}
-                   </div>
-                 )}
-             </div>
+      {/* NEW: Regional Graph View */}
+      <div className="pt-2">
+         {graphData.length > 0 ? (
+           <RegionalGraph regions={graphData} />
+         ) : (
+           <div className="w-full h-[400px] bg-card rounded-2xl border border-border flex items-center justify-center text-muted-foreground">
+             {loading ? 'Chargement du graphique...' : 'Aucune donnée régionale disponible pour ce projet.'}
            </div>
-        )}
+         )}
       </div>
 
     </div>
