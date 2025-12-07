@@ -69,16 +69,18 @@ export default function RegionalGraph({ regions }: Props) {
     // Calculate Average Target Tonnage for Proportional Sizing
     const totalTargets = regions.reduce((sum, r) => sum + r.target, 0);
     const averageTarget = totalTargets / (regions.length || 1);
-    const BASE_SIZE = 45; // Average visual size
+    
+    // DOUBLED Base Size
+    const BASE_SIZE = 90; // Was 45
 
-    // Central Hub
+    // Central Hub - DOUBLED
     nodes.push({
       id: 'hub',
       label: 'Mine de Soma',
       shape: 'circle',
       color: { background: '#1e293b', border: '#0f172a' },
-      font: { color: '#ffffff', size: 16, bold: true },
-      size: 50,
+      font: { color: '#ffffff', size: 24, bold: true }, // Font 16 -> 24
+      size: 100, // Size 50 -> 100
       shadow: true,
       level: 0,
       title: 'Centre de Distribution Principal\nHamadi Ounare'
@@ -95,9 +97,9 @@ export default function RegionalGraph({ regions }: Props) {
         sizeRatio = region.target / averageTarget;
       }
       
-      // Apply sqrt to ratio so size represents area, not diameter (better visual perception)
-      // Clamp between min 25 and max 80 to prevent unreadable small or excessively large nodes
-      const nodeSize = Math.max(25, Math.min(80, BASE_SIZE * Math.sqrt(sizeRatio)));
+      // Apply sqrt to ratio so size represents area.
+      // Clamp doubled: min 50 (was 25), max 160 (was 80)
+      const nodeSize = Math.max(50, Math.min(160, BASE_SIZE * Math.sqrt(sizeRatio)));
 
       // --- Level 1: Region (Pie Chart) ---
       nodes.push({
@@ -106,16 +108,16 @@ export default function RegionalGraph({ regions }: Props) {
         shape: 'image',
         image: pieImage,
         size: nodeSize,
-        font: { size: 14, color: '#374151', bold: true, vadjust: nodeSize + 5 }, // Adjust label position based on size
+        font: { size: 20, color: '#374151', bold: true, vadjust: nodeSize + 10 }, // Font 14 -> 20
         title: `📍 Région: ${region.name}\n📦 Allocation Totale: ${region.target.toLocaleString()} T\n✅ Livré: ${region.delivered.toLocaleString()} T\n📊 Progression: ${region.completionRate.toFixed(1)}%`
       });
 
       edges.push({
         from: 'hub',
         to: region.id,
-        width: 3,
+        width: 6, // 3 -> 6
         color: { color: color, opacity: 0.8 },
-        length: 250
+        length: 400 // Increased length for spacing
       });
 
       // --- Level 2: Departments ---
@@ -127,18 +129,18 @@ export default function RegionalGraph({ regions }: Props) {
           label: dept.name,
           shape: 'box',
           color: { background: '#ffffff', border: color },
-          font: { size: 12, color: '#4b5563' },
-          borderWidth: 2,
-          shapeProperties: { borderRadius: 4 },
+          font: { size: 18, color: '#4b5563' }, // Font 12 -> 18
+          borderWidth: 3, // 2 -> 3
+          shapeProperties: { borderRadius: 6 },
           title: `🏢 Département: ${dept.name}\n📦 Cible: ${dept.target.toLocaleString()} T\n✅ Livré: ${dept.delivered.toLocaleString()} T`
         });
 
         edges.push({
           from: region.id,
           to: deptNodeId,
-          width: 2,
+          width: 4, // 2 -> 4
           color: { color: color, opacity: 0.5 },
-          length: 120
+          length: 200
         });
 
         // --- Level 3: Communes ---
@@ -149,19 +151,19 @@ export default function RegionalGraph({ regions }: Props) {
             id: communeNodeId,
             label: commune.name,
             shape: 'dot',
-            size: 8,
+            size: 16, // 8 -> 16
             color: { background: color, border: '#ffffff' },
-            font: { size: 10, color: '#6b7280', vadjust: 15 },
-            borderWidth: 2,
+            font: { size: 14, color: '#6b7280', vadjust: 20 }, // Font 10 -> 14
+            borderWidth: 3,
             title: `🏘️ Commune: ${commune.name}\n🚚 Nombre de Livraisons: ${commune.deliveries.length}\n✅ Volume Reçu: ${commune.delivered.toLocaleString()} T`
           });
 
           edges.push({
             from: deptNodeId,
             to: communeNodeId,
-            width: 1,
+            width: 2, // 1 -> 2
             color: { color: '#cbd5e1', opacity: 1 },
-            length: 80
+            length: 120
           });
 
           // --- Level 4: Deliveries (Individual Dots) ---
@@ -173,7 +175,7 @@ export default function RegionalGraph({ regions }: Props) {
                  id: deliveryId,
                  label: '',
                  shape: 'dot',
-                 size: 4,
+                 size: 8, // 4 -> 8
                  color: '#10b981', // Emerald for active delivery
                  group: 'delivery',
                  title: `📄 BL: ${del.bl_number}\n⚖️ Charge: ${del.tonnage} T\n🚛 Camion: ${del.truck_plate}\n👤 Chauffeur: ${del.driver_name}`
@@ -182,9 +184,9 @@ export default function RegionalGraph({ regions }: Props) {
                edges.push({
                  from: communeNodeId,
                  to: deliveryId,
-                 length: 20,
+                 length: 40,
                  color: { color: '#10b981', opacity: 0.4 },
-                 width: 1
+                 width: 2 // 1 -> 2
                });
             });
           }
@@ -214,12 +216,12 @@ export default function RegionalGraph({ regions }: Props) {
           iterations: 2000
         },
         barnesHut: {
-          gravitationalConstant: -4000,
+          gravitationalConstant: -6000, // Stronger repulsion for larger nodes
           centralGravity: 0.1,
-          springLength: 100,
-          springConstant: 0.05,
+          springLength: 200, // Doubled spring length (100 -> 200)
+          springConstant: 0.04,
           damping: 0.09,
-          avoidOverlap: 0.5
+          avoidOverlap: 1 // Maximize overlap avoidance
         }
       },
       interaction: {
