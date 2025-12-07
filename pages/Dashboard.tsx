@@ -2,13 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  XAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { db } from '../services/db';
 import { 
   TrendingUp, Truck, AlertTriangle, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
-  Activity, Layers, Network, ChevronDown
+  Network, ChevronDown
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -193,7 +193,7 @@ export const Dashboard = () => {
 
           <div className="p-6 pt-4 flex-1">
             <div className="h-[320px] w-full min-w-0">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 {chartType === 'pie' ? (
                   <PieChart>
                     <Pie
