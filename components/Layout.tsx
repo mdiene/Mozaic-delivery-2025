@@ -11,15 +11,13 @@ import {
   User, 
   LogOut,
   Bell,
-  Search,
   Sun,
   Moon,
   Eye,
-  Layers,
   Network,
   ChevronRight,
-  Check,
-  Palette
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -55,14 +53,10 @@ const THEMES = [
 
 const Sidebar = ({ 
   expanded, 
-  setExpanded,
-  currentTheme,
-  setCurrentTheme
+  setExpanded
 }: { 
   expanded: boolean, 
-  setExpanded: (v: boolean) => void,
-  currentTheme: string,
-  setCurrentTheme: (t: string) => void
+  setExpanded: (v: boolean) => void
 }) => {
   const location = useLocation();
 
@@ -155,47 +149,6 @@ const Sidebar = ({
         </NavLink>
       </nav>
 
-      {/* Theme Selector (Fixed at bottom above profile) */}
-      <div className="absolute bottom-20 w-full px-4">
-        <div className={`transition-all duration-300 ${expanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-sidebar-foreground/50 tracking-widest">
-            <Palette size={12} />
-            <span>Thèmes</span>
-          </div>
-          
-          <div className="relative group">
-            <div 
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-white/20 shadow-sm pointer-events-none z-10"
-              style={{ backgroundColor: THEMES.find(t => t.id === currentTheme)?.color }}
-            ></div>
-            <select
-              value={currentTheme}
-              onChange={(e) => setCurrentTheme(e.target.value)}
-              className="w-full appearance-none bg-sidebar-accent/50 hover:bg-sidebar-accent border border-sidebar-border text-sidebar-foreground text-sm rounded-xl pl-9 pr-8 py-2.5 focus:outline-none focus:ring-1 focus:ring-sidebar-primary cursor-pointer transition-colors"
-            >
-              {THEMES.map((theme) => (
-                <option key={theme.id} value={theme.id} className="bg-sidebar-accent text-sidebar-foreground">
-                  {theme.name}
-                </option>
-              ))}
-            </select>
-            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-sidebar-foreground/50 pointer-events-none" size={14} />
-          </div>
-        </div>
-        
-        {/* Minimized Theme Icon when sidebar is closed */}
-        {!expanded && (
-           <div className="flex justify-center mb-2">
-             <div 
-               className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg border border-white/10"
-               style={{ backgroundColor: THEMES.find(t => t.id === currentTheme)?.color }}
-             >
-               <Palette size={14} className="text-white" />
-             </div>
-           </div>
-        )}
-      </div>
-
       {/* Footer / User Profile */}
       <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border/50 bg-sidebar">
         <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${expanded ? 'bg-sidebar-accent' : ''}`}>
@@ -225,13 +178,18 @@ const Sidebar = ({
 
 const Header = ({ 
   isDarkMode, 
-  toggleDarkMode 
+  toggleDarkMode,
+  currentTheme,
+  setCurrentTheme
 }: { 
   isDarkMode: boolean,
-  toggleDarkMode: () => void
+  toggleDarkMode: () => void,
+  currentTheme: string,
+  setCurrentTheme: (t: string) => void
 }) => {
   const location = useLocation();
   const { projects, selectedProject, setSelectedProject } = useProject();
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const isDashboard = location.pathname === '/';
 
   return (
@@ -281,18 +239,58 @@ const Header = ({
         )}
       </div>
 
-      <div className="flex items-center gap-4 shrink-0 bg-white dark:bg-card p-1.5 pr-4 pl-4 rounded-full shadow-soft-sm border border-border/50">
+      <div className="flex items-center gap-4 shrink-0 bg-white dark:bg-card p-1.5 pr-4 pl-4 rounded-full shadow-soft-sm border border-border/50 relative">
         
-        <div className="relative hidden md:block">
-          <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <input 
-            type="text" 
-            placeholder="Rechercher..." 
-            className="h-9 w-48 bg-transparent pl-8 pr-4 text-sm focus:outline-none placeholder:text-muted-foreground/60"
-          />
+        {/* Theme Selector */}
+        <div className="relative">
+             <button 
+                onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
+                className="flex items-center gap-3 px-2 py-1.5 rounded-full hover:bg-muted/50 transition-colors outline-none group"
+             >
+                <div className="w-6 h-6 rounded-full border border-border flex items-center justify-center bg-background shadow-sm">
+                   <div 
+                     className="w-3 h-3 rounded-full"
+                     style={{ backgroundColor: THEMES.find(t => t.id === currentTheme)?.color }}
+                   ></div>
+                </div>
+                <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground hidden sm:block">
+                    {THEMES.find(t => t.id === currentTheme)?.name}
+                </span>
+                <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${isThemeMenuOpen ? 'rotate-180' : ''}`} />
+             </button>
+
+             {/* Dropdown Menu */}
+             {isThemeMenuOpen && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsThemeMenuOpen(false)}></div>
+                    <div className="absolute top-full right-0 mt-4 w-48 bg-card rounded-xl p-2 shadow-soft-xl border border-border animate-in fade-in slide-in-from-top-2 z-50">
+                        <div className="text-xs font-semibold text-muted-foreground px-2 py-2 uppercase tracking-wider">
+                            Choisir un thème
+                        </div>
+                        <div className="space-y-1">
+                            {THEMES.map((theme) => (
+                                <button
+                                key={theme.id}
+                                onClick={() => { setCurrentTheme(theme.id); setIsThemeMenuOpen(false); }}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all
+                                    ${currentTheme === theme.id 
+                                    ? 'bg-primary/10 text-primary shadow-sm' 
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                    }
+                                `}
+                                >
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.color }}></div>
+                                <span className="flex-1 text-left">{theme.name}</span>
+                                {currentTheme === theme.id && <Check size={12} />}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </>
+             )}
         </div>
 
-        <div className="h-6 w-px bg-border"></div>
+        <div className="h-6 w-px bg-border mx-2"></div>
 
         <button 
           onClick={toggleDarkMode}
@@ -356,13 +354,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Sidebar 
           expanded={expanded} 
           setExpanded={setExpanded} 
-          currentTheme={currentTheme}
-          setCurrentTheme={setCurrentTheme}
         />
         <div className={`transition-all duration-300 ease-in-out ${expanded ? 'pl-64' : 'pl-20'}`}>
           <Header 
             isDarkMode={isDarkMode}
             toggleDarkMode={toggleDarkMode}
+            currentTheme={currentTheme}
+            setCurrentTheme={setCurrentTheme}
           />
           <main className="px-6 pb-6 pt-2 animate-fade-in max-w-screen-2xl mx-auto">
             {children}
