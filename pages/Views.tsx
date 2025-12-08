@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView, Project } from '../types';
-import { FileText, Gift, Download, Printer, Layers, User, MapPin, X, Filter } from 'lucide-react';
+import { FileText, Gift, Download, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck } from 'lucide-react';
 
 export const Views = () => {
   const [activeTab, setActiveTab] = useState<'bon_livraison' | 'fin_cession'>('bon_livraison');
@@ -12,7 +12,10 @@ export const Views = () => {
 
   // Filters
   const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<number | 'all'>('all');
-  const [blGroupBy, setBlGroupBy] = useState<'none' | 'operator' | 'region'>('none');
+  
+  // Grouping State
+  const [blGroupBy, setBlGroupBy] = useState<'none' | 'operator' | 'region' | 'date'>('none');
+  const [fcGroupBy, setFcGroupBy] = useState<'none' | 'region'>('none');
 
   useEffect(() => {
     const loadData = async () => {
@@ -22,6 +25,8 @@ export const Views = () => {
 
       if (activeTab === 'bon_livraison') {
         const data = await db.getBonLivraisonViews();
+        // Default sort: Earliest to Latest Date
+        data.sort((a, b) => new Date(a.delivery_date).getTime() - new Date(b.delivery_date).getTime());
         setBlData(data);
       } else if (activeTab === 'fin_cession') {
         const data = await db.getFinDeCessionViews();
@@ -34,8 +39,12 @@ export const Views = () => {
 
   // Filter Logic
   const filteredBlData = useMemo(() => {
-    if (selectedPhaseFilter === 'all') return blData;
-    return blData.filter(item => item.numero_phase === selectedPhaseFilter);
+    let data = blData;
+    if (selectedPhaseFilter !== 'all') {
+      data = blData.filter(item => item.numero_phase === selectedPhaseFilter);
+    }
+    // Always sort by date ascending (earliest to latest)
+    return data.sort((a, b) => new Date(a.delivery_date).getTime() - new Date(b.delivery_date).getTime());
   }, [blData, selectedPhaseFilter]);
 
   const filteredFcData = useMemo(() => {
@@ -54,21 +63,56 @@ export const Views = () => {
       let key = 'Inconnu';
       if (blGroupBy === 'operator') key = item.operator_name || 'Inconnu';
       if (blGroupBy === 'region') key = item.region || 'Inconnu';
+      if (blGroupBy === 'date') key = new Date(item.delivery_date).toLocaleDateString('fr-FR');
       
       if (!groups[key]) groups[key] = [];
       groups[key].push(item);
     });
 
-    return Object.entries(groups).map(([key, items]) => ({
+    // Sort groups logic
+    let sortedKeys = Object.keys(groups);
+    if (blGroupBy === 'date') {
+       // Sort date keys properly
+       sortedKeys.sort((a, b) => {
+          // parse DD/MM/YYYY back to time
+          const [da, ma, ya] = a.split('/').map(Number);
+          const [db, mb, yb] = b.split('/').map(Number);
+          return new Date(ya, ma-1, da).getTime() - new Date(yb, mb-1, db).getTime();
+       });
+    } else {
+       sortedKeys.sort((a, b) => a.localeCompare(b));
+    }
+
+    return sortedKeys.map(key => ({
       key,
-      items,
-      total: items.reduce((sum, item) => sum + Number(item.tonnage_loaded), 0)
-    })).sort((a, b) => a.key.localeCompare(b.key));
+      items: groups[key], // Items already sorted by date in filteredBlData
+      total: groups[key].reduce((sum, item) => sum + Number(item.tonnage_loaded), 0)
+    }));
   }, [filteredBlData, blGroupBy]);
+
+  // Grouping Logic for FC
+  const groupedFcData = useMemo(() => {
+    if (fcGroupBy === 'none') {
+      return [{ key: 'All', items: filteredFcData, total: filteredFcData.reduce((sum, item) => sum + Number(item.total_tonnage), 0) }];
+    }
+
+    const groups: Record<string, FinDeCessionView[]> = {};
+    filteredFcData.forEach(item => {
+      const key = item.region || 'Inconnu';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    });
+
+    return Object.keys(groups).sort().map(key => ({
+      key,
+      items: groups[key],
+      total: groups[key].reduce((sum, item) => sum + Number(item.total_tonnage), 0)
+    }));
+  }, [filteredFcData, fcGroupBy]);
 
   const handlePrintBonLivraison = (item: BonLivraisonView) => {
     // Format Trailer string: if exists, add separator
-    const trailerStr = item.trailer_number ? ` / ${item.trailer_number}` : '';
+    const trailerStr = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
     
     const printContent = `
       <!DOCTYPE html>
@@ -308,7 +352,7 @@ export const Views = () => {
              <div class="info-label">Modalités</div>
              <div style="margin-top: 5px; font-size: 14px;">
                 <span style="margin-right: 20px;">
-                   Camion de transport N : <strong>${item.truck_plate || '________________'}${trailerStr}</strong>
+                   Camion de transport N : <strong>${item.truck_plate_number || '________________'}${trailerStr}</strong>
                 </span>
                 <span>
                    Chauffeur : <strong>${item.driver_name || '________________'}</strong>
@@ -543,7 +587,7 @@ export const Views = () => {
         <div className="p-0">
           {activeTab === 'bon_livraison' && (
             <>
-              {/* Toolbar */}
+              {/* Toolbar BL */}
               <div className="p-4 border-b border-border flex justify-end">
                 <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg">
                    <div className="text-xs font-semibold uppercase px-2 text-muted-foreground flex items-center gap-1">
@@ -551,6 +595,7 @@ export const Views = () => {
                    </div>
                    <button onClick={() => setBlGroupBy('operator')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'operator' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><User size={14} /> Opérateur</button>
                    <button onClick={() => setBlGroupBy('region')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'region' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><MapPin size={14} /> Région</button>
+                   <button onClick={() => setBlGroupBy('date')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'date' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><Calendar size={14} /> Date</button>
                    {blGroupBy !== 'none' && <button onClick={() => setBlGroupBy('none')} className="p-1.5 hover:bg-background rounded text-muted-foreground"><X size={14} /></button>}
                 </div>
               </div>
@@ -561,10 +606,8 @@ export const Views = () => {
                     <tr>
                       <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">N° BL</th>
                       <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Date</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Opérateur</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Opérateur / Détails</th>
                       <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Localisation</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Projet / Phase</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-right">Tonnage Chargé</th>
                       <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Actions</th>
                     </tr>
                   </thead>
@@ -573,36 +616,43 @@ export const Views = () => {
                       <React.Fragment key={group.key}>
                         {blGroupBy !== 'none' && (
                           <tr className="bg-muted/30 border-y border-border">
-                            <td colSpan={7} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
+                            <td colSpan={5} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
                               {group.key} ({group.items.length}) - Total: {group.total} T
                             </td>
                           </tr>
                         )}
                         {group.items.map((item, idx) => (
                           <tr key={idx} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-6 py-4 font-mono font-medium text-foreground">{item.bl_number}</td>
+                            <td className="px-6 py-4">
+                               <div className="flex flex-col">
+                                  <span className="font-mono font-medium text-foreground">{item.bl_number}</span>
+                                  {/* Caption Added under N° BL */}
+                                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                                     Phase {item.numero_phase} (Bon: {item.project_num_bon})
+                                  </span>
+                               </div>
+                            </td>
                             <td className="px-6 py-4 text-sm text-muted-foreground">
                               {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-sm font-bold text-foreground">{item.operator_name}</span>
                                 {item.operator_coop_name && (
                                   <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>
                                 )}
+                                {/* Styled Blue Caption for Tonnage & Truck */}
+                                <div className="flex items-center gap-2 mt-1">
+                                   <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 text-xs font-semibold border border-blue-100 dark:border-blue-800">
+                                      <Package size={12} /> {item.tonnage_loaded} T
+                                      <span className="text-blue-300 mx-1">|</span>
+                                      <Truck size={12} /> {item.truck_plate_number || 'Camion Inconnu'}
+                                   </span>
+                                </div>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-sm text-muted-foreground">
                               {item.commune}, {item.department}, {item.region}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex flex-col">
-                                 <span className="text-sm text-foreground">Phase {item.numero_phase}</span>
-                                 <span className="text-xs text-muted-foreground font-mono">Bon: {item.project_num_bon}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-right font-mono font-medium text-primary">
-                              {item.tonnage_loaded} T
                             </td>
                             <td className="px-6 py-4 text-center">
                                <button 
@@ -624,56 +674,79 @@ export const Views = () => {
           )}
 
           {activeTab === 'fin_cession' && (
-             <div className="overflow-x-auto">
-              <table className="w-full text-left whitespace-nowrap">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Opérateur</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Localisation</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Phase Projet</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Nbr Livraisons</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-right">Tonnage Total</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredFcData.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
-                            {item.operator_coop_name && (
-                              <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">
-                          {item.commune}, {item.department}, {item.region}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-foreground">
-                           Phase {item.project_phase}
-                        </td>
-                         <td className="px-6 py-4 text-center font-mono text-sm text-foreground">
-                           {item.deliveries_count}
-                        </td>
-                        <td className="px-6 py-4 text-right font-mono font-medium text-primary">
-                          {item.total_tonnage} T
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                           <button 
-                             onClick={() => handlePrintFinDeCession(item)}
-                             className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center gap-1 text-sm font-medium"
-                             title="Imprimer PV"
-                           >
-                              <Printer size={16} /> Imprimer
-                           </button>
-                        </td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-            </div>
+             <>
+               {/* Toolbar FC */}
+               <div className="p-4 border-b border-border flex justify-end">
+                <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg">
+                   <div className="text-xs font-semibold uppercase px-2 text-muted-foreground flex items-center gap-1">
+                     <Layers size={14} /> Grouper:
+                   </div>
+                   <button onClick={() => setFcGroupBy('region')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${fcGroupBy === 'region' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><MapPin size={14} /> Région</button>
+                   {fcGroupBy !== 'none' && <button onClick={() => setFcGroupBy('none')} className="p-1.5 hover:bg-background rounded text-muted-foreground"><X size={14} /></button>}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left whitespace-nowrap">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Opérateur</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Localisation</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Phase Projet</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Nbr Livraisons</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-right">Tonnage Total</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {groupedFcData.map((group) => (
+                      <React.Fragment key={group.key}>
+                        {fcGroupBy !== 'none' && (
+                          <tr className="bg-muted/30 border-y border-border">
+                            <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
+                              Région: {group.key} ({group.items.length}) - Total: {group.total} T
+                            </td>
+                          </tr>
+                        )}
+                        {group.items.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-muted/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
+                                {item.operator_coop_name && (
+                                  <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {item.commune}, {item.department}, {item.region}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              Phase {item.project_phase}
+                            </td>
+                            <td className="px-6 py-4 text-center font-mono text-sm text-foreground">
+                              {item.deliveries_count}
+                            </td>
+                            <td className="px-6 py-4 text-right font-mono font-medium text-primary">
+                              {item.total_tonnage} T
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <button 
+                                onClick={() => handlePrintFinDeCession(item)}
+                                className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center gap-1 text-sm font-medium"
+                                title="Imprimer PV"
+                              >
+                                  <Printer size={16} /> Imprimer
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+             </>
           )}
         </div>
       </div>

@@ -128,10 +128,10 @@ export interface BonLivraisonView {
   region: string;
   project_num_bon: string;
   numero_phase: number;
-  // Added for Print Template
-  truck_plate?: string;
+  // Added for Print Template - Matched to SQL View Definition
+  truck_plate_number?: string;
+  truck_trailer_number?: string;
   driver_name?: string;
-  trailer_number?: string;
 }
 
 export interface FinDeCessionView {
