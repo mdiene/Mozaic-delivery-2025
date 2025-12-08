@@ -177,23 +177,23 @@ export const Fleet = () => {
         </div>
 
         {/* Content */}
-        <div className="p-0">
+        <div className="w-full overflow-x-auto">
           {activeTab === 'trucks' ? (
-            <table className="w-full text-left">
-              <thead className="bg-muted/50 border-b border-border">
+            <table className="table table-striped">
+              <thead>
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Immatriculation</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Capacité</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Chauffeur Assigné</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Statut</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase">Actions</th>
+                  <th>Immatriculation</th>
+                  <th>Capacité</th>
+                  <th>Chauffeur Assigné</th>
+                  <th>Statut</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody>
                 {trucks.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Aucun camion trouvé.</td></tr>}
                 {trucks.map(truck => (
-                  <tr key={truck.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-6 py-4">
+                  <tr key={truck.id}>
+                    <td>
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-muted rounded-lg text-muted-foreground">
                           <Truck size={18} />
@@ -204,8 +204,8 @@ export const Fleet = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-foreground">{truck.capacity_tonnes} Tonnes</td>
-                    <td className="px-6 py-4">
+                    <td className="text-sm text-foreground">{truck.capacity_tonnes} Tonnes</td>
+                    <td>
                       {truck.driver_name ? (
                         <div className="flex items-center gap-2">
                           <User size={14} className="text-muted-foreground" />
@@ -215,36 +215,36 @@ export const Fleet = () => {
                         <span className="text-xs text-muted-foreground italic">Non assigné</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                        ${truck.status === 'AVAILABLE' ? 'bg-primary/10 text-primary' : ''}
-                        ${truck.status === 'IN_TRANSIT' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200' : ''}
-                        ${truck.status === 'MAINTENANCE' ? 'bg-destructive/10 text-destructive' : ''}
+                    <td>
+                       <span className={`badge badge-soft text-xs 
+                        ${truck.status === 'AVAILABLE' ? 'badge-success' : ''}
+                        ${truck.status === 'IN_TRANSIT' ? 'badge-warning' : ''}
+                        ${truck.status === 'MAINTENANCE' ? 'badge-error' : ''}
                        `}>
                         {truck.status === 'AVAILABLE' ? 'DISPONIBLE' : truck.status === 'IN_TRANSIT' ? 'EN TRANSIT' : 'MAINTENANCE'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      <button onClick={() => handleEdit(truck)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(truck.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                    <td className="text-right">
+                      <button onClick={() => handleEdit(truck)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(truck.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <table className="w-full text-left">
-              <thead className="bg-muted/50 border-b border-border">
+            <table className="table table-striped">
+              <thead>
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Nom</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Téléphone</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Permis</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Statut</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Camion Assigné</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase">Actions</th>
+                  <th>Nom</th>
+                  <th>Téléphone</th>
+                  <th>Permis</th>
+                  <th>Statut</th>
+                  <th>Camion Assigné</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody>
                 {drivers.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Aucun chauffeur trouvé.</td></tr>}
                 
                 {/* ASSIGNED DRIVERS GROUP */}
@@ -254,8 +254,8 @@ export const Fleet = () => {
                        <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider border-y border-border">Assignés</td>
                     </tr>
                     {assignedDrivers.map(driver => (
-                      <tr key={driver.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-6 py-4">
+                      <tr key={driver.id}>
+                        <td>
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-muted rounded-full text-muted-foreground">
                               <User size={18} />
@@ -263,24 +263,24 @@ export const Fleet = () => {
                             <span className="font-medium text-foreground">{driver.name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-foreground">{driver.phone}</td>
-                        <td className="px-6 py-4 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                            ${driver.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                        <td className="text-sm text-foreground">{driver.phone}</td>
+                        <td className="text-sm font-mono text-muted-foreground">{driver.license_number}</td>
+                        <td>
+                          <span className={`badge badge-soft text-xs 
+                            ${driver.status === 'ACTIVE' ? 'badge-success' : 'badge-secondary'}
                           `}>
                             {driver.status === 'ACTIVE' ? 'ACTIF' : 'INACTIF'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        <td className="text-sm">
                           <div className="flex items-center gap-2">
                             <Truck size={14} className="text-muted-foreground" />
                             <span className="font-mono font-medium text-foreground">{driver.truck_plate}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right flex justify-end gap-2">
-                          <button onClick={() => handleEdit(driver)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete(driver.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                        <td className="text-right">
+                          <button onClick={() => handleEdit(driver)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete(driver.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                         </td>
                       </tr>
                     ))}
@@ -294,8 +294,8 @@ export const Fleet = () => {
                        <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider border-y border-border">Non Assignés</td>
                     </tr>
                     {unassignedDrivers.map(driver => (
-                      <tr key={driver.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-6 py-4">
+                      <tr key={driver.id}>
+                        <td>
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-muted rounded-full text-muted-foreground">
                               <User size={18} />
@@ -303,29 +303,29 @@ export const Fleet = () => {
                             <span className="font-medium text-foreground">{driver.name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-foreground">{driver.phone}</td>
-                        <td className="px-6 py-4 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                            ${driver.status === 'ACTIVE' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                        <td className="text-sm text-foreground">{driver.phone}</td>
+                        <td className="text-sm font-mono text-muted-foreground">{driver.license_number}</td>
+                        <td>
+                          <span className={`badge badge-soft text-xs 
+                            ${driver.status === 'ACTIVE' ? 'badge-success' : 'badge-secondary'}
                           `}>
                             {driver.status === 'ACTIVE' ? 'ACTIF' : 'INACTIF'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        <td className="text-sm">
                           <span className="text-xs text-muted-foreground italic">Aucun</span>
                         </td>
-                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                        <td className="text-right">
                           {/* Assign Truck Action */}
                           <button 
                             onClick={() => handleAssignTruck(driver)}
-                            className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-lg transition-colors"
+                            className="btn btn-circle btn-text btn-sm text-emerald-600"
                             title="Assigner un Camion"
                           >
                             <LinkIcon size={16} />
                           </button>
-                          <button onClick={() => handleEdit(driver)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete(driver.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                          <button onClick={() => handleEdit(driver)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete(driver.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                         </td>
                       </tr>
                     ))}

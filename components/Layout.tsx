@@ -244,13 +244,14 @@ const Header = ({
         )}
       </div>
 
-      <div className="flex items-center gap-4 shrink-0 bg-white dark:bg-card p-1.5 pr-4 pl-4 rounded-full shadow-soft-sm border border-border/50 relative">
+      {/* Theme & Tools Box - Mimics Search Bar Style */}
+      <div className="flex items-center gap-4 shrink-0 bg-secondary/50 dark:bg-card p-1.5 pr-4 pl-4 rounded-full shadow-inner border border-border/50 relative">
         
         {/* Theme Selector */}
         <div className="relative">
              <button 
                 onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
-                className="flex items-center gap-3 px-2 py-1.5 rounded-full hover:bg-muted/50 transition-colors outline-none group"
+                className="flex items-center gap-3 px-2 py-1.5 rounded-full hover:bg-background/80 transition-colors outline-none group"
              >
                 <div className="w-6 h-6 rounded-full border border-border flex items-center justify-center bg-background shadow-sm">
                    <div 
@@ -268,7 +269,7 @@ const Header = ({
              {isThemeMenuOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsThemeMenuOpen(false)}></div>
-                    <div className="absolute top-full right-0 mt-4 w-48 bg-card rounded-xl p-2 shadow-soft-xl border border-border animate-in fade-in slide-in-from-top-2 z-50">
+                    <div className="absolute top-full right-0 mt-4 w-48 bg-background rounded-xl p-2 shadow-soft-xl border border-border animate-in fade-in slide-in-from-top-2 z-50">
                         <div className="text-xs font-semibold text-muted-foreground px-2 py-2 uppercase tracking-wider">
                             Choisir un thème
                         </div>
@@ -300,11 +301,12 @@ const Header = ({
         <button 
           onClick={toggleDarkMode}
           className="text-muted-foreground hover:text-primary transition-colors"
+          aria-label="Toggle Dark Mode"
         >
           {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
-        <button className="relative text-muted-foreground hover:text-primary transition-colors">
+        <button className="relative text-muted-foreground hover:text-primary transition-colors" aria-label="Notifications">
           <Bell size={18} />
           <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive ring-2 ring-white dark:ring-card"></span>
         </button>

@@ -4,6 +4,7 @@ import { db } from '../services/db';
 import { AllocationView, Project, Operator, Region, Department, Commune } from '../types';
 import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Truck, EyeOff, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 
 type GroupBy = 'none' | 'project';
 
@@ -295,6 +296,26 @@ export const Allocations = () => {
     return Object.entries(groups).map(([key, items]) => ({ key, items }));
   }, [filteredAllocations, groupBy]);
 
+  // Transform operators for AdvancedSelect
+  const operatorOptions: Option[] = useMemo(() => {
+    return operators
+      .filter(o => {
+        if (selectedProject) {
+          const opProject = projects.find(p => p.id === o.projet_id);
+          if (!opProject || opProject.numero_phase !== selectedProject.numero_phase) {
+            return false;
+          }
+        }
+        if (assignedOperatorIds.has(o.id) && o.id !== formData.operator_id) return false;
+        return true;
+      })
+      .map(o => ({
+        value: o.id,
+        label: o.name,
+        subLabel: `${o.commune_name || ''} ${(!formData.project_id && o.project_name && o.project_name !== '-') ? `- ${o.project_name}` : ''}`
+      }));
+  }, [operators, selectedProject, assignedOperatorIds, formData.operator_id, formData.project_id, projects]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -366,7 +387,7 @@ export const Allocations = () => {
                className="btn" 
                type="radio" 
                name="alloc-phase" 
-               aria-label="Tous"
+               aria-label="Toutes les Phases"
                checked={selectedPhaseFilter === 'all'}
                onChange={() => setSelectedPhaseFilter('all')}
              />
@@ -374,214 +395,182 @@ export const Allocations = () => {
                className="btn" 
                type="radio" 
                name="alloc-phase" 
-               aria-label="Non Assignés"
+               aria-label="Non Assignée"
                checked={selectedPhaseFilter === 'unassigned'}
                onChange={() => setSelectedPhaseFilter('unassigned')}
              />
-             {projects.map(p => {
-               const count = allocations.filter(a => a.project_id === p.id).length;
-               if (count === 0) return null;
-               return (
-                 <input
-                   key={p.id}
-                   className="btn" 
-                   type="radio" 
-                   name="alloc-phase" 
-                   aria-label={`Phase ${p.numero_phase}`}
-                   checked={selectedPhaseFilter === p.id}
-                   onChange={() => setSelectedPhaseFilter(p.id)}
-                 />
-               );
-             })}
+             {projects.map(p => (
+               <input
+                 key={p.id}
+                 className="btn" 
+                 type="radio" 
+                 name="alloc-phase" 
+                 aria-label={`Phase ${p.numero_phase}${p.numero_marche ? ` - ${p.numero_marche}` : ''}`}
+                 checked={selectedPhaseFilter === p.id}
+                 onChange={() => setSelectedPhaseFilter(p.id)}
+               />
+             ))}
            </form>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-muted/50 border-b border-border">
+      <div className="w-full overflow-x-auto bg-card rounded-xl border border-border shadow-sm min-h-[500px]">
+        <table className="table table-striped">
+          <thead>
+            <tr>
+              <th>Opérateur / Clé</th>
+              <th>Localisation</th>
+              <th>Objectif</th>
+              <th>Progression</th>
+              <th>Statut</th>
+              <th className="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAllocations.length === 0 && (
               <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Clé d'Allocation</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Opérateur</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Région / Commune</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Progression</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Statut</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Actions</th>
+                <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                   {searchTerm ? 'Aucun résultat trouvé.' : 'Aucune allocation disponible.'}
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {loading && (
-                <tr>
-                   <td colSpan={6} className="p-8 text-center text-muted-foreground">Chargement des allocations...</td>
-                </tr>
-              )}
-              {!loading && filteredAllocations.length === 0 && (
-                 <tr>
-                    <td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune allocation trouvée.</td>
-                 </tr>
-              )}
-              
-              {groupedAllocations.map((group) => (
-                <React.Fragment key={group.key}>
+            )}
+
+            {groupedAllocations.map((group) => (
+               <React.Fragment key={group.key}>
                   {groupBy !== 'none' && (
-                    <tr className="bg-muted/30 border-y border-border">
-                      <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
-                        {group.key} ({group.items.length})
-                      </td>
+                    <tr className="bg-slate-100 dark:bg-slate-800/50 border-y border-border">
+                       <td colSpan={6} className="px-6 py-3 text-sm font-bold text-foreground">
+                          {group.key} ({group.items.length})
+                       </td>
                     </tr>
                   )}
+                  
                   {group.items.map((alloc) => (
-                    <tr 
-                      key={alloc.id} 
-                      className={`hover:bg-muted/50 transition-colors group ${alloc.status === 'CLOSED' ? 'opacity-60 bg-muted/20 grayscale-[0.5]' : ''}`}
-                    >
-                      <td className="px-6 py-4">
-                        <span className="font-mono text-xs font-medium text-foreground bg-muted px-2 py-1 rounded border border-border">
-                          {alloc.allocation_key}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-foreground">{alloc.operator_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                           {alloc.responsible_name !== alloc.operator_name ? `Resp: ${alloc.responsible_name}` : ''}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm text-foreground">{alloc.region_name}</p>
-                        <p className="text-xs text-muted-foreground">{alloc.commune_name}</p>
-                      </td>
-                      <td className="px-6 py-4 w-48">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-muted-foreground">{alloc.delivered_tonnage} / {alloc.target_tonnage} T</span>
-                          <span className="font-medium text-primary">{alloc.progress.toFixed(0)}%</span>
-                        </div>
-                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(alloc.progress, 100)}%` }}
-                          ></div>
+                    <tr key={alloc.id} className="hover:bg-muted/50 transition-colors">
+                      <td>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">{alloc.operator_name}</span>
+                          <span className="text-xs font-mono text-muted-foreground">{alloc.allocation_key}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        {/* Status Select - Always Enabled to allow re-opening */}
-                        <select
-                          className={`text-xs font-medium border-none bg-transparent focus:ring-0 cursor-pointer rounded px-2 py-1
-                            ${alloc.status === 'IN_PROGRESS' ? 'text-blue-600 bg-blue-50' : ''}
-                            ${alloc.status === 'OPEN' ? 'text-emerald-600 bg-emerald-50' : ''}
-                            ${alloc.status === 'CLOSED' ? 'text-slate-500 bg-slate-100' : ''}
-                            ${alloc.status === 'OVER_DELIVERED' ? 'text-red-600 bg-red-50' : ''}
-                          `}
-                          value={alloc.status}
-                          onChange={(e) => handleStatusChange(alloc.id, e.target.value)}
-                        >
-                          <option value="OPEN">OUVERT</option>
-                          <option value="IN_PROGRESS">EN COURS</option>
-                          <option value="CLOSED">FERMÉ</option>
-                          <option value="OVER_DELIVERED">SUR-LIVRÉ</option>
-                        </select>
+                      <td>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-foreground">{alloc.commune_name}</span>
+                          <span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
-                        
-                        {/* Add Delivery Action */}
-                        <button
-                          onClick={() => handleCreateDelivery(alloc)}
-                          disabled={alloc.status === 'CLOSED'}
-                          className={`p-2 rounded-lg transition-colors border ${
-                            alloc.status !== 'CLOSED'
-                              ? 'bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 cursor-pointer shadow-sm'
-                              : 'bg-muted text-muted-foreground border-transparent cursor-not-allowed opacity-50'
-                          }`}
-                          title="Nouvelle Expédition"
-                        >
-                          <Truck size={16} />
-                        </button>
-
-                        <div className="w-px h-4 bg-border mx-1"></div>
-
-                        {/* Close Button - Active only if 100% */}
-                        <button
-                          onClick={() => handleCloseAllocation(alloc.id)}
-                          disabled={alloc.progress < 100 || alloc.status === 'CLOSED'}
-                          className={`p-2 rounded-lg transition-colors border ${
-                            alloc.progress >= 100 && alloc.status !== 'CLOSED'
-                              ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200 cursor-pointer shadow-sm'
-                              : 'bg-muted text-muted-foreground border-transparent cursor-not-allowed opacity-50'
-                          }`}
-                          title={alloc.progress >= 100 ? "Clôturer l'allocation (100% atteint)" : "Progression insuffisante pour clôture auto"}
-                        >
-                          {alloc.status === 'CLOSED' ? <CheckCircle size={16} /> : <Lock size={16} />}
-                        </button>
-
-                        <div className="w-px h-4 bg-border mx-1"></div>
-
-                        <button 
-                          onClick={() => handleOpenModal(alloc)}
-                          className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                          title="Modifier Allocation"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(alloc.id)}
-                          className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                          title="Supprimer Allocation"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      <td>
+                        <span className="font-mono font-medium text-foreground">{alloc.target_tonnage} T</span>
+                      </td>
+                      <td className="w-48">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="font-bold text-primary">{alloc.delivered_tonnage} T</span>
+                            <span className="text-muted-foreground">{alloc.progress.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-500 ${
+                                alloc.progress >= 100 ? 'bg-success' : 'bg-primary'
+                              }`} 
+                              style={{ width: `${Math.min(alloc.progress, 100)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                         <span className={`badge badge-soft text-xs 
+                           ${alloc.status === 'OPEN' ? 'badge-info' : ''}
+                           ${alloc.status === 'IN_PROGRESS' ? 'badge-warning' : ''}
+                           ${alloc.status === 'CLOSED' ? 'badge-secondary' : ''}
+                           ${alloc.status === 'OVER_DELIVERED' ? 'badge-error' : ''}
+                         `}>
+                           {alloc.status === 'OPEN' && 'OUVERT'}
+                           {alloc.status === 'IN_PROGRESS' && 'EN COURS'}
+                           {alloc.status === 'CLOSED' && 'CLÔTURÉ'}
+                           {alloc.status === 'OVER_DELIVERED' && 'DÉPASSÉ'}
+                         </span>
+                      </td>
+                      <td className="text-right">
+                         <div className="flex justify-end gap-1">
+                            {alloc.status !== 'CLOSED' && (
+                               <button 
+                                 onClick={() => handleCreateDelivery(alloc)}
+                                 className="btn btn-circle btn-text btn-sm text-emerald-600"
+                                 title="Nouvelle Expédition"
+                               >
+                                  <Truck size={16} />
+                               </button>
+                            )}
+                            {alloc.status !== 'CLOSED' && (
+                               <button 
+                                 onClick={() => handleCloseAllocation(alloc.id)}
+                                 className="btn btn-circle btn-text btn-sm text-amber-600"
+                                 title="Clôturer"
+                               >
+                                  <Lock size={16} />
+                               </button>
+                            )}
+                            <button 
+                              onClick={() => handleOpenModal(alloc)}
+                              className="btn btn-circle btn-text btn-sm text-blue-600"
+                              title="Modifier"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(alloc.id)}
+                              className="btn btn-circle btn-text btn-sm btn-text-error"
+                              title="Supprimer"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                         </div>
                       </td>
                     </tr>
                   ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+               </React.Fragment>
+            ))}
+          </tbody>
+        </table>
       </div>
 
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-           <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
-             <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
-               <h3 className="font-semibold text-foreground">
-                 {formData.id ? 'Modifier Allocation' : 'Nouvelle Allocation'}
-               </h3>
-               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
-             </div>
-             
-             <form onSubmit={handleSave} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 h-[70vh] overflow-y-auto">
-                {/* ... (Existing form content remains unchanged) ... */}
-                {/* Project */}
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
+            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="font-semibold text-foreground">{formData.id ? 'Modifier Allocation' : 'Nouvelle Allocation'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
+            </div>
+            
+            <form onSubmit={handleSave}>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-card">
+                
+                {/* Operator Select (Advanced) */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-foreground mb-1">Phase Projet</label>
+                   <label className="block text-sm font-medium text-foreground mb-1">Opérateur</label>
+                   <AdvancedSelect 
+                      options={operatorOptions}
+                      value={formData.operator_id || ''}
+                      onChange={(val) => handleOperatorChange(val)}
+                      placeholder="Rechercher un Opérateur..."
+                   />
+                   {formData.operator_id && !operatorOptions.find(o => o.value === formData.operator_id) && (
+                      <p className="text-xs text-amber-600 mt-1">L'opérateur actuellement assigné ne correspond pas aux filtres de projet.</p>
+                   )}
+                </div>
+
+                {/* Project Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Projet (Phase)</label>
                   <select 
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.project_id || ''}
-                    onChange={(e) => {
-                      const newProjectId = e.target.value;
-                      const newProject = projects.find(p => p.id === newProjectId);
-                      
-                      setFormData((prev: any) => {
-                        const currentOp = operators.find(o => o.id === prev.operator_id);
-                        const currentOpProject = projects.find(p => p.id === currentOp?.projet_id);
-                        
-                        const isOpValid = !prev.operator_id || (
-                            currentOpProject && 
-                            newProject && 
-                            currentOpProject.numero_phase === newProject.numero_phase
-                        );
-                        
-                        return {
-                          ...prev,
-                          project_id: newProjectId,
-                          operator_id: isOpValid ? prev.operator_id : ''
-                        };
-                      });
-                    }}
+                    onChange={e => setFormData({...formData, project_id: e.target.value})}
                   >
-                    <option value="">Sélectionner Projet...</option>
+                    <option value="">Sélectionner un projet...</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>
                         Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
@@ -590,171 +579,134 @@ export const Allocations = () => {
                   </select>
                 </div>
 
-                {/* Operator (Triggers auto-fill) */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-foreground mb-1">Opérateur</label>
-                  <select 
-                    required 
-                    className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                    value={formData.operator_id || ''}
-                    onChange={(e) => handleOperatorChange(e.target.value)}
-                  >
-                    <option value="">Sélectionner Opérateur...</option>
-                    {operators
-                      .filter(o => {
-                         if (selectedProject) {
-                           const opProject = projects.find(p => p.id === o.projet_id);
-                           if (!opProject || opProject.numero_phase !== selectedProject.numero_phase) {
-                              return false;
-                           }
-                         }
-                         if (assignedOperatorIds.has(o.id) && o.id !== formData.operator_id) return false;
-                         return true;
-                      })
-                      .map(o => (
-                      <option key={o.id} value={o.id}>
-                        {o.name} {o.commune_name ? `(${o.commune_name})` : ''} {(!formData.project_id && o.project_name && o.project_name !== '-') ? `- ${o.project_name}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                     {formData.project_id 
-                      ? "Seuls les opérateurs de la même Phase sont affichés."
-                      : "Affichage de tous les opérateurs non alloués."}
-                  </p>
-                </div>
-                
-                {/* Responsible Person Section (DB Requirement) */}
-                <div className="md:col-span-2 grid grid-cols-2 gap-4 p-4 bg-muted/20 rounded-lg border border-border">
-                   <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Détails Responsable</div>
-                   <div>
-                      <label className="block text-sm font-medium text-foreground mb-1 flex items-center gap-1">
-                        <User size={14} /> Nom Complet
-                      </label>
-                      <input 
-                        type="text"
-                        required
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                        value={formData.responsible_name || ''}
-                        onChange={(e) => setFormData({...formData, responsible_name: e.target.value})}
-                        placeholder="Nom du responsable"
-                      />
-                   </div>
-                   <div>
-                      <label className="block text-sm font-medium text-foreground mb-1 flex items-center gap-1">
-                        <Phone size={14} /> Téléphone
-                      </label>
-                      <input 
-                        type="text"
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                        value={formData.responsible_phone || ''}
-                        onChange={(e) => setFormData({...formData, responsible_phone: e.target.value})}
-                        placeholder="Numéro de contact"
-                      />
-                   </div>
-                </div>
-
-                {/* Location Fields */}
+                {/* Region Selection */}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Région</label>
                   <select 
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.region_id || ''}
-                    onChange={(e) => setFormData({...formData, region_id: e.target.value})}
+                    onChange={e => setFormData({...formData, region_id: e.target.value, department_id: '', commune_id: ''})}
                   >
-                     <option value="">Sélectionner Région...</option>
-                     {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    <option value="">Sélectionner...</option>
+                    {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
                 </div>
 
+                {/* Department Selection */}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Département</label>
                   <select 
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.department_id || ''}
-                    onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                    onChange={e => setFormData({...formData, department_id: e.target.value, commune_id: ''})}
+                    disabled={!formData.region_id}
                   >
-                     <option value="">Sélectionner Département...</option>
-                     {departments
-                       .filter(d => !formData.region_id || d.region_id === formData.region_id)
-                       .map(d => <option key={d.id} value={d.id}>{d.name}</option>)
-                     }
+                    <option value="">Sélectionner...</option>
+                    {departments
+                      .filter(d => d.region_id === formData.region_id)
+                      .map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                    }
                   </select>
                 </div>
 
-                <div className="md:col-span-2 border border-blue-200 dark:border-blue-900/50 rounded-lg p-3 bg-blue-50/50 dark:bg-blue-900/10">
+                {/* Commune Selection */}
+                <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Commune</label>
                   <select 
                     required 
                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                     value={formData.commune_id || ''}
-                    onChange={(e) => handleCommuneChange(e.target.value)}
+                    onChange={e => handleCommuneChange(e.target.value)}
                   >
-                     <option value="">Sélectionner Commune...</option>
-                     {getAvailableCommunes()
-                       .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
-                     }
+                    <option value="">Sélectionner...</option>
+                    {getAvailableCommunes().map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Sélectionner une commune mettra automatiquement à jour la Région et le Département.
-                  </p>
                 </div>
 
-                <div>
-                   <label className="block text-sm font-medium text-foreground mb-1">Tonnage Cible</label>
-                   <input 
-                     type="number" 
-                     required 
-                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                     value={formData.target_tonnage || ''}
-                     onChange={(e) => setFormData({...formData, target_tonnage: e.target.value})}
-                   />
-                </div>
-
+                {/* Allocation Key Generation */}
                 <div className="md:col-span-2">
                    <div className="flex justify-between items-center mb-1">
                       <label className="block text-sm font-medium text-foreground">Clé d'Allocation</label>
                       <button 
                         type="button" 
                         onClick={generateKey}
-                        className="text-xs text-primary flex items-center gap-1 hover:underline"
+                        className="text-xs flex items-center gap-1 text-primary hover:underline"
                       >
-                        <RefreshCw size={12} /> Auto-Générer
+                         <RefreshCw size={12} /> Générer
                       </button>
                    </div>
                    <input 
-                     type="text" 
-                     required 
-                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground font-mono uppercase"
-                     value={formData.allocation_key || ''}
-                     onChange={(e) => setFormData({...formData, allocation_key: e.target.value.toUpperCase()})}
-                     placeholder="ex: PH1-DK-OP-1234"
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground font-mono"
+                      value={formData.allocation_key || ''}
+                      onChange={e => setFormData({...formData, allocation_key: e.target.value})}
+                      placeholder="Ex: PH3-XX-OP-1234"
                    />
                 </div>
 
-                <div className="md:col-span-2">
-                   <label className="block text-sm font-medium text-foreground mb-1">Statut</label>
-                   <select 
-                     className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                     value={formData.status || 'OPEN'}
-                     onChange={(e) => setFormData({...formData, status: e.target.value})}
-                   >
-                     <option value="OPEN">Ouvert</option>
-                     <option value="IN_PROGRESS">En Cours</option>
-                     <option value="CLOSED">Fermé</option>
-                   </select>
+                {/* Target Tonnage */}
+                <div>
+                   <label className="block text-sm font-medium text-foreground mb-1">Objectif (Tonnes)</label>
+                   <input 
+                      type="number"
+                      required 
+                      min="1"
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.target_tonnage || ''}
+                      onChange={e => setFormData({...formData, target_tonnage: e.target.value})}
+                   />
                 </div>
 
-                <div className="md:col-span-2 flex justify-end gap-2 pt-2 border-t border-border mt-2">
+                {/* Responsible Person */}
+                <div>
+                   <label className="block text-sm font-medium text-foreground mb-1">Responsable</label>
+                   <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.responsible_name || ''}
+                      onChange={e => setFormData({...formData, responsible_name: e.target.value})}
+                      placeholder="Nom complet"
+                   />
+                </div>
+
+                <div>
+                   <label className="block text-sm font-medium text-foreground mb-1">Téléphone</label>
+                   <input 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.responsible_phone || ''}
+                      onChange={e => setFormData({...formData, responsible_phone: e.target.value})}
+                      placeholder="77 000 00 00"
+                   />
+                </div>
+
+                {/* Status (Only on Edit) */}
+                {formData.id && (
+                   <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Statut</label>
+                     <select 
+                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                       value={formData.status || 'OPEN'}
+                       onChange={e => setFormData({...formData, status: e.target.value})}
+                     >
+                        <option value="OPEN">Ouvert</option>
+                        <option value="IN_PROGRESS">En Cours</option>
+                        <option value="CLOSED">Clôturé</option>
+                        <option value="OVER_DELIVERED">Dépassé</option>
+                     </select>
+                   </div>
+                )}
+                
+                <div className="md:col-span-2 flex justify-end gap-2 pt-4 border-t border-border mt-2">
                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
                    <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
                      <Save size={16} /> Enregistrer
                    </button>
                 </div>
-             </form>
-           </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

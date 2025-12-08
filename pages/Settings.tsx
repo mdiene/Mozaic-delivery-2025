@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
-import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers } from 'lucide-react';
+import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers, Save } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
 
 type Tab = 'geographic' | 'projects' | 'operators';
@@ -172,12 +172,12 @@ export const Settings = () => {
 
   // Helper to render operator row
   const renderOperatorRow = (op: Operator) => (
-    <tr key={op.id} className="hover:bg-muted/50 transition-colors">
-      <td className="px-4 py-3">
-        <div className="font-medium text-foreground pl-4">{op.name}</div>
-        {op.is_coop && <div className="text-xs text-muted-foreground pl-4">{op.coop_name}</div>}
+    <tr key={op.id}>
+      <td>
+        <div className="font-medium text-foreground">{op.name}</div>
+        {op.is_coop && <div className="text-xs text-muted-foreground">{op.coop_name}</div>}
       </td>
-      <td className="px-4 py-3">
+      <td>
         {op.is_coop ? (
           <div className="flex items-center gap-2" title="Coopérative / GIE">
             <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
@@ -194,8 +194,8 @@ export const Settings = () => {
           </div>
         )}
       </td>
-      <td className="px-4 py-3 text-sm text-foreground">{op.commune_name}</td>
-      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
+      <td className="text-sm text-foreground">{op.commune_name}</td>
+      <td className="text-sm text-muted-foreground font-mono">
         {op.phone ? (
           <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">
             {op.phone}
@@ -204,26 +204,26 @@ export const Settings = () => {
           <span className="opacity-50">-</span>
         )}
       </td>
-      <td className="px-4 py-3 text-sm text-foreground">
+      <td className="text-sm text-foreground">
         {op.project_name !== '-' ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
+          <span className="badge badge-soft badge-secondary text-xs">
             {op.project_name}
           </span>
         ) : (
           <span className="opacity-50">-</span>
         )}
       </td>
-      <td className="px-4 py-3 text-right flex justify-end gap-2">
+      <td className="text-right">
         <button 
           onClick={() => handleEdit('operator', op)} 
-          className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+          className="btn btn-circle btn-text btn-sm text-blue-600"
           title="Modifier Opérateur"
         >
           <Edit2 size={18} />
         </button>
         <button 
           onClick={() => handleDelete('operators', op.id)} 
-          className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
+          className="btn btn-circle btn-text btn-sm btn-text-error"
           title="Supprimer Opérateur"
         >
           <Trash2 size={18} />
@@ -327,23 +327,23 @@ export const Settings = () => {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
+          <div className="w-full overflow-x-auto">
+            <table className="table table-striped">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3">Nom Opérateur</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Commune</th>
-                  <th className="px-4 py-3">
+                  <th>Nom Opérateur</th>
+                  <th>Type</th>
+                  <th>Commune</th>
+                  <th>
                     <div className="flex items-center gap-2">
                       <Phone size={14} /> Téléphone
                     </div>
                   </th>
-                  <th className="px-4 py-3">Projet</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th>Projet</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody>
                 {operators.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Aucun opérateur trouvé.</td>
@@ -390,20 +390,20 @@ export const Settings = () => {
               <Plus size={16} /> Ajouter Projet
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
+          <div className="w-full overflow-x-auto">
+            <table className="table table-striped">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3">Marché N°</th>
-                  <th className="px-4 py-3">Bon Disp. N°</th>
-                  <th className="px-4 py-3">Phase</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Tonnage Total</th>
-                  <th className="px-4 py-3">Tonnage Livré</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th>Marché N°</th>
+                  <th>Bon Disp. N°</th>
+                  <th>Phase</th>
+                  <th>Date</th>
+                  <th>Tonnage Total</th>
+                  <th>Tonnage Livré</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody>
                 {projects.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Aucun projet trouvé.</td>
@@ -412,17 +412,17 @@ export const Settings = () => {
                 {projects.map((p) => {
                   const isUsed = usedProjectIds.has(p.id);
                   return (
-                    <tr key={p.id} className="hover:bg-muted/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">{p.numero_marche}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{p.numero_bon_disposition}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{p.numero_phase}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString() : '-'}</td>
-                      <td className="px-4 py-3 text-foreground font-mono">{p.tonnage_total} T</td>
-                      <td className="px-4 py-3 text-emerald-600 font-mono font-medium">{p.total_delivered?.toLocaleString()} T</td>
-                      <td className="px-4 py-3 text-right flex justify-end gap-2">
+                    <tr key={p.id}>
+                      <td className="font-medium text-foreground">{p.numero_marche}</td>
+                      <td className="text-muted-foreground">{p.numero_bon_disposition}</td>
+                      <td className="text-muted-foreground">{p.numero_phase}</td>
+                      <td className="text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString() : '-'}</td>
+                      <td className="text-foreground font-mono">{p.tonnage_total} T</td>
+                      <td className="text-emerald-600 font-mono font-medium">{p.total_delivered?.toLocaleString()} T</td>
+                      <td className="text-right flex justify-end gap-2">
                         <button 
                           onClick={() => handleEdit('project', p)} 
-                          className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+                          className="btn btn-circle btn-text btn-sm text-blue-600"
                           title="Modifier Projet"
                         >
                           <Edit2 size={18} />
@@ -430,10 +430,10 @@ export const Settings = () => {
                         <button 
                           onClick={() => !isUsed && handleDelete('project', p.id)} 
                           disabled={isUsed}
-                          className={`p-2 rounded-lg transition-colors ${
+                          className={`btn btn-circle btn-text btn-sm ${
                             isUsed 
-                              ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50' 
-                              : 'bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700'
+                              ? 'text-muted-foreground cursor-not-allowed opacity-50' 
+                              : 'text-red-600 btn-text-error'
                           }`}
                           title={isUsed ? "Impossible de supprimer : Le projet est lié à des allocations" : "Supprimer Projet"}
                         >
@@ -451,40 +451,46 @@ export const Settings = () => {
 
       {/* GEOGRAPHIC TAB */}
       {activeTab === 'geographic' && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar for Geo Tabs */}
-          <div className="bg-card p-2 rounded-xl border border-border shadow-sm h-fit">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* FlyonUI Vertical Tabs Nav */}
+          <nav className="tabs tabs-bordered tabs-vertical bg-card p-2 rounded-xl border border-border shadow-sm h-fit lg:w-64 shrink-0" role="tablist" aria-label="Données Géographiques">
             <button
+              type="button"
               onClick={() => setGeoTab('regions')}
-              className={`w-full flex items-center justify-between p-3 rounded-lg text-sm mb-1 ${
-                geoTab === 'regions' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
+              className={`tab h-auto justify-start py-3 px-4 text-sm font-medium gap-2 ${
+                geoTab === 'regions' ? 'tab-active' : ''
               }`}
+              role="tab"
+              aria-selected={geoTab === 'regions'}
             >
-              <span className="flex items-center gap-2"><Map size={16} /> Régions</span>
-              <ChevronRight size={14} className={geoTab === 'regions' ? 'opacity-100' : 'opacity-0'} />
+              <Map size={16} /> Régions
             </button>
             <button
+              type="button"
               onClick={() => setGeoTab('departments')}
-              className={`w-full flex items-center justify-between p-3 rounded-lg text-sm mb-1 ${
-                geoTab === 'departments' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
+              className={`tab h-auto justify-start py-3 px-4 text-sm font-medium gap-2 ${
+                geoTab === 'departments' ? 'tab-active' : ''
               }`}
+              role="tab"
+              aria-selected={geoTab === 'departments'}
             >
-              <span className="flex items-center gap-2"><MapPin size={16} /> Départements</span>
-              <ChevronRight size={14} className={geoTab === 'departments' ? 'opacity-100' : 'opacity-0'} />
+              <MapPin size={16} /> Départements
             </button>
             <button
+              type="button"
               onClick={() => setGeoTab('communes')}
-              className={`w-full flex items-center justify-between p-3 rounded-lg text-sm ${
-                geoTab === 'communes' ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
+              className={`tab h-auto justify-start py-3 px-4 text-sm font-medium gap-2 ${
+                geoTab === 'communes' ? 'tab-active' : ''
               }`}
+              role="tab"
+              aria-selected={geoTab === 'communes'}
             >
-              <span className="flex items-center gap-2"><MapPin size={16} /> Communes</span>
-              <ChevronRight size={14} className={geoTab === 'communes' ? 'opacity-100' : 'opacity-0'} />
+              <MapPin size={16} /> Communes
             </button>
-          </div>
+          </nav>
 
           {/* Content Area */}
-          <div className="lg:col-span-3 bg-card p-6 rounded-xl border border-border shadow-sm min-h-[400px]">
+          <div className="flex-1 bg-card p-6 rounded-xl border border-border shadow-sm min-h-[400px]">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
               <div className="flex items-center gap-4">
                 <h2 className="text-lg font-semibold text-foreground capitalize">
@@ -519,32 +525,32 @@ export const Settings = () => {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
+            <div className="w-full overflow-x-auto">
+              <table className="table table-striped">
+                <thead>
                   <tr>
-                    <th className="px-4 py-3">Nom</th>
-                    <th className="px-4 py-3">Code</th>
+                    <th>Nom</th>
+                    <th>Code</th>
                     {/* Header logic adjusted since we now use group rows */}
-                    {geoTab === 'regions' && <th className="px-4 py-3"></th>}
-                    {geoTab === 'departments' && <th className="px-4 py-3">Région</th>}
-                    {geoTab === 'communes' && <th className="px-4 py-3">Département</th>}
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    {geoTab === 'regions' && <th></th>}
+                    {geoTab === 'departments' && <th>Région</th>}
+                    {geoTab === 'communes' && <th>Département</th>}
+                    <th className="text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody>
                   
                   {/* REGIONS */}
                   {geoTab === 'regions' && regions
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((item) => (
-                    <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
-                      <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
-                      <td className="px-4 py-3"></td>
-                      <td className="px-4 py-3 text-right flex justify-end gap-2">
-                        <button onClick={() => handleEdit('regions', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('regions', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                    <tr key={item.id}>
+                      <td className="font-medium text-foreground">{item.name}</td>
+                      <td className="font-mono text-muted-foreground text-xs">{item.code}</td>
+                      <td></td>
+                      <td className="text-right">
+                        <button onClick={() => handleEdit('regions', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete('regions', item.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                       </td>
                     </tr>
                   ))}
@@ -567,13 +573,13 @@ export const Settings = () => {
                             </td>
                           </tr>
                           {regionDepts.map((item) => (
-                            <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                              <td className="px-4 py-3 font-medium text-foreground pl-8">{item.name}</td>
-                              <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">{region.name}</td>
-                              <td className="px-4 py-3 text-right flex justify-end gap-2">
-                                <button onClick={() => handleEdit('departments', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                <button onClick={() => handleDelete('departments', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                            <tr key={item.id}>
+                              <td className="font-medium text-foreground pl-8">{item.name}</td>
+                              <td className="font-mono text-muted-foreground text-xs">{item.code}</td>
+                              <td className="text-sm text-muted-foreground">{region.name}</td>
+                              <td className="text-right">
+                                <button onClick={() => handleEdit('departments', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDelete('departments', item.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                               </td>
                             </tr>
                           ))}
@@ -601,13 +607,13 @@ export const Settings = () => {
                              </td>
                            </tr>
                            {deptCommunes.map((item) => (
-                             <tr key={item.id} className="hover:bg-muted/50 transition-colors">
-                               <td className="px-4 py-3 font-medium text-foreground pl-8">{item.name}</td>
-                               <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{item.code}</td>
-                               <td className="px-4 py-3 text-sm text-muted-foreground">{dept.name}</td>
-                               <td className="px-4 py-3 text-right flex justify-end gap-2">
-                                  <button onClick={() => handleEdit('communes', item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                 <button onClick={() => handleDelete('communes', item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                             <tr key={item.id}>
+                               <td className="font-medium text-foreground pl-8">{item.name}</td>
+                               <td className="font-mono text-muted-foreground text-xs">{item.code}</td>
+                               <td className="text-sm text-muted-foreground">{dept.name}</td>
+                               <td className="text-right">
+                                  <button onClick={() => handleEdit('communes', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                 <button onClick={() => handleDelete('communes', item.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                                </td>
                              </tr>
                            ))}
@@ -622,228 +628,272 @@ export const Settings = () => {
         </div>
       )}
 
-      {/* Generic Modal */}
+      {/* Modal - Dynamic Form based on Type */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-card rounded-xl shadow-xl w-full max-w-md overflow-visible animate-fade-in border border-border">
-            <div className="flex justify-between items-center p-4 border-b border-border bg-muted/30">
-              <h3 className="font-semibold text-foreground capitalize">
-                {getModalTitle(modalType)}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-border">
+            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="font-semibold text-foreground">{getModalTitle(modalType)}</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
+            
             <form onSubmit={handleSave} className="p-6 space-y-4">
-              
-              {/* Common Fields (Name/Code) for Geo */}
-              {(modalType === 'region' || modalType === 'department' || modalType === 'commune') && (
+              {/* Region Form */}
+              {modalType === 'region' && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Nom</label>
-                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                      value={formData.name || ''} 
-                      onChange={e => setFormData({...formData, name: e.target.value})} 
+                    <label className="block text-sm font-medium text-foreground mb-1">Nom de la Région</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.name || ''}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Code</label>
-                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                      value={formData.code || ''} 
-                      onChange={e => setFormData({...formData, code: e.target.value})} 
+                    <label className="block text-sm font-medium text-foreground mb-1">Code (ex: DK)</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase"
+                      value={formData.code || ''}
+                      onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
                     />
                   </div>
                 </>
               )}
 
-              {/* Specific Geo Logic */}
+              {/* Department Form */}
               {modalType === 'department' && (
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Région</label>
-                  <select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                    value={formData.region_id || ''}
-                    onChange={e => setFormData({...formData, region_id: e.target.value})}
-                  >
-                    <option value="">Sélectionner Région...</option>
-                    {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Région Parenthèse</label>
+                    <select 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.region_id || ''}
+                      onChange={e => setFormData({...formData, region_id: e.target.value})}
+                    >
+                      <option value="">Sélectionner une région...</option>
+                      {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Nom du Département</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.name || ''}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Code (ex: PIK)</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase"
+                      value={formData.code || ''}
+                      onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                    />
+                  </div>
+                </>
               )}
 
+              {/* Commune Form */}
               {modalType === 'commune' && (
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Département</label>
-                  <select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                    value={formData.department_id || ''}
-                    onChange={e => setFormData({...formData, department_id: e.target.value})}
-                  >
-                    <option value="">Sélectionner Département...</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Département Parent</label>
+                    <select 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.department_id || ''}
+                      onChange={e => setFormData({...formData, department_id: e.target.value})}
+                    >
+                      <option value="">Sélectionner un département...</option>
+                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Nom de la Commune</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.name || ''}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Code (ex: DKN)</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase"
+                      value={formData.code || ''}
+                      onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                    />
+                  </div>
+                </>
               )}
 
-              {/* Project Fields */}
+              {/* Project Form */}
               {modalType === 'project' && (
-                 <>
-                   <div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Numéro Phase</label>
+                    <input 
+                      type="number"
+                      required 
+                      className={`w-full border rounded-lg p-2 text-sm bg-background text-foreground ${isDuplicatePhase ? 'border-destructive focus:ring-destructive' : 'border-input'}`}
+                      value={formData.numero_phase || ''}
+                      onChange={e => setFormData({...formData, numero_phase: e.target.value})}
+                      placeholder="ex: 1, 2, 3"
+                    />
+                    {isDuplicatePhase && <p className="text-xs text-destructive mt-1">Cette phase existe déjà.</p>}
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Numéro Marché</label>
-                    <input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                      value={formData.numero_marche || ''} 
-                      onChange={e => setFormData({...formData, numero_marche: e.target.value})} 
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.numero_marche || ''}
+                      onChange={e => setFormData({...formData, numero_marche: e.target.value})}
+                      placeholder="ex: F_DAR_084"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Numéro Bon Disposition</label>
-                    <input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                      value={formData.numero_bon_disposition || ''} 
-                      onChange={e => setFormData({...formData, numero_bon_disposition: e.target.value})} 
+                    <label className="block text-sm font-medium text-foreground mb-1">Numéro Bon de Disposition</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.numero_bon_disposition || ''}
+                      onChange={e => setFormData({...formData, numero_bon_disposition: e.target.value})}
+                      placeholder="ex: 394/MASAE/DA"
                     />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Phase</label>
-                      <input type="number" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                        value={formData.numero_phase || ''} 
-                        onChange={e => setFormData({...formData, numero_phase: e.target.value})} 
-                      />
-                      {isDuplicatePhase && (
-                        <p className="text-destructive text-xs mt-1 animate-fade-in">
-                          Numéro de phase déjà utilisé.
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Tonnage Total</label>
-                      <input type="number" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                        value={formData.tonnage_total || ''} 
-                        onChange={e => setFormData({...formData, tonnage_total: e.target.value})} 
-                      />
-                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Date Mise Disposition</label>
-                    <input type="date" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                      value={formData.date_mise_disposition || ''} 
-                      onChange={e => setFormData({...formData, date_mise_disposition: e.target.value})} 
+                    <label className="block text-sm font-medium text-foreground mb-1">Tonnage Total (Objectif)</label>
+                    <input 
+                      type="number"
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.tonnage_total || ''}
+                      onChange={e => setFormData({...formData, tonnage_total: e.target.value})}
                     />
                   </div>
-                 </>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Date de Mise à Disposition</label>
+                    <input 
+                      type="date"
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.date_mise_disposition ? new Date(formData.date_mise_disposition).toISOString().split('T')[0] : ''}
+                      onChange={e => setFormData({...formData, date_mise_disposition: e.target.value})}
+                    />
+                  </div>
+                </>
               )}
 
-              {/* Operator Fields */}
+              {/* Operator Form */}
               {modalType === 'operator' && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Nom Opérateur</label>
-                    <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                      value={formData.name || ''} 
-                      onChange={e => setFormData({...formData, name: e.target.value})} 
+                    <label className="block text-sm font-medium text-foreground mb-1">Nom de l'Opérateur / GIE</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.name || ''}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
                     />
                   </div>
                   
-                  {/* Project Select */}
-                  <div>
-                     <label className="block text-sm font-medium text-foreground mb-1">Projet</label>
-                     <select 
-                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                       value={formData.projet_id || ''}
-                       onChange={e => setFormData({...formData, projet_id: e.target.value})}
-                     >
-                       <option value="">Sélectionner Projet...</option>
-                       {projects.map(p => (
-                         <option key={p.id} value={p.id}>
-                           Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
-                         </option>
-                       ))}
-                     </select>
-                     {/* Caption for selected project */}
-                     {formData.projet_id && projects.find(p => p.id === formData.projet_id) && (
-                       <div className="mt-2 text-xs text-muted-foreground bg-muted/50 p-2 rounded-lg border border-border grid grid-cols-2 gap-2">
-                         <div>
-                           <span className="font-semibold block text-primary">Bon de Disp. :</span> 
-                           <span className="font-mono text-foreground">{projects.find(p => p.id === formData.projet_id)?.numero_bon_disposition || '-'}</span>
-                         </div>
-                         <div>
-                           <span className="font-semibold block text-primary">Tonnage Total :</span> 
-                           <span className="font-mono text-foreground">{projects.find(p => p.id === formData.projet_id)?.tonnage_total} T</span>
-                         </div>
-                       </div>
-                     )}
-                  </div>
-
-                  <div className="flex items-center gap-3 py-2">
-                    <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                      <input type="checkbox" className="rounded border-input text-primary focus:ring-primary"
-                        checked={formData.is_coop || false}
-                        onChange={e => setFormData({...formData, is_coop: e.target.checked})}
-                      />
-                      Est une Coopérative / GIE
+                  <div className="flex items-center gap-2 py-2">
+                    <input 
+                      type="checkbox"
+                      id="is_coop"
+                      className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                      checked={formData.is_coop || false}
+                      onChange={e => setFormData({...formData, is_coop: e.target.checked})}
+                    />
+                    <label htmlFor="is_coop" className="text-sm font-medium text-foreground cursor-pointer select-none">
+                       Est une Coopérative / Union ?
                     </label>
                   </div>
+
                   {formData.is_coop && (
-                    <div className="animate-fade-in">
-                      <label className="block text-sm font-medium text-foreground mb-1">Nom Coopérative</label>
-                      <input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                        value={formData.coop_name || ''} 
-                        onChange={e => setFormData({...formData, coop_name: e.target.value})} 
-                        placeholder="ex: GIE And Suxali"
-                      />
+                    <div className="animate-in slide-in-from-top-2 fade-in">
+                       <label className="block text-sm font-medium text-foreground mb-1">Nom de la Coopérative</label>
+                       <input 
+                         className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                         value={formData.coop_name || ''}
+                         onChange={e => setFormData({...formData, coop_name: e.target.value})}
+                         placeholder="ex: RESOPP"
+                       />
                     </div>
                   )}
-                  
-                  {/* Searchable Commune Select */}
-                  <div className="relative">
-                     <label className="block text-sm font-medium text-foreground mb-1">Commune</label>
-                     <div className="relative">
-                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                       <input 
-                         type="text" 
-                         required 
-                         className="w-full pl-9 border border-input rounded-lg p-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none" 
-                         value={communeSearch}
-                         placeholder="Rechercher commune..."
-                         onFocus={() => setIsCommuneDropdownOpen(true)}
-                         onChange={(e) => {
-                           setCommuneSearch(e.target.value);
-                           setIsCommuneDropdownOpen(true);
-                           // Clear ID if user modifies text without selecting
-                           if (formData.commune_id) setFormData({...formData, commune_id: ''});
-                         }}
-                       />
-                     </div>
-                     {isCommuneDropdownOpen && (
-                       <ul className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                         {communes
-                           .filter(c => c.name.toLowerCase().includes(communeSearch.toLowerCase()))
-                           .map(c => (
-                             <li 
-                               key={c.id}
-                               className="px-4 py-2 hover:bg-muted text-sm cursor-pointer text-popover-foreground"
-                               onClick={() => {
-                                 setFormData({...formData, commune_id: c.id});
-                                 setCommuneSearch(c.name);
-                                 setIsCommuneDropdownOpen(false);
-                               }}
-                             >
-                               {c.name}
-                             </li>
-                           ))
-                         }
-                         {communes.filter(c => c.name.toLowerCase().includes(communeSearch.toLowerCase())).length === 0 && (
-                           <li className="px-4 py-2 text-sm text-muted-foreground">Aucune commune trouvée</li>
-                         )}
-                       </ul>
-                     )}
-                     {/* Hidden input to enforce requirement */}
-                     <input type="text" className="sr-only" required value={formData.commune_id || ''} onChange={()=>{}} />
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Téléphone</label>
+                    <input 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.phone || ''}
+                      onChange={e => setFormData({...formData, phone: e.target.value})}
+                      placeholder="77 000 00 00"
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Numéro de Téléphone</label>
-                    <input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" 
-                      value={formData.phone || ''} 
-                      onChange={e => setFormData({...formData, phone: e.target.value})} 
-                      placeholder="+221 ..."
-                    />
+                     <label className="block text-sm font-medium text-foreground mb-1">Phase Projet Assignée</label>
+                     <select 
+                        required
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.projet_id || ''}
+                        onChange={e => setFormData({...formData, projet_id: e.target.value})}
+                     >
+                        <option value="">Sélectionner une Phase...</option>
+                        {projects.map(p => (
+                           <option key={p.id} value={p.id}>Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}</option>
+                        ))}
+                     </select>
+                  </div>
+
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-foreground mb-1">Commune de résidence</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
+                      <input 
+                        required 
+                        className="w-full pl-9 border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        placeholder="Rechercher commune..."
+                        value={communeSearch}
+                        onChange={(e) => {
+                          setCommuneSearch(e.target.value);
+                          setIsCommuneDropdownOpen(true);
+                          // Clear ID if typing
+                          if (formData.commune_id) setFormData({...formData, commune_id: ''});
+                        }}
+                        onFocus={() => setIsCommuneDropdownOpen(true)}
+                        onBlur={() => setTimeout(() => setIsCommuneDropdownOpen(false), 200)}
+                      />
+                    </div>
+                    {isCommuneDropdownOpen && communeSearch && (
+                      <ul className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {communes
+                          .filter(c => c.name.toLowerCase().includes(communeSearch.toLowerCase()))
+                          .map(c => (
+                            <li 
+                              key={c.id}
+                              className="px-4 py-2 hover:bg-muted text-sm cursor-pointer text-popover-foreground"
+                              onClick={() => {
+                                setFormData({...formData, commune_id: c.id});
+                                setCommuneSearch(c.name);
+                                setIsCommuneDropdownOpen(false);
+                              }}
+                            >
+                              {c.name} <span className="text-xs text-muted-foreground">({c.code})</span>
+                            </li>
+                          ))
+                        }
+                      </ul>
+                    )}
                   </div>
                 </>
               )}
@@ -853,12 +903,9 @@ export const Settings = () => {
                 <button 
                   type="submit" 
                   disabled={isDuplicatePhase}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors ${
-                    isDuplicatePhase 
-                      ? 'bg-muted text-muted-foreground cursor-not-allowed' 
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  }`}
+                  className={`px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 ${isDuplicatePhase ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
+                  <Save size={16} />
                   Enregistrer
                 </button>
               </div>

@@ -253,3 +253,262 @@ body {
   background-color: var(--destructive);
   color: var(--destructive-foreground);
 }
+
+/* FlyonUI Tabs Support */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.tabs-vertical {
+  flex-direction: column;
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+  user-select: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.75rem 1rem;
+  transition: all 0.2s;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.tab:hover {
+  color: var(--foreground);
+}
+
+.tabs-bordered .tab {
+  border-color: transparent;
+  border-style: solid;
+  border-bottom-width: 2px;
+}
+
+.tabs-vertical.tabs-bordered .tab {
+  border-bottom-width: 0;
+  border-left-width: 3px;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.tab-active {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  font-weight: 600;
+  background-color: var(--primary-light); /* Optional subtle bg */
+}
+/* Utility for vertical full width */
+.tabs-vertical .tab {
+  width: 100%;
+}
+
+/* FlyonUI Table Support */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th, .table td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.table thead tr {
+  border-bottom: 1px solid var(--border);
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.table-striped tbody tr:nth-child(even) {
+  background-color: var(--secondary); /* Stripped effect */
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s;
+}
+
+.table tbody tr:hover {
+  background-color: var(--muted); 
+}
+
+/* FlyonUI Buttons & Badges Support */
+.btn-circle {
+  border-radius: 9999px;
+  padding: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-sm {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.875rem;
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.btn-text:hover {
+  background-color: var(--secondary);
+  color: var(--primary);
+}
+
+.btn-text.btn-text-error:hover {
+  color: var(--destructive);
+  background-color: #ff5b5c1a;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.025em;
+}
+
+/* Badge Soft Variants */
+.badge-soft.badge-primary { background-color: #6f42c11a; color: var(--primary); }
+.badge-soft.badge-success { background-color: #00d25b1a; color: #00d25b; }
+.badge-soft.badge-warning { background-color: #ffab001a; color: #ffab00; }
+.badge-soft.badge-error { background-color: #ff5b5c1a; color: #ff5b5c; }
+.badge-soft.badge-info { background-color: #0090e71a; color: #0090e7; }
+.badge-soft.badge-secondary { background-color: var(--secondary); color: var(--muted-foreground); }
+
+/* FlyonUI Advanced Select Component */
+.advance-select-toggle {
+  width: 100%;
+  border: 1px solid var(--input);
+  border-radius: 0.5rem; /* Smaller radius for inputs compared to global */
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  background-color: var(--background);
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.advance-select-toggle:focus {
+  outline: none;
+  ring: 1px solid var(--primary);
+  border-color: var(--primary);
+}
+
+.advance-select-menu {
+  position: absolute;
+  z-index: 50;
+  width: 100%;
+  margin-top: 0.25rem;
+  background-color: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  max-height: 15rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.advance-select-search {
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+  background-color: transparent;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  color: var(--foreground);
+}
+
+.advance-select-search::placeholder {
+  color: var(--muted-foreground);
+}
+
+.advance-select-option {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--popover-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background-color 0.15s;
+}
+
+.advance-select-option:hover {
+  background-color: var(--secondary);
+}
+
+.advance-select-option.selected {
+  background-color: #6f42c11a; /* primary/10 */
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* FlyonUI Accordion Support */
+.accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* divide-y handles spacing usually, but here we might separate items */
+}
+
+.accordion-item {
+  border-radius: var(--radius);
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 9px -5px rgba(20, 20, 20, 0.08);
+}
+
+.accordion-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--foreground);
+  background-color: var(--card);
+  transition: background-color 0.2s;
+}
+
+.accordion-toggle:hover {
+  background-color: var(--muted);
+}
+
+.accordion-content {
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  border-top: 1px solid var(--border);
+  background-color: var(--background);
+}
+
+.accordion-content.hidden {
+  display: none;
+}

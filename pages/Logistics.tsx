@@ -2,8 +2,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
-import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown } from 'lucide-react';
+import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 
 type GroupBy = 'none' | 'truck' | 'commune' | 'region';
 
@@ -24,6 +25,9 @@ export const Logistics = () => {
   
   // Grouping State
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  
+  // Accordion State
+  const [activeAccordionPhases, setActiveAccordionPhases] = useState<Set<string>>(new Set());
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -32,10 +36,6 @@ export const Logistics = () => {
   // Modal Filter State
   const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
   
-  // Searchable Select State (Allocation/Operator)
-  const [allocationSearch, setAllocationSearch] = useState('');
-  const [isAllocationDropdownOpen, setIsAllocationDropdownOpen] = useState(false);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -84,7 +84,6 @@ export const Logistics = () => {
             delivery_date: new Date().toISOString().split('T')[0],
             tonnage_loaded: 0
           });
-          setAllocationSearch(targetAlloc.operator_name);
           setIsModalOpen(true);
           
           // Clear URL params to prevent re-opening on reload
@@ -94,6 +93,24 @@ export const Logistics = () => {
     };
     init();
   }, [location.search]);
+
+  // Expand all phases by default when data loads
+  useEffect(() => {
+     if (deliveries.length > 0) {
+        const phases = new Set(deliveries.map(d => d.project_phase || 'Phase Non Assignée'));
+        setActiveAccordionPhases(phases);
+     }
+  }, [deliveries]);
+
+  const toggleAccordion = (phase: string) => {
+    const newSet = new Set(activeAccordionPhases);
+    if (newSet.has(phase)) {
+      newSet.delete(phase);
+    } else {
+      newSet.add(phase);
+    }
+    setActiveAccordionPhases(newSet);
+  };
 
   const generateBL = () => {
     const year = new Date().getFullYear().toString().slice(-2);
@@ -109,8 +126,6 @@ export const Logistics = () => {
         // Ensure date is formatted for input type="date"
         delivery_date: delivery.delivery_date ? new Date(delivery.delivery_date).toISOString().split('T')[0] : ''
       });
-      // Pre-fill search with current operator name
-      setAllocationSearch(delivery.operator_name);
     } else {
       // Create Mode
       setFormData({
@@ -118,7 +133,6 @@ export const Logistics = () => {
         delivery_date: new Date().toISOString().split('T')[0],
         tonnage_loaded: 0
       });
-      setAllocationSearch('');
     }
     setModalPhaseFilter('all');
     setIsModalOpen(true);
@@ -276,28 +290,29 @@ export const Logistics = () => {
   const targetTonnage = selectedAllocation?.target_tonnage || 0;
   const remainingTonnage = targetTonnage - calculatedDelivered;
 
-  // Filtered Allocations for Dropdown
-  const filteredAllocations = useMemo(() => {
-    return allocations.filter(a => {
-      // 1. Filter by Project Phase
-      if (modalPhaseFilter !== 'all' && a.project_id !== modalPhaseFilter) return false;
-      
-      // 2. Filter by Search Text
-      if (!allocationSearch) return true;
-      const searchLower = allocationSearch.toLowerCase();
-      return (
-        a.operator_name.toLowerCase().includes(searchLower) ||
-        a.region_name.toLowerCase().includes(searchLower) ||
-        a.allocation_key.toLowerCase().includes(searchLower)
-      );
-    });
-  }, [allocations, modalPhaseFilter, allocationSearch]);
-
-  const handleAllocationSelect = (alloc: AllocationView) => {
-    setFormData({ ...formData, allocation_id: alloc.id });
-    setAllocationSearch(alloc.operator_name);
-    setIsAllocationDropdownOpen(false);
-  };
+  // Transform filtered allocations for AdvancedSelect
+  const allocationOptions: Option[] = useMemo(() => {
+    return allocations
+      .filter(a => {
+        // 1. Filter by Project Phase
+        if (modalPhaseFilter !== 'all' && a.project_id !== modalPhaseFilter) return false;
+        return true;
+      })
+      .map(a => ({
+        value: a.id,
+        label: a.operator_name,
+        subLabel: `${a.region_name} • ${a.commune_name} ${a.project_phase ? `(${a.project_phase})` : ''}`
+      }));
+  }, [allocations, modalPhaseFilter]);
+  
+  // Transform trucks for AdvancedSelect
+  const truckOptions: Option[] = useMemo(() => {
+    return trucks.map(t => ({
+      value: t.id,
+      label: t.plate_number,
+      subLabel: t.driver_name ? `Chauffeur: ${t.driver_name}` : 'Non assigné'
+    }));
+  }, [trucks]);
 
   return (
     <div className="space-y-6">
@@ -369,29 +384,27 @@ export const Logistics = () => {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
-        
-        {/* Toolbar: Grouping Only */}
-        <div className="p-4 border-b border-border flex flex-col lg:flex-row gap-4 justify-end items-start lg:items-center">
-          <div className="flex items-center gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0">
+      {/* Grouping Options */}
+      <div className="flex justify-end">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
              <span className="text-xs font-semibold text-muted-foreground uppercase mr-1 whitespace-nowrap flex items-center gap-1">
                <Layers size={14} /> Grouper par:
              </span>
              <button 
                onClick={() => setGroupBy('truck')}
-               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'truck' ? 'bg-primary/10 text-primary border-primary' : 'bg-background hover:bg-muted text-muted-foreground border-border'}`}
+               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'truck' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted text-muted-foreground border-border'}`}
              >
                Camion
              </button>
              <button 
                onClick={() => setGroupBy('commune')}
-               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'commune' ? 'bg-primary/10 text-primary border-primary' : 'bg-background hover:bg-muted text-muted-foreground border-border'}`}
+               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'commune' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted text-muted-foreground border-border'}`}
              >
                Commune
              </button>
              <button 
                onClick={() => setGroupBy('region')}
-               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'region' ? 'bg-primary/10 text-primary border-primary' : 'bg-background hover:bg-muted text-muted-foreground border-border'}`}
+               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'region' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted text-muted-foreground border-border'}`}
              >
                Région
              </button>
@@ -405,120 +418,144 @@ export const Logistics = () => {
                </button>
              )}
           </div>
-        </div>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">N° BL</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Destination</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transport</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Charge</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {groupedDeliveries.length === 0 && (
-                <tr>
-                   <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                      {searchTerm || mainPhaseFilter !== 'all' 
-                         ? 'Aucun résultat ne correspond à votre recherche.' 
-                         : 'Aucune expédition trouvée. Créez-en une pour commencer.'
-                      }
-                   </td>
-                </tr>
-              )}
+      {/* Content Area - List of Accordions */}
+      <div className="accordion flex flex-col gap-4 min-h-[500px]">
+        {groupedDeliveries.length === 0 && (
+          <div className="p-12 text-center text-muted-foreground bg-card rounded-xl border border-border">
+             {searchTerm || mainPhaseFilter !== 'all' 
+                ? 'Aucun résultat ne correspond à votre recherche.' 
+                : 'Aucune expédition trouvée. Créez-en une pour commencer.'
+             }
+          </div>
+        )}
+        
+        {groupedDeliveries.map((projectGroup) => {
+           const isOpen = activeAccordionPhases.has(projectGroup.phase);
+           
+           return (
+            <div key={projectGroup.phase} className="accordion-item">
+              {/* Accordion Toggle */}
+              <button 
+                onClick={() => toggleAccordion(projectGroup.phase)}
+                className="accordion-toggle"
+                aria-expanded={isOpen}
+              >
+                <div className="flex items-center gap-4">
+                  <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}>
+                    <ChevronRight size={20} className="text-muted-foreground" />
+                  </span>
+                  <span className="text-lg font-bold">{projectGroup.phase}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted px-2 py-1 rounded">
+                      {projectGroup.subGroups.reduce((acc, sub) => acc + sub.items.length, 0)} Livraisons
+                   </span>
+                </div>
+              </button>
               
-              {/* Group Iteration: Project Phase */}
-              {groupedDeliveries.map((projectGroup) => (
-                <React.Fragment key={projectGroup.phase}>
-                   <tr className="bg-slate-100 dark:bg-slate-800/50">
-                      <td colSpan={6} className="px-6 py-3 text-sm font-bold text-foreground border-y border-border">
-                         {projectGroup.phase}
-                      </td>
-                   </tr>
+              {/* Accordion Content */}
+              <div className={`accordion-content ${!isOpen ? 'hidden' : ''}`}>
+                 <div className="w-full overflow-x-auto">
+                    <table className="table table-striped">
+                      <thead>
+                        <tr>
+                          <th className="w-32">N° BL</th>
+                          <th>Destination</th>
+                          <th>Transport</th>
+                          <th>Charge</th>
+                          <th>Date</th>
+                          <th className="text-right w-24">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                         {projectGroup.subGroups.map((subGroup) => (
+                           <React.Fragment key={subGroup.key}>
+                              {/* Sub-Group Header (Only if grouping is active) */}
+                              {groupBy !== 'none' && (
+                                <tr className="bg-muted/30">
+                                   <td colSpan={6} className="px-6 py-2 text-xs font-medium text-foreground border-b border-border/50 pl-4 flex items-center justify-between">
+                                      <span className="flex items-center gap-2">
+                                         {groupBy === 'truck' && <TruckIcon size={14} className="text-muted-foreground" />}
+                                         {groupBy === 'commune' && <MapPin size={14} className="text-muted-foreground" />}
+                                         {groupBy === 'region' && <MapPin size={14} className="text-muted-foreground" />}
+                                         <span className="uppercase tracking-wide font-bold">{subGroup.key}</span>
+                                      </span>
+                                      <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[10px]">
+                                         Total: {subGroup.totalLoad.toFixed(2)} T
+                                      </span>
+                                   </td>
+                                </tr>
+                              )}
 
-                   {/* Sub-Group Iteration */}
-                   {projectGroup.subGroups.map((subGroup) => (
-                     <React.Fragment key={subGroup.key}>
-                        {/* Sub-Group Header (Only if grouping is active) */}
-                        {groupBy !== 'none' && (
-                          <tr className="bg-muted/30">
-                             <td colSpan={6} className="px-6 py-2 text-xs font-medium text-foreground border-b border-border/50 pl-10 flex items-center justify-between">
-                                <span className="flex items-center gap-2">
-                                   {groupBy === 'truck' && <TruckIcon size={14} className="text-muted-foreground" />}
-                                   {groupBy === 'commune' && <MapPin size={14} className="text-muted-foreground" />}
-                                   {groupBy === 'region' && <MapPin size={14} className="text-muted-foreground" />}
-                                   <span className="uppercase tracking-wide">{subGroup.key}</span>
-                                </span>
-                                <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[10px]">
-                                   Sous-total: {subGroup.totalLoad.toFixed(2)} T
-                                </span>
-                             </td>
-                          </tr>
-                        )}
-
-                        {/* Items */}
-                        {subGroup.items.map((del) => (
-                          <tr key={del.id} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-6 py-4 pl-10">
-                              <div className="flex items-center gap-2">
-                                <FileText size={16} className="text-primary" />
-                                <span className="font-medium text-foreground">{del.bl_number}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium text-foreground">{del.operator_name}</span>
-                                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <MapPin size={10} /> {del.commune_name}, {del.region_name}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-muted rounded text-muted-foreground">
-                                  <TruckIcon size={14} />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'Aucun Camion'}</p>
-                                  <p className="text-xs text-muted-foreground">{del.driver_name || 'Aucun Chauffeur'}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="text-sm font-medium text-foreground">{del.tonnage_loaded} T</span>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                              {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}
-                            </td>
-                            <td className="px-6 py-4 text-right flex justify-end gap-2">
-                              <button 
-                                onClick={() => handleOpenModal(del)}
-                                className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
-                                title="Modifier"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(del.id)}
-                                className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-lg transition-colors"
-                                title="Supprimer"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                     </React.Fragment>
-                   ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                              {/* Items */}
+                              {subGroup.items.map((del) => (
+                                <tr key={del.id} className="hover:bg-muted/50 transition-colors">
+                                  <td>
+                                    <div className="flex items-center gap-2">
+                                      <div className="p-1.5 bg-primary/10 rounded text-primary">
+                                         <FileText size={14} />
+                                      </div>
+                                      <span className="font-bold font-mono text-foreground text-sm">{del.bl_number}</span>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium text-foreground">{del.operator_name}</span>
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <MapPin size={10} /> {del.commune_name}, {del.region_name}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="flex items-center gap-2">
+                                      <div className="p-1.5 bg-muted rounded text-muted-foreground">
+                                        <TruckIcon size={14} />
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'Aucun Camion'}</p>
+                                        <p className="text-xs text-muted-foreground">{del.driver_name || 'Aucun Chauffeur'}</p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <span className="text-sm font-bold text-foreground bg-muted px-2 py-1 rounded">{del.tonnage_loaded} T</span>
+                                  </td>
+                                  <td className="text-sm text-muted-foreground">
+                                    {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}
+                                  </td>
+                                  <td className="text-right">
+                                     <div className="flex justify-end gap-1">
+                                        <button 
+                                          onClick={() => handleOpenModal(del)}
+                                          className="btn btn-circle btn-text btn-sm text-blue-600"
+                                          title="Modifier"
+                                          aria-label="Edit"
+                                        >
+                                          <Edit2 size={16} />
+                                        </button>
+                                        <button 
+                                          onClick={() => handleDelete(del.id)}
+                                          className="btn btn-circle btn-text btn-sm btn-text-error"
+                                          title="Supprimer"
+                                          aria-label="Delete"
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                     </div>
+                                  </td>
+                                </tr>
+                              ))}
+                           </React.Fragment>
+                         ))}
+                      </tbody>
+                    </table>
+                 </div>
+              </div>
+            </div>
+           );
+        })}
       </div>
 
       {isModalOpen && (
@@ -573,59 +610,13 @@ export const Logistics = () => {
                   {/* Searchable Select for Allocation */}
                   <div className="relative">
                     <label className="block text-sm font-medium text-foreground mb-1">Sélectionner Allocation / Opérateur</label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
-                      <input 
-                        type="text"
-                        required
-                        className="w-full pl-9 pr-8 border border-input rounded-lg p-2 text-sm bg-background text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                        placeholder="Rechercher par Nom, Région..."
-                        value={allocationSearch}
-                        onChange={(e) => {
-                          setAllocationSearch(e.target.value);
-                          setIsAllocationDropdownOpen(true);
-                          // Clear ID if text changes without selection
-                          if (formData.allocation_id) setFormData({...formData, allocation_id: ''});
-                        }}
-                        onFocus={() => setIsAllocationDropdownOpen(true)}
-                        onBlur={() => setTimeout(() => setIsAllocationDropdownOpen(false), 200)}
-                      />
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={16} />
-                    </div>
-                    
-                    {/* Input Validation Helper (Invisible) */}
-                    <input 
-                      type="text" 
-                      className="sr-only" 
-                      required 
-                      value={formData.allocation_id || ''} 
-                      onChange={()=>{}} 
-                      onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("Veuillez sélectionner un opérateur dans la liste.")}
-                      onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")}
+                    <AdvancedSelect 
+                      options={allocationOptions}
+                      value={formData.allocation_id || ''}
+                      onChange={(val) => setFormData({...formData, allocation_id: val})}
+                      placeholder="Rechercher par Nom, Région..."
+                      required
                     />
-
-                    {isAllocationDropdownOpen && (
-                      <ul className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {filteredAllocations.map(alloc => (
-                          <li 
-                            key={alloc.id}
-                            className="px-4 py-2 hover:bg-muted text-sm cursor-pointer text-popover-foreground border-b border-border/50 last:border-0"
-                            onClick={() => handleAllocationSelect(alloc)}
-                          >
-                            <div className="font-medium">{alloc.operator_name}</div>
-                            <div className="text-xs text-muted-foreground flex justify-between">
-                              <span>{alloc.region_name} • {alloc.commune_name}</span>
-                              {alloc.project_phase && <span className="italic">{alloc.project_phase}</span>}
-                            </div>
-                          </li>
-                        ))}
-                        {filteredAllocations.length === 0 && (
-                          <li className="px-4 py-3 text-sm text-muted-foreground text-center">
-                            Aucune allocation trouvée pour ce filtre.
-                          </li>
-                        )}
-                      </ul>
-                    )}
                     
                     {selectedAllocation ? (
                       <div className="mt-3 grid grid-cols-3 gap-2 text-center bg-muted/30 p-3 rounded-lg border border-border border-dashed animate-fade-in">
@@ -665,99 +656,97 @@ export const Logistics = () => {
                         </button>
                      </div>
                      <input 
-                       type="text" 
-                       required
-                       readOnly
-                       value={formData.bl_number || ''}
-                       className="w-full bg-background font-mono font-bold text-center tracking-widest border border-input rounded-md py-2"
+                        type="text"
+                        required
+                        className="w-full border border-input rounded-lg p-2 text-lg font-mono font-bold bg-background text-foreground tracking-wide"
+                        value={formData.bl_number || ''}
+                        onChange={(e) => setFormData({...formData, bl_number: e.target.value.toUpperCase()})}
                      />
                   </div>
                 </div>
-                
-                {/* Right Column: Transport */}
+
+                {/* Right Column: Transport Details */}
                 <div className="space-y-4">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <TruckIcon size={14} /> Détails Transport
-                  </h4>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Camion (Immatriculation)</label>
-                    <select 
-                      required
-                      className="w-full rounded-lg border border-input bg-background p-2 text-sm focus:ring-2 focus:ring-primary outline-none text-foreground"
-                      value={formData.truck_id || ''}
-                      onChange={(e) => handleTruckChange(e.target.value)}
-                    >
-                       <option value="">Sélectionner Camion...</option>
-                       {trucks.map(t => (
-                         <option key={t.id} value={t.id}>{t.plate_number} ({t.capacity_tonnes}T)</option>
-                       ))}
-                    </select>
-                  </div>
-
-                  {/* Driver Field - Read Only based on Truck */}
-                  <div className="relative">
-                     <label className="block text-sm font-medium text-foreground mb-1">Chauffeur</label>
-                     {/* Dashed border effect container */}
-                     <div className="relative">
-                        <input 
-                          type="text"
-                          readOnly
-                          disabled
-                          placeholder="Sélectionnez un camion..."
-                          className="w-full rounded-lg border border-input bg-muted/50 p-2 pl-9 text-sm text-foreground focus:outline-none cursor-not-allowed"
-                          value={assignedDriverName}
-                        />
-                        <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                     </div>
-                     {!assignedDriverName && formData.truck_id && (
-                       <p className="text-xs text-amber-500 mt-1">Ce camion n'a pas de chauffeur assigné.</p>
-                     )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                     <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Charge (Tonnes)</label>
-                      <input 
-                        type="number" 
-                        required
-                        className="w-full rounded-lg border border-input bg-background p-2 text-sm text-foreground" 
-                        placeholder="0.00"
-                        value={formData.tonnage_loaded || ''}
-                        onChange={(e) => setFormData({...formData, tonnage_loaded: e.target.value})}
+                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                     <TruckIcon size={14} /> Transport
+                   </h4>
+                   
+                   <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Camion</label>
+                      <AdvancedSelect 
+                        options={truckOptions}
+                        value={formData.truck_id || ''}
+                        onChange={(val) => handleTruckChange(val)}
+                        placeholder="Rechercher Camion..."
                       />
-                     </div>
-                     <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Date</label>
-                      <div className="relative">
+                   </div>
+
+                   <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Chauffeur</label>
+                      <select 
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.driver_id || ''}
+                        onChange={(e) => setFormData({...formData, driver_id: e.target.value})}
+                      >
+                         <option value="">Sélectionner Chauffeur...</option>
+                         {drivers
+                           .filter(d => !d.truck_id || (formData.truck_id && d.truck_id === formData.truck_id) || d.id === formData.driver_id)
+                           .map(d => <option key={d.id} value={d.id}>{d.name} {d.truck_id ? '(Assigné)' : ''}</option>)
+                         }
+                      </select>
+                      {selectedTruck && !selectedTruck.driver_id && !formData.driver_id && (
+                         <p className="text-xs text-amber-600 mt-1">Attention: Aucun chauffeur assigné à ce camion.</p>
+                      )}
+                   </div>
+
+                   <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1">Charge (Tonnes)</label>
                         <input 
-                          type="date" 
-                          required
-                          className="w-full rounded-lg border border-input bg-background p-2 text-sm text-foreground"
-                          value={formData.delivery_date || ''}
-                          onChange={(e) => setFormData({...formData, delivery_date: e.target.value})}
+                           type="number"
+                           required
+                           min="0.1"
+                           step="0.01"
+                           className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                           value={formData.tonnage_loaded || ''}
+                           onChange={(e) => setFormData({...formData, tonnage_loaded: e.target.value})}
                         />
                       </div>
-                     </div>
-                  </div>
-                </div>
-              </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1">Date</label>
+                        <input 
+                           type="date"
+                           required
+                           className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                           value={formData.delivery_date || ''}
+                           onChange={(e) => setFormData({...formData, delivery_date: e.target.value})}
+                        />
+                      </div>
+                   </div>
 
-              <div className="p-4 bg-muted/30 border-t border-border flex justify-end gap-2">
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)} 
-                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg"
-                >
-                  Annuler
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg shadow-sm flex items-center gap-2"
-                >
-                  <Save size={16} />
-                  {formData.id ? "Mettre à jour" : "Confirmer Expédition"}
-                </button>
+                   {/* Summary Box */}
+                   <div className="mt-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 text-sm">
+                      <div className="flex justify-between mb-1">
+                         <span className="text-muted-foreground">Allocation:</span>
+                         <span className="font-medium text-foreground truncate ml-2">{selectedAllocation?.operator_name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between mb-1">
+                         <span className="text-muted-foreground">Destination:</span>
+                         <span className="font-medium text-foreground truncate ml-2">{selectedAllocation ? `${selectedAllocation.commune_name}, ${selectedAllocation.region_name}` : '-'}</span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-blue-200 dark:border-blue-800/50 mt-2">
+                         <span className="font-bold text-foreground">A Livrer:</span>
+                         <span className="font-bold text-primary">{formData.tonnage_loaded || 0} Tonnes</span>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="md:col-span-2 flex justify-end gap-2 pt-2 border-t border-border mt-2">
+                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
+                   <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
+                     <Save size={16} /> Enregistrer
+                   </button>
+                </div>
               </div>
             </form>
           </div>
