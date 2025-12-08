@@ -1,3 +1,4 @@
+
 export type AllocationStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED';
 
 export interface Region {
@@ -111,6 +112,7 @@ export interface DeliveryView extends Delivery {
   project_phase: string;
   truck_plate: string;
   driver_name: string;
+  project_id?: string;
 }
 
 // Database Views

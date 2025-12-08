@@ -18,6 +18,10 @@ export const Logistics = () => {
   
   const [loading, setLoading] = useState(true);
   
+  // Page Filters & Search
+  const [searchTerm, setSearchTerm] = useState('');
+  const [mainPhaseFilter, setMainPhaseFilter] = useState<string>('all');
+  
   // Grouping State
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
 
@@ -48,10 +52,10 @@ export const Logistics = () => {
       // Only show open or in-progress allocations for new dispatches
       setAllocations(al); 
       setProjects(proj);
-      return al; // Return allocations for immediate use in effect
+      return { allocations: al, projects: proj };
     } catch (e) {
       console.error(e);
-      return [];
+      return { allocations: [], projects: [] };
     } finally {
       setLoading(false);
     }
@@ -59,8 +63,14 @@ export const Logistics = () => {
 
   useEffect(() => {
     const init = async () => {
-      const loadedAllocations = await fetchData();
+      const { allocations: loadedAllocations, projects: loadedProjects } = await fetchData();
       
+      // Auto-select Phase 3 if available
+      const phase3 = loadedProjects.find(p => p.numero_phase === 3);
+      if (phase3) {
+        setMainPhaseFilter(phase3.id);
+      }
+
       // Check URL params for auto-open action
       const params = new URLSearchParams(location.search);
       if (params.get('action') === 'new' && params.get('allocationId')) {
@@ -174,32 +184,60 @@ export const Logistics = () => {
     }));
   };
 
-  // Grouping Logic
+  // Grouping & Filtering Logic
   const groupedDeliveries = useMemo(() => {
-    // 1. First Group by Project Phase (Always)
+    // 0. Filter Deliveries first
+    const filtered = deliveries.filter(d => {
+      // Phase Filter
+      if (mainPhaseFilter !== 'all') {
+        if (d.project_id !== mainPhaseFilter) return false;
+      }
+
+      // Search Filter
+      if (searchTerm) {
+        const lowerTerm = searchTerm.toLowerCase();
+        const dateStr = d.delivery_date ? new Date(d.delivery_date).toLocaleDateString() : '';
+        return (
+          (d.bl_number && d.bl_number.toLowerCase().includes(lowerTerm)) ||
+          (d.operator_name && d.operator_name.toLowerCase().includes(lowerTerm)) ||
+          (d.truck_plate && d.truck_plate.toLowerCase().includes(lowerTerm)) ||
+          dateStr.includes(lowerTerm)
+        );
+      }
+
+      return true;
+    });
+
+    // 1. Group by Project Phase (Always)
     const projectGroups: Record<string, DeliveryView[]> = {};
     
-    // Use full deliveries list instead of filtered
-    deliveries.forEach(d => {
+    filtered.forEach(d => {
       const phase = d.project_phase || 'Phase Non Assignée';
       if (!projectGroups[phase]) projectGroups[phase] = [];
       projectGroups[phase].push(d);
     });
 
-    // 2. If no sub-grouping, return simple project structure
-    if (groupBy === 'none') {
-      return Object.entries(projectGroups).map(([phase, items]) => ({
-        phase,
-        subGroups: [{
-           key: 'All',
-           items,
-           totalLoad: items.reduce((sum, d) => sum + Number(d.tonnage_loaded), 0)
-        }]
-      }));
-    }
+    // 2. Sort Project Groups (Most Recent/Highest Phase First)
+    // We assume standard string sort descending works for "Phase 3" vs "Phase 1"
+    const sortedPhaseKeys = Object.keys(projectGroups).sort((a, b) => 
+       b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' })
+    );
 
-    // 3. Apply Sub-grouping (Truck, Commune, Region)
-    return Object.entries(projectGroups).map(([phase, phaseItems]) => {
+    // 3. Apply Sub-grouping
+    return sortedPhaseKeys.map(phase => {
+       const phaseItems = projectGroups[phase];
+       
+       if (groupBy === 'none') {
+         return {
+           phase,
+           subGroups: [{
+              key: 'All',
+              items: phaseItems,
+              totalLoad: phaseItems.reduce((sum, d) => sum + Number(d.tonnage_loaded), 0)
+           }]
+         };
+       }
+
        const subGroupMap: Record<string, DeliveryView[]> = {};
        
        phaseItems.forEach(d => {
@@ -221,7 +259,7 @@ export const Logistics = () => {
        return { phase, subGroups };
     });
 
-  }, [deliveries, groupBy]);
+  }, [deliveries, groupBy, mainPhaseFilter, searchTerm]);
 
   const selectedAllocation = allocations.find(a => a.id === formData.allocation_id);
   const selectedTruck = trucks.find(t => t.id === formData.truck_id);
@@ -277,6 +315,60 @@ export const Logistics = () => {
         </button>
       </div>
 
+      {/* Main Filter Toolbar */}
+      <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          {/* Search Bar */}
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <input 
+              type="text" 
+              placeholder="Rechercher Camion, Date, Opérateur..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+            />
+          </div>
+
+          {/* Phase Filters - Horizontal Scroll */}
+          <div className="flex-1 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+             <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase text-muted-foreground mr-2 shrink-0 flex items-center gap-1">
+                <Filter size={14} /> Filtre:
+              </span>
+              <form className="filter">
+                <input 
+                  className="btn btn-square" 
+                  type="reset" 
+                  value="×" 
+                  onClick={() => setMainPhaseFilter('all')}
+                  title="Réinitialiser"
+                />
+                <input 
+                  className="btn" 
+                  type="radio" 
+                  name="logistic-phase" 
+                  aria-label="Tous"
+                  checked={mainPhaseFilter === 'all'}
+                  onChange={() => setMainPhaseFilter('all')}
+                />
+                {projects.map(p => (
+                  <input
+                    key={p.id}
+                    className="btn" 
+                    type="radio" 
+                    name="logistic-phase" 
+                    aria-label={`Phase ${p.numero_phase}`}
+                    checked={mainPhaseFilter === p.id}
+                    onChange={() => setMainPhaseFilter(p.id)}
+                  />
+                ))}
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
         
         {/* Toolbar: Grouping Only */}
@@ -330,7 +422,12 @@ export const Logistics = () => {
             <tbody className="divide-y divide-border">
               {groupedDeliveries.length === 0 && (
                 <tr>
-                   <td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune expédition trouvée. Créez-en une pour commencer.</td>
+                   <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                      {searchTerm || mainPhaseFilter !== 'all' 
+                         ? 'Aucun résultat ne correspond à votre recherche.' 
+                         : 'Aucune expédition trouvée. Créez-en une pour commencer.'
+                      }
+                   </td>
                 </tr>
               )}
               
@@ -443,33 +540,34 @@ export const Logistics = () => {
                   
                   {/* Phase Filter Buttons */}
                   <div className="overflow-x-auto pb-2 -mx-1 px-1">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setModalPhaseFilter('all')}
-                        className={`whitespace-nowrap px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors border ${
-                          modalPhaseFilter === 'all'
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                        }`}
-                      >
-                        Toutes
-                      </button>
-                      {projects.map(p => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => setModalPhaseFilter(p.id)}
-                          className={`whitespace-nowrap px-2 py-1 rounded text-[10px] font-bold uppercase transition-colors border ${
-                            modalPhaseFilter === p.id
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                          }`}
-                        >
-                          Phase {p.numero_phase}
-                        </button>
-                      ))}
-                    </div>
+                     <form className="filter">
+                        <input 
+                           className="btn btn-square" 
+                           type="reset" 
+                           value="×" 
+                           onClick={() => setModalPhaseFilter('all')}
+                           title="Réinitialiser"
+                        />
+                        <input 
+                           className="btn" 
+                           type="radio" 
+                           name="modal-phase" 
+                           aria-label="Toutes"
+                           checked={modalPhaseFilter === 'all'}
+                           onChange={() => setModalPhaseFilter('all')}
+                        />
+                        {projects.map(p => (
+                           <input
+                              key={p.id}
+                              className="btn" 
+                              type="radio" 
+                              name="modal-phase" 
+                              aria-label={`Phase ${p.numero_phase}`}
+                              checked={modalPhaseFilter === p.id}
+                              onChange={() => setModalPhaseFilter(p.id)}
+                           />
+                        ))}
+                     </form>
                   </div>
 
                   {/* Searchable Select for Allocation */}

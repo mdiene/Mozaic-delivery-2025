@@ -200,30 +200,35 @@ const Header = ({
         </button>
         
         {isDashboard ? (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-fade-right py-1">
-             <button
-              onClick={() => setSelectedProject('all')}
-              className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
-                selectedProject === 'all'
-                  ? 'bg-gradient-to-r from-primary to-purple-600/50 text-white shadow-glow'
-                  : 'bg-white dark:bg-card text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-            >
-              Vue d'ensemble
-            </button>
-            {projects.map(p => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedProject(p.id)}
-                className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
-                  selectedProject === p.id
-                    ? 'bg-gradient-to-r from-primary to-purple-600/50 text-white shadow-glow'
-                    : 'bg-white dark:bg-card text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-              >
-                Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
-              </button>
-            ))}
+          <div className="flex items-center overflow-x-auto no-scrollbar mask-fade-right py-1">
+             <form className="filter">
+                <input 
+                  className="btn btn-square" 
+                  type="reset" 
+                  value="×" 
+                  onClick={() => setSelectedProject('all')}
+                  title="Réinitialiser"
+                />
+                <input 
+                  className="btn" 
+                  type="radio" 
+                  name="header-project" 
+                  aria-label="Vue d'ensemble"
+                  checked={selectedProject === 'all'}
+                  onChange={() => setSelectedProject('all')}
+                />
+                {projects.map(p => (
+                  <input
+                    key={p.id}
+                    className="btn" 
+                    type="radio" 
+                    name="header-project" 
+                    aria-label={`Phase ${p.numero_phase}${p.numero_marche ? ` - ${p.numero_marche}` : ''}`}
+                    checked={selectedProject === p.id}
+                    onChange={() => setSelectedProject(p.id)}
+                  />
+                ))}
+             </form>
           </div>
         ) : (
           <div className="flex items-center">

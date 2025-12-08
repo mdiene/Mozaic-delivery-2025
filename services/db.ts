@@ -1,4 +1,5 @@
 
+
 import { supabase } from '../lib/supabaseClient';
 import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion, NetworkDeliveryNode } from '../types';
 
@@ -133,6 +134,7 @@ export const db = {
         allocations:allocation_id (
           operator_id,
           region_id,
+          project_id,
           operators(name),
           regions(name),
           communes(name),
@@ -161,7 +163,8 @@ export const db = {
         commune_name: alloc?.communes?.name || 'Unknown',
         project_phase: phaseStr,
         truck_plate: del.trucks?.plate_number || 'Unknown',
-        driver_name: del.drivers?.name || 'Unknown'
+        driver_name: del.drivers?.name || 'Unknown',
+        project_id: alloc?.project_id
       };
     });
   },

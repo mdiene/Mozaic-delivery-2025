@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { useProject } from '../components/Layout';
@@ -123,29 +124,34 @@ export const NetworkPage = () => {
                 <Filter size={16} />
                 <span className="text-xs font-semibold uppercase hidden sm:inline">Filtres</span>
               </div>
-              <button
-                onClick={() => setSelectedProject('all')}
-                className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  selectedProject === 'all'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                Vue d'ensemble
-              </button>
-              {projects.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedProject(p.id)}
-                  className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    selectedProject === p.id
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                >
-                  Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
-                </button>
-              ))}
+              <form className="filter">
+                <input 
+                  className="btn btn-square" 
+                  type="reset" 
+                  value="×" 
+                  onClick={() => setSelectedProject('all')}
+                  title="Réinitialiser"
+                />
+                <input 
+                  className="btn" 
+                  type="radio" 
+                  name="network-filter" 
+                  aria-label="Vue d'ensemble"
+                  checked={selectedProject === 'all'}
+                  onChange={() => setSelectedProject('all')}
+                />
+                {projects.map(p => (
+                  <input
+                    key={p.id}
+                    className="btn" 
+                    type="radio" 
+                    name="network-filter" 
+                    aria-label={`Phase ${p.numero_phase}${p.numero_marche ? ` - ${p.numero_marche}` : ''}`}
+                    checked={selectedProject === p.id}
+                    onChange={() => setSelectedProject(p.id)}
+                  />
+                ))}
+              </form>
            </div>
 
            {/* Graph Container */}

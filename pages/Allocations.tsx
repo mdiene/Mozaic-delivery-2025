@@ -354,45 +354,46 @@ export const Allocations = () => {
 
         {/* Phase Filters - Horizontal Scroll */}
         <div className="overflow-x-auto pb-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSelectedPhaseFilter('all')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
-                selectedPhaseFilter === 'all' 
-                  ? 'bg-primary text-primary-foreground border-primary' 
-                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
-              }`}
-            >
-              Tous <span className="opacity-70">({allocations.length})</span>
-            </button>
-            <button
-              onClick={() => setSelectedPhaseFilter('unassigned')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
-                selectedPhaseFilter === 'unassigned'
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
-              }`}
-            >
-              Non Assignés <span className="opacity-70">({allocations.filter(a => !a.project_id).length})</span>
-            </button>
-            {projects.map(p => {
-              const count = allocations.filter(a => a.project_id === p.id).length;
-              if (count === 0) return null;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPhaseFilter(p.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
-                    selectedPhaseFilter === p.id
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                  }`}
-                >
-                  Phase {p.numero_phase} <span className="opacity-70">({count})</span>
-                </button>
-              );
-            })}
-          </div>
+           <form className="filter">
+             <input 
+               className="btn btn-square" 
+               type="reset" 
+               value="×" 
+               onClick={() => setSelectedPhaseFilter('all')}
+               title="Réinitialiser"
+             />
+             <input 
+               className="btn" 
+               type="radio" 
+               name="alloc-phase" 
+               aria-label="Tous"
+               checked={selectedPhaseFilter === 'all'}
+               onChange={() => setSelectedPhaseFilter('all')}
+             />
+             <input 
+               className="btn" 
+               type="radio" 
+               name="alloc-phase" 
+               aria-label="Non Assignés"
+               checked={selectedPhaseFilter === 'unassigned'}
+               onChange={() => setSelectedPhaseFilter('unassigned')}
+             />
+             {projects.map(p => {
+               const count = allocations.filter(a => a.project_id === p.id).length;
+               if (count === 0) return null;
+               return (
+                 <input
+                   key={p.id}
+                   className="btn" 
+                   type="radio" 
+                   name="alloc-phase" 
+                   aria-label={`Phase ${p.numero_phase}`}
+                   checked={selectedPhaseFilter === p.id}
+                   onChange={() => setSelectedPhaseFilter(p.id)}
+                 />
+               );
+             })}
+           </form>
         </div>
       </div>
 
