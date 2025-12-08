@@ -4,21 +4,21 @@
 @tailwind utilities;
 
 :root {
-  /* Aquiry Light Mode */
-  --radius: 1.25rem; /* 20px for that rounded modern look */
+  /* Aquiry Light Mode (Default - Azia Purple) */
+  --radius: 1.25rem; 
 
-  /* Backgrounds: Aquiry uses a very light blue-grey tint for main BG */
+  /* Backgrounds */
   --background: #f4f5fa; 
-  --foreground: #3e4b5b; /* Dark Slate for text */
+  --foreground: #3e4b5b;
   
-  /* Cards: Pure white with soft shadows */
+  /* Cards */
   --card: #ffffff;
   --card-foreground: #3e4b5b;
 
   --popover: #ffffff;
   --popover-foreground: #3e4b5b;
 
-  /* Primary: Aquiry Purple / Indigo */
+  /* Primary: Default (Azia Purple #6F42C1) */
   --primary: #6f42c1; 
   --primary-foreground: #ffffff;
 
@@ -38,42 +38,94 @@
   --destructive: #ff5b5c;
   --destructive-foreground: #ffffff;
 
-  /* Borders: Very subtle */
+  /* Borders */
   --border: #eaedf2;
   --input: #eaedf2;
   --ring: #6f42c1;
 
-  /* Sidebar: Aquiry often features a dark sidebar even in light mode for contrast */
-  --sidebar: #161925; /* Dark Navy */
-  --sidebar-foreground: #9899ac; /* Muted text */
+  /* Sidebar */
+  --sidebar: #161925; 
+  --sidebar-foreground: #9899ac; 
   --sidebar-primary: #6f42c1;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e212d; /* Slightly lighter navy */
+  --sidebar-accent: #1e212d; 
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #202336;
   --sidebar-ring: #6f42c1;
 
-  /* Chart Colors (Aquiry Palette) */
-  --chart-1: #6f42c1; /* Purple */
-  --chart-2: #00d25b; /* Green/Teal */
-  --chart-3: #ffab00; /* Amber */
-  --chart-4: #ff5b5c; /* Red/Pink */
-  --chart-5: #0090e7; /* Blue */
+  /* Chart Colors */
+  --chart-1: #6f42c1; 
+  --chart-2: #00d25b; 
+  --chart-3: #ffab00; 
+  --chart-4: #ff5b5c; 
+  --chart-5: #0090e7; 
 }
+
+/* THEME OVERRIDES based on provided images */
+
+/* Skydash: Indigo #4B49AC */
+.theme-skydash {
+  --primary: #4B49AC;
+  --ring: #4B49AC;
+  --sidebar-primary: #4B49AC;
+  --sidebar-ring: #4B49AC;
+  --accent-foreground: #4B49AC;
+  --chart-1: #4B49AC;
+}
+
+/* StarAdmin: Orange #F29F67 */
+.theme-orange {
+  --primary: #F29F67;
+  --ring: #F29F67;
+  --sidebar-primary: #F29F67;
+  --sidebar-ring: #F29F67;
+  --accent-foreground: #F29F67;
+  --chart-1: #F29F67;
+}
+
+/* Stellar: Green #38CE3C */
+.theme-green {
+  --primary: #38CE3C;
+  --ring: #38CE3C;
+  --sidebar-primary: #38CE3C;
+  --sidebar-ring: #38CE3C;
+  --accent-foreground: #38CE3C;
+  --chart-1: #38CE3C;
+}
+
+/* Breeze: Cyan #00CCCD */
+.theme-cyan {
+  --primary: #00CCCD;
+  --ring: #00CCCD;
+  --sidebar-primary: #00CCCD;
+  --sidebar-ring: #00CCCD;
+  --accent-foreground: #00CCCD;
+  --chart-1: #00CCCD;
+}
+
+/* Pollux: Violet #844FC1 */
+.theme-violet {
+  --primary: #844FC1;
+  --ring: #844FC1;
+  --sidebar-primary: #844FC1;
+  --sidebar-ring: #844FC1;
+  --accent-foreground: #844FC1;
+  --chart-1: #844FC1;
+}
+
 
 .dark {
   /* Aquiry Dark Mode */
-  --background: #0b0c15; /* Very Deep Navy/Black */
+  --background: #0b0c15;
   --foreground: #e1e1e6;
   
-  --card: #161925; /* Sidebar color becomes card color in dark mode */
+  --card: #161925;
   --card-foreground: #e1e1e6;
 
   --popover: #161925;
   --popover-foreground: #e1e1e6;
 
-  /* Primary remains vibrant */
-  --primary: #8a5cd6; /* Lighter Purple for dark mode contrast */
+  /* Primary remains vibrant but uses CSS variable to adapt to class */
   --primary-foreground: #ffffff;
 
   --secondary: #202336;
@@ -90,19 +142,14 @@
 
   --border: #202336;
   --input: #202336;
-  --ring: #8a5cd6;
-
-  /* Sidebar remains dark but blends more */
+  
+  /* Sidebar */
   --sidebar: #0f111a; 
   --sidebar-foreground: #9899ac;
-  --sidebar-primary: #8a5cd6;
-  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #202336;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #202336;
-  --sidebar-ring: #8a5cd6;
   
-  --chart-1: #8a5cd6;
   --chart-2: #00d25b;
   --chart-3: #ffab00;
   --chart-4: #ff5b5c;

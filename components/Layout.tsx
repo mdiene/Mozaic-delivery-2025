@@ -17,7 +17,9 @@ import {
   Eye,
   Layers,
   Network,
-  ChevronRight
+  ChevronRight,
+  Check,
+  Palette
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -41,7 +43,27 @@ export const useProject = () => {
   return context;
 };
 
-const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v: boolean) => void }) => {
+// Available Themes from Images
+const THEMES = [
+  { id: 'default', name: 'Azia', color: '#6F42C1' },      // Default Purple
+  { id: 'theme-skydash', name: 'Skydash', color: '#4B49AC' }, // Indigo
+  { id: 'theme-orange', name: 'StarAdmin', color: '#F29F67' }, // Orange
+  { id: 'theme-green', name: 'Stellar', color: '#38CE3C' },   // Green
+  { id: 'theme-cyan', name: 'Breeze', color: '#00CCCD' },     // Cyan
+  { id: 'theme-violet', name: 'Pollux', color: '#844FC1' },   // Violet
+];
+
+const Sidebar = ({ 
+  expanded, 
+  setExpanded,
+  currentTheme,
+  setCurrentTheme
+}: { 
+  expanded: boolean, 
+  setExpanded: (v: boolean) => void,
+  currentTheme: string,
+  setCurrentTheme: (t: string) => void
+}) => {
   const location = useLocation();
 
   const mainNavItems = [
@@ -64,7 +86,7 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
       {/* Logo Area */}
       <div className="flex h-20 items-center justify-center border-b border-sidebar-border/50">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sidebar-primary to-indigo-600 flex items-center justify-center font-bold text-white shadow-glow">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sidebar-primary to-white/20 flex items-center justify-center font-bold text-white shadow-glow transition-colors duration-300">
             M
           </div>
           {expanded && (
@@ -133,11 +155,52 @@ const Sidebar = ({ expanded, setExpanded }: { expanded: boolean, setExpanded: (v
         </NavLink>
       </nav>
 
+      {/* Theme Selector (Fixed at bottom above profile) */}
+      <div className="absolute bottom-20 w-full px-4">
+        <div className={`transition-all duration-300 ${expanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-sidebar-foreground/50 tracking-widest">
+            <Palette size={12} />
+            <span>Thèmes</span>
+          </div>
+          
+          <div className="relative group">
+            <div 
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-white/20 shadow-sm pointer-events-none z-10"
+              style={{ backgroundColor: THEMES.find(t => t.id === currentTheme)?.color }}
+            ></div>
+            <select
+              value={currentTheme}
+              onChange={(e) => setCurrentTheme(e.target.value)}
+              className="w-full appearance-none bg-sidebar-accent/50 hover:bg-sidebar-accent border border-sidebar-border text-sidebar-foreground text-sm rounded-xl pl-9 pr-8 py-2.5 focus:outline-none focus:ring-1 focus:ring-sidebar-primary cursor-pointer transition-colors"
+            >
+              {THEMES.map((theme) => (
+                <option key={theme.id} value={theme.id} className="bg-sidebar-accent text-sidebar-foreground">
+                  {theme.name}
+                </option>
+              ))}
+            </select>
+            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-sidebar-foreground/50 pointer-events-none" size={14} />
+          </div>
+        </div>
+        
+        {/* Minimized Theme Icon when sidebar is closed */}
+        {!expanded && (
+           <div className="flex justify-center mb-2">
+             <div 
+               className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg border border-white/10"
+               style={{ backgroundColor: THEMES.find(t => t.id === currentTheme)?.color }}
+             >
+               <Palette size={14} className="text-white" />
+             </div>
+           </div>
+        )}
+      </div>
+
       {/* Footer / User Profile */}
-      <div className="absolute bottom-0 w-full p-4">
+      <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border/50 bg-sidebar">
         <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${expanded ? 'bg-sidebar-accent' : ''}`}>
           <div className="relative">
-             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 text-white shadow-lg">
+             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-sidebar-primary to-white/20 text-white shadow-lg transition-colors duration-300">
                 <User size={18} />
              </div>
              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-sidebar-accent"></span>
@@ -184,7 +247,7 @@ const Header = ({
               onClick={() => setSelectedProject('all')}
               className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
                 selectedProject === 'all'
-                  ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-glow'
+                  ? 'bg-gradient-to-r from-primary to-purple-600/50 text-white shadow-glow'
                   : 'bg-white dark:bg-card text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
@@ -196,7 +259,7 @@ const Header = ({
                 onClick={() => setSelectedProject(p.id)}
                 className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
                   selectedProject === p.id
-                    ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-glow'
+                    ? 'bg-gradient-to-r from-primary to-purple-600/50 text-white shadow-glow'
                     : 'bg-white dark:bg-card text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
@@ -250,6 +313,7 @@ const Header = ({
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [expanded, setExpanded] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState('default');
   
   // Project State lifted to Layout
   const [projects, setProjects] = useState<Project[]>([]);
@@ -259,15 +323,28 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     db.getProjects().then(setProjects).catch(console.error);
   }, []);
 
-  // Apply Theme
+  // Apply Theme & Dark Mode
   useEffect(() => {
     const root = window.document.documentElement;
+    
+    // Handle Dark Mode
     if (isDarkMode) {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-  }, [isDarkMode]);
+
+    // Handle Color Theme
+    // Remove all previous theme classes
+    THEMES.forEach(t => {
+      if (t.id !== 'default') root.classList.remove(t.id);
+    });
+
+    // Add new theme class if not default
+    if (currentTheme !== 'default') {
+      root.classList.add(currentTheme);
+    }
+  }, [isDarkMode, currentTheme]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -276,7 +353,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <ProjectContext.Provider value={{ projects, selectedProject, setSelectedProject }}>
       <div className="min-h-screen bg-background text-foreground transition-colors duration-300 font-sans">
-        <Sidebar expanded={expanded} setExpanded={setExpanded} />
+        <Sidebar 
+          expanded={expanded} 
+          setExpanded={setExpanded} 
+          currentTheme={currentTheme}
+          setCurrentTheme={setCurrentTheme}
+        />
         <div className={`transition-all duration-300 ease-in-out ${expanded ? 'pl-64' : 'pl-20'}`}>
           <Header 
             isDarkMode={isDarkMode}
