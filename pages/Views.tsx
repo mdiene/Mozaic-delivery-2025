@@ -2,7 +2,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView, Project } from '../types';
-import { FileText, Gift, Download, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck } from 'lucide-react';
+import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const Views = () => {
   const [activeTab, setActiveTab] = useState<'bon_livraison' | 'fin_cession'>('bon_livraison');
@@ -10,6 +12,7 @@ export const Views = () => {
   const [fcData, setFcData] = useState<FinDeCessionView[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Filters
   const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<number | 'all'>('all');
@@ -18,12 +21,29 @@ export const Views = () => {
   const [blGroupBy, setBlGroupBy] = useState<'none' | 'operator' | 'region' | 'date'>('none');
   const [fcGroupBy, setFcGroupBy] = useState<'none' | 'region'>('none');
 
+  // Load Projects and set default filter ONCE on mount
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const proj = await db.getProjects();
+        setProjects(proj);
+        
+        // Auto-select Phase 3 if available
+        const phase3 = proj.find(p => p.numero_phase === 3);
+        if (phase3) {
+          setSelectedPhaseFilter(phase3.numero_phase);
+        }
+      } catch (e) {
+        console.error("Error loading projects:", e);
+      }
+    };
+    loadProjects();
+  }, []);
+
+  // Load Tab Data when tab changes
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const [proj] = await Promise.all([db.getProjects()]);
-      setProjects(proj);
-
       if (activeTab === 'bon_livraison') {
         const data = await db.getBonLivraisonViews();
         // Default sort: Earliest to Latest Date
@@ -111,110 +131,256 @@ export const Views = () => {
     }));
   }, [filteredFcData, fcGroupBy]);
 
-  const handlePrintBonLivraison = (item: BonLivraisonView) => {
-    // Format Trailer string: if exists, add separator
-    const trailerStr = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
-    
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>BL ${item.bl_number} - ${item.operator_name}</title>
-          <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,900" rel="stylesheet">
-          <style>
-            @page { size: A4; margin: 1.5cm; }
-            body { 
-              font-family: 'Lato', sans-serif; 
-              color: #000; 
-              max-width: 210mm; 
-              margin: 0 auto; 
-              background: white;
-              font-size: 13px;
-              line-height: 1.4;
-              position: relative;
-              min-height: 280mm;
-            }
-            /* ... (CSS Content remains unchanged) ... */
-          </style>
-        </head>
-        <body>
-           <!-- ... (Print Content remains unchanged) ... -->
-        </body>
-      </html>
-    `;
-    // ... (rest of print logic same as original, just truncated for brevity as logic is unchanged)
+  // PDF Download Handler (using jsPDF)
+  const downloadBLPdf = (item: BonLivraisonView) => {
+    setDownloadingId(item.bl_number);
+    try {
+      const doc = new jsPDF();
+      
+      // Header Logo Representation (Colored Bars)
+      doc.setFillColor(224, 155, 96); // #e09b60 (Top)
+      doc.rect(15, 15, 8, 2, 'F');
+      doc.setFillColor(191, 161, 47); // #bfa12f (Mid)
+      doc.rect(15, 18, 9, 2, 'F');
+      doc.setFillColor(114, 140, 40); // #728c28 (Bot)
+      doc.rect(15, 21, 8.5, 2, 'F');
+      
+      // Logo Text "SOMA"
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(28);
+      doc.text("SOMA", 30, 25);
+      
+      // Vertical Company Name
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text("SOCIÉTÉ", 70, 18);
+      doc.text("MINIÈRE", 70, 22);
+      doc.text("AFRICAINE", 70, 26);
+      doc.setLineWidth(0.5);
+      doc.line(65, 15, 65, 28); // Vertical line
 
-    // Re-instantiate full logic for XML output requirement
-    const win = window.open('', '_blank');
-    if (win) {
-       // Since I cannot output 300 lines of unchanged print logic here comfortably, 
-       // I will assume the print logic is maintained as is. 
-       // NOTE: In a real diff I would include it. 
-       // For this response, I will focus on the filter change.
-       // Re-inserting the existing print logic from the file provided in prompt.
-       
-       /* RE-INSERTING FULL ORIGINAL PRINT LOGIC */
-       const content = `<!DOCTYPE html><html><head><title>BL ${item.bl_number}</title></head><body>Print Preview... (Full content preserved)</body></html>`;
-       // To avoid XML size limit, I'm simplifying this part in my thought process, 
-       // but will output FULL file content in the XML block below.
+      // Title
+      doc.setFillColor(255, 249, 230); // #fff9e6
+      doc.rect(15, 35, 180, 10, 'F');
+      doc.setDrawColor(217, 119, 6); // #d97706
+      doc.setLineWidth(1.5);
+      doc.line(15, 35, 15, 45); // Left orange border
+      doc.setFontSize(16);
+      doc.setTextColor(60, 60, 60);
+      doc.text("BON DE LIVRAISON", 20, 42);
+
+      // Info Grid
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      
+      // Left: Sender
+      doc.setFont("helvetica", "bold");
+      doc.text("SOCIETE MINIERE AFRICAINE", 15, 55);
+      doc.setFont("helvetica", "normal");
+      doc.text("11 rue Alfred goux", 15, 60);
+      doc.text("Apt N1 1er Etage Dakar Plateau Sénégal", 15, 65);
+      doc.text("TEL : 77 260 95 67", 15, 70);
+      
+      // Programme Box
+      doc.setFontSize(9);
+      doc.text("PROGRAMME", 15, 80);
+      doc.setFillColor(249, 250, 251);
+      doc.rect(15, 82, 80, 8, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.text("MASAE campagne agricole 2025/2026", 17, 87);
+
+      // Right: Recipient & BL Info
+      // Date
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("DATE DE LIVRAISON", 120, 55);
+      doc.setFont("courier", "normal");
+      doc.text(new Date(item.delivery_date).toLocaleDateString('fr-FR'), 160, 55);
+      
+      // BL Num
+      doc.setFont("helvetica", "bold");
+      doc.text("NUMERO BL", 120, 62);
+      doc.setFillColor(238, 238, 238);
+      doc.rect(155, 58, 40, 6, 'F');
+      doc.setFont("courier", "bold");
+      doc.setFontSize(11);
+      doc.text(item.bl_number, 158, 62);
+
+      // Recipient Box
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.1);
+      doc.rect(120, 70, 75, 25);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text("DESTINATAIRE", 122, 74);
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text(item.operator_name, 122, 79);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text("EXPÉDIEZ À", 122, 85);
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${item.commune}, ${item.department}`, 122, 90);
+      if (item.operator_coop_name) {
+         doc.setFontSize(8);
+         doc.setTextColor(80, 80, 80);
+         doc.text(item.operator_coop_name, 122, 94);
+      }
+
+      // Modalites
+      doc.setFillColor(249, 250, 251);
+      doc.rect(15, 100, 180, 12, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text("Modalités", 17, 104);
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      const trailerStr = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
+      doc.text(`Camion: ${item.truck_plate_number || '____________'}${trailerStr}      Chauffeur: ${item.driver_name || '____________'}`, 17, 109);
+
+      // Table
+      autoTable(doc, {
+        startY: 115,
+        head: [['DESCRIPTION', 'Quantité / Tonnes']],
+        body: [
+          [
+            { 
+              content: `Engrais à base de phosphate naturel\nSac de 50 kg – Campagne agricole 2025-2026\nProjet Phase ${item.numero_phase} (Bon N° ${item.project_num_bon})`, 
+              styles: { fontStyle: 'bold' } 
+            }, 
+            { content: `${item.tonnage_loaded}`, styles: { halign: 'right', fontStyle: 'bold', fontSize: 12 } }
+          ],
+          ['', ''], // Spacer
+          ['SOUS-TOTAL', { content: `${item.tonnage_loaded}`, styles: { halign: 'right', fontStyle: 'bold' } }]
+        ],
+        theme: 'plain',
+        headStyles: { fillColor: [255, 249, 230], textColor: [0, 0, 0], fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 4 },
+        columnStyles: {
+          0: { cellWidth: 130 },
+          1: { cellWidth: 50 }
+        },
+        didParseCell: (data) => {
+           if (data.row.index === 2) {
+              data.cell.styles.fillColor = [240, 253, 244]; // Light green for total
+              data.cell.styles.lineWidth = { top: 0.1 };
+           }
+        }
+      });
+
+      // Footer Signatures
+      const finalY = (doc as any).lastAutoTable.finalY + 15;
+      
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "italic");
+      doc.text("Remarques / instructions : Marchandise reçue en bon état.", 15, finalY);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("Réceptionnaire", 15, finalY + 15);
+      doc.text("Signature SOMA", 140, finalY + 15);
+      doc.setLineWidth(0.5);
+      doc.line(15, finalY + 16, 60, finalY + 16);
+      doc.line(140, finalY + 16, 185, finalY + 16);
+
+      doc.setFont("helvetica", "normal");
+      doc.text(item.operator_name, 15, finalY + 22);
+      if (item.operator_contact_info) {
+         doc.setFontSize(8);
+         doc.text(item.operator_contact_info, 15, finalY + 26);
+      }
+
+      // Cachet Simulation
+      doc.setDrawColor(30, 58, 138); // #1e3a8a Blue
+      doc.setLineWidth(0.8);
+      // Rotate context
+      doc.saveGraphicsState();
+      doc.setTextColor(30, 58, 138);
+      doc.text("SOCIETE MINIERE AFRICAINE", 140, finalY + 30);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text('" SOMA "', 155, finalY + 36);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("11, Rue Alfred Goux", 150, finalY + 40);
+      doc.text("Le Directeur Général", 150, finalY + 44);
+      doc.roundedRect(138, finalY + 22, 50, 25, 3, 3);
+      doc.restoreGraphicsState();
+
+      // Footer Text
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 100);
+      doc.text("SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage", 105, 285, { align: 'center' });
+      doc.text("Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 mdiene@gmail.com", 105, 289, { align: 'center' });
+
+      doc.save(`${item.bl_number} - ${item.operator_name}.pdf`);
+    } catch (e) {
+      console.error("PDF Generation Error:", e);
+      alert("Erreur lors de la génération du PDF.");
+    } finally {
+      setDownloadingId(null);
     }
   };
-  
-  // Re-implementing FULL print functions to ensure file integrity in XML output
+
   const fullPrintBL = (item: BonLivraisonView) => {
       const trailerStr = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
       const printContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>BL ${item.bl_number} - ${item.operator_name}</title>
+          <title>${item.bl_number} - ${item.operator_name}</title>
           <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,900" rel="stylesheet">
           <style>
-            @page { size: A4; margin: 1.5cm; }
+            @page { size: A4; margin: 0.8cm; }
             body { 
               font-family: 'Lato', sans-serif; 
               color: #000; 
-              max-width: 210mm; 
               margin: 0 auto; 
               background: white;
-              font-size: 13px;
-              line-height: 1.4;
+              font-size: 11px;
+              line-height: 1.3;
               position: relative;
-              min-height: 280mm;
+              height: 100vh;
+              width: 100%;
+              box-sizing: border-box;
             }
-            .header-container { display: flex; align-items: center; margin-bottom: 20px; }
-            .logo-container { display: flex; align-items: center; gap: 10px; }
-            .logo-graphic { width: 60px; height: 50px; display: flex; flex-direction: column; gap: 3px; }
-            .logo-bar { height: 12px; border-radius: 20px 0 20px 0; width: 100%; }
+            .header-container { display: flex; align-items: center; margin-bottom: 15px; }
+            .logo-container { display: flex; align-items: center; gap: 8px; }
+            .logo-graphic { width: 50px; height: 40px; display: flex; flex-direction: column; gap: 2px; }
+            .logo-bar { height: 10px; border-radius: 20px 0 20px 0; width: 100%; }
             .logo-bar.top { background-color: #e09b60; width: 80%; align-self: flex-start; }
             .logo-bar.mid { background-color: #bfa12f; width: 90%; }
             .logo-bar.bot { background-color: #728c28; width: 85%; border-radius: 0 20px 0 20px; align-self: flex-end; }
-            .logo-divider { width: 5px; height: 55px; background-color: #ff8c00; margin: 0 15px; }
-            .logo-text { font-family: sans-serif; font-weight: 900; font-size: 60px; letter-spacing: -3px; line-height: 1; }
+            .logo-divider { width: 4px; height: 45px; background-color: #ff8c00; margin: 0 12px; }
+            .logo-text { font-family: sans-serif; font-weight: 900; font-size: 50px; letter-spacing: -2px; line-height: 1; }
             .logo-text .dot-o { position: relative; display: inline-block; }
-            .logo-text .dot-o::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; background: black; border-radius: 50%; }
-            .company-name-vertical { border-left: 2px dotted #999; padding-left: 15px; font-weight: 700; text-transform: uppercase; font-size: 16px; line-height: 1.1; color: #000; margin-left: 20px; }
-            .main-title-box { background-color: #fff9e6; padding: 15px; margin-top: 15px; margin-bottom: 20px; border-left: 5px solid #d97706; }
-            .main-title { font-size: 28px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 1px; }
-            .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-            .info-block { margin-bottom: 10px; }
-            .info-label { font-weight: bold; text-transform: uppercase; font-size: 11px; color: #444; margin-bottom: 2px; }
-            .info-value { font-size: 14px; border-bottom: 1px dotted #ccc; padding-bottom: 2px; }
-            .sender-info { font-size: 12px; margin-bottom: 20px; color: #333; }
-            .modalites-box { border: 1px solid #ddd; padding: 10px; margin: 20px 0; background: #f9fafb; }
+            .logo-text .dot-o::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: black; border-radius: 50%; }
+            .company-name-vertical { border-left: 2px dotted #999; padding-left: 12px; font-weight: 700; text-transform: uppercase; font-size: 14px; line-height: 1.1; color: #000; margin-left: 15px; }
+            .main-title-box { background-color: #fff9e6; padding: 10px; margin-top: 10px; margin-bottom: 15px; border-left: 5px solid #d97706; }
+            .main-title { font-size: 24px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+            .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+            .info-block { margin-bottom: 8px; }
+            .info-label { font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px; }
+            .info-value { font-size: 12px; border-bottom: 1px dotted #ccc; padding-bottom: 2px; }
+            .sender-info { font-size: 11px; margin-bottom: 15px; color: #333; }
+            .modalites-box { border: 1px solid #ddd; padding: 12px; margin: 30px 0 20px 0; background: #f9fafb; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th { text-align: left; background-color: #fff9e6; padding: 8px; font-weight: bold; text-transform: uppercase; font-size: 11px; border-bottom: 2px solid #ddd; }
-            td { padding: 12px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+            th { text-align: left; background-color: #fff9e6; padding: 8px 6px; font-weight: bold; text-transform: uppercase; font-size: 10px; border-bottom: 2px solid #ddd; }
+            td { padding: 18px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
             .total-row td { background-color: #f0fdf4; font-weight: bold; border-top: 2px solid #ddd; }
-            .footer-section { margin-top: 40px; display: flex; justify-content: space-between; }
-            .signature-box { width: 45%; position: relative; min-height: 150px; }
-            .signature-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid #000; display: inline-block; padding-bottom: 2px; }
-            .cachet-box { border: 4px solid #1e3a8a; border-radius: 10px; padding: 8px 15px; color: #1e3a8a; font-family: 'Courier New', Courier, monospace; font-weight: 900; text-align: center; transform: rotate(-2deg); position: absolute; top: 40px; left: 20px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.1); z-index: 10; font-size: 14px; }
-            .cachet-title { font-size: 16px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: -0.5px; }
-            .cachet-sub { font-size: 22px; margin-bottom: 2px; }
-            .cachet-addr { font-size: 12px; line-height: 1.2; }
-            .watermark { position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 120px; color: rgba(255, 200, 0, 0.05); font-weight: 900; z-index: -1; pointer-events: none; }
-            .doc-footer { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #333; border-top: 1px solid #ccc; padding-top: 10px; }
+            .footer-section { margin-top: 30px; display: flex; justify-content: space-between; }
+            .signature-box { width: 45%; position: relative; min-height: 120px; }
+            .signature-title { font-weight: bold; font-size: 12px; margin-bottom: 8px; border-bottom: 1px solid #000; display: inline-block; padding-bottom: 2px; }
+            .cachet-box { border: 3px solid #1e3a8a; border-radius: 8px; padding: 5px 10px; color: #1e3a8a; font-family: 'Courier New', Courier, monospace; font-weight: 900; text-align: center; transform: rotate(-2deg); position: absolute; top: 30px; left: 10px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.1); z-index: 10; font-size: 12px; }
+            .cachet-title { font-size: 14px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: -0.5px; }
+            .cachet-sub { font-size: 18px; margin-bottom: 2px; }
+            .cachet-addr { font-size: 10px; line-height: 1.2; }
+            .watermark { position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 100px; color: rgba(255, 200, 0, 0.05); font-weight: 900; z-index: -1; pointer-events: none; }
+            .doc-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; color: #333; border-top: 1px solid #ccc; padding-top: 8px; padding-bottom: 8px; background: white; }
           </style>
         </head>
         <body>
@@ -227,29 +393,29 @@ export const Views = () => {
           <div class="grid-container">
              <div>
                 <div class="sender-info"><strong>SOCIETE MINIERE AFRICAINE</strong><br/>11 rue Alfred goux<br/>Apt N1 1er Etage Dakar Plateau Sénégal<br/>TEL : 77 260 95 67</div>
-                <div style="margin-top: 20px;"><div class="info-label">Programme</div><div class="info-value" style="border:none; background:#f9f9f9; padding:8px; font-weight:bold;">MASAE campagne agricole 2025/2026</div></div>
+                <div style="margin-top: 15px;"><div class="info-label">Programme</div><div class="info-value" style="border:none; background:#f9f9f9; padding:6px; font-weight:bold;">MASAE campagne agricole 2025/2026</div></div>
              </div>
              <div style="text-align: right;">
-                <div style="margin-bottom: 15px;"><span style="font-weight:bold; margin-right: 10px;">DATE DE LIVRAISON</span><span style="border-bottom: 1px dotted #000; padding: 0 10px; font-family: monospace; font-size: 14px;">${new Date(item.delivery_date).toLocaleDateString('fr-FR')}</span></div>
-                <div style="margin-bottom: 15px;"><span style="font-weight:bold; margin-right: 10px;">NUMERO BL</span><span style="background: #eee; padding: 5px 10px; font-family: monospace; font-weight:bold; font-size: 14px;">${item.bl_number}</span></div>
-                <div style="text-align: left; margin-top: 20px; border: 1px solid #ccc; padding: 10px;">
-                   <div class="info-label">DESTINATAIRE</div><div style="font-weight:bold; font-size:16px; margin-bottom:5px;">${item.operator_name}</div>
-                   <div class="info-label" style="margin-top:10px;">EXPÉDIEZ À</div><div>${item.region} / ${item.department}</div><div style="font-weight:bold;">${item.commune}</div><div style="font-size:11px; color:#666;">${item.operator_coop_name || ''}</div>
+                <div style="margin-bottom: 10px;"><span style="font-weight:bold; margin-right: 10px;">DATE DE LIVRAISON</span><span style="border-bottom: 1px dotted #000; padding: 0 10px; font-family: monospace; font-size: 12px;">${new Date(item.delivery_date).toLocaleDateString('fr-FR')}</span></div>
+                <div style="margin-bottom: 10px;"><span style="font-weight:bold; margin-right: 10px;">NUMERO BL</span><span style="background: #eee; padding: 4px 8px; font-family: monospace; font-weight:bold; font-size: 13px;">${item.bl_number}</span></div>
+                <div style="text-align: left; margin-top: 15px; border: 1px solid #ccc; padding: 8px;">
+                   <div class="info-label">DESTINATAIRE</div><div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${item.operator_name}</div>
+                   <div class="info-label" style="margin-top:8px;">EXPÉDIEZ À</div><div>${item.region} / ${item.department}</div><div style="font-weight:bold;">${item.commune}</div><div style="font-size:10px; color:#666;">${item.operator_coop_name || ''}</div>
                 </div>
              </div>
           </div>
-          <div class="modalites-box"><div class="info-label">Modalités</div><div style="margin-top: 5px; font-size: 14px;"><span style="margin-right: 20px;">Camion de transport N : <strong>${item.truck_plate_number || '________________'}${trailerStr}</strong></span><span>Chauffeur : <strong>${item.driver_name || '________________'}</strong></span></div></div>
+          <div class="modalites-box"><div class="info-label">Modalités</div><div style="margin-top: 4px; font-size: 12px;"><span style="margin-right: 20px;">Camion de transport N : <strong>${item.truck_plate_number || '________________'}${trailerStr}</strong></span><span>Chauffeur : <strong>${item.driver_name || '________________'}</strong></span></div></div>
           <table>
              <thead><tr><th width="70%">DESCRIPTION</th><th width="30%" style="text-align:right;">Quantité / Tonnes</th></tr></thead>
              <tbody>
-                <tr><td><strong>Engrais à base de phosphate naturel</strong><br/><span style="font-size:11px; color:#555;">Sac de 50 kg – Campagne agricole 2025-2026</span><br/><span style="font-size:11px; color:#555;">Projet Phase ${item.numero_phase} (Bon N° ${item.project_num_bon})</span></td><td style="text-align:right; font-size:16px; font-weight:bold;">${item.tonnage_loaded}</td></tr>
+                <tr><td><strong>Engrais à base de phosphate naturel</strong><br/><span style="font-size:10px; color:#555;">Sac de 50 kg – Campagne agricole 2025-2026</span><br/><span style="font-size:10px; color:#555;">Projet Phase ${item.numero_phase} (Bon N° ${item.project_num_bon})</span></td><td style="text-align:right; font-size:14px; font-weight:bold;">${item.tonnage_loaded}</td></tr>
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td></tr>
                 <tr class="total-row"><td style="text-align:right; padding-right: 20px;">SOUS-TOTAL</td><td style="text-align:right;">${item.tonnage_loaded}</td></tr>
              </tbody>
           </table>
-          <div style="margin-top: 20px; font-size: 11px; color: #555; font-style: italic;">Remarques /instructions : Marchandise reçue en bon état.</div>
+          <div style="margin-top: 15px; font-size: 10px; color: #555; font-style: italic;">Remarques /instructions : Marchandise reçue en bon état.</div>
           <div class="footer-section">
-             <div class="signature-box"><div class="signature-title">Réceptionnaire</div><div>${item.operator_name}</div><div style="margin-top:5px; font-size:11px;">${item.operator_contact_info || ''}</div></div>
+             <div class="signature-box"><div class="signature-title">Réceptionnaire</div><div>${item.operator_name}</div><div style="margin-top:5px; font-size:10px;">${item.operator_contact_info || ''}</div></div>
              <div class="signature-box" style="text-align: right;"><div class="signature-title">Signature SOMA</div><div class="cachet-box" style="left: auto; right: 0;"><div class="cachet-title">SOCIETE MINIERE AFRICAINE</div><div class="cachet-sub">" SOMA "</div><div class="cachet-addr">11, Rue Alfred Goux<br/>Le Directeur Général</div></div></div>
           </div>
           <div class="doc-footer">SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage<br/>Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 mdiene@gmail.com</div>
@@ -398,30 +564,30 @@ export const Views = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left whitespace-nowrap">
-                  <thead className="bg-muted/50 border-b border-border">
+              <div className="w-full overflow-x-auto">
+                <table className="table table-striped">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">N° BL</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Date</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Opérateur / Détails</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Localisation</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Actions</th>
+                      <th>N° BL</th>
+                      <th>Date</th>
+                      <th>Opérateur / Détails</th>
+                      <th>Localisation</th>
+                      <th className="text-center">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody>
                     {groupedBlData.map((group) => (
                       <React.Fragment key={group.key}>
                         {blGroupBy !== 'none' && (
-                          <tr className="bg-muted/30 border-y border-border">
+                          <tr className="bg-muted/30">
                             <td colSpan={5} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
                               {group.key} ({group.items.length}) - Total: {group.total} T
                             </td>
                           </tr>
                         )}
                         {group.items.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-6 py-4">
+                          <tr key={idx}>
+                            <td>
                                <div className="flex flex-col">
                                   <span className="font-mono font-medium text-foreground">{item.bl_number}</span>
                                   {/* Caption Added under N° BL */}
@@ -430,10 +596,10 @@ export const Views = () => {
                                   </span>
                                </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                            <td className="text-sm text-muted-foreground">
                               {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}
                             </td>
-                            <td className="px-6 py-4">
+                            <td>
                               <div className="flex flex-col gap-1">
                                 <span className="text-sm font-bold text-foreground">{item.operator_name}</span>
                                 {item.operator_coop_name && (
@@ -449,17 +615,27 @@ export const Views = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                            <td className="text-sm text-muted-foreground">
                               {item.commune}, {item.department}, {item.region}
                             </td>
-                            <td className="px-6 py-4 text-center">
-                               <button 
-                                 onClick={() => fullPrintBL(item)}
-                                 className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center gap-1 text-sm font-medium"
-                                 title="Imprimer BL"
-                               >
-                                  <Printer size={16} /> Imprimer
-                               </button>
+                            <td className="text-center">
+                               <div className="flex items-center justify-center gap-2">
+                                  <button 
+                                    onClick={() => downloadBLPdf(item)}
+                                    disabled={downloadingId === item.bl_number}
+                                    className={`btn btn-text btn-sm text-blue-500 hover:bg-blue-50 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2 ${downloadingId === item.bl_number ? 'opacity-50 cursor-wait' : ''}`}
+                                    title={`${item.bl_number} - ${item.operator_name}.pdf`}
+                                  >
+                                      <Download size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => fullPrintBL(item)}
+                                    className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2"
+                                    title="Imprimer BL"
+                                  >
+                                      <Printer size={16} />
+                                  </button>
+                               </div>
                             </td>
                           </tr>
                         ))}
@@ -484,31 +660,31 @@ export const Views = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left whitespace-nowrap">
-                  <thead className="bg-muted/50 border-b border-border">
+              <div className="w-full overflow-x-auto">
+                <table className="table table-striped">
+                  <thead>
                     <tr>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Opérateur</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Localisation</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Phase Projet</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Nbr Livraisons</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-right">Tonnage Total</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase text-center">Actions</th>
+                      <th>Opérateur</th>
+                      <th>Localisation</th>
+                      <th>Phase Projet</th>
+                      <th className="text-center">Nbr Livraisons</th>
+                      <th className="text-right">Tonnage Total</th>
+                      <th className="text-center">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody>
                     {groupedFcData.map((group) => (
                       <React.Fragment key={group.key}>
                         {fcGroupBy !== 'none' && (
-                          <tr className="bg-muted/30 border-y border-border">
+                          <tr className="bg-muted/30">
                             <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
                               Région: {group.key} ({group.items.length}) - Total: {group.total} T
                             </td>
                           </tr>
                         )}
                         {group.items.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-6 py-4">
+                          <tr key={idx}>
+                            <td>
                               <div className="flex flex-col">
                                 <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
                                 {item.operator_coop_name && (
@@ -516,22 +692,22 @@ export const Views = () => {
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                            <td className="text-sm text-muted-foreground">
                               {item.commune}, {item.department}, {item.region}
                             </td>
-                            <td className="px-6 py-4 text-sm text-foreground">
+                            <td className="text-sm text-foreground">
                               Phase {item.project_phase}
                             </td>
-                            <td className="px-6 py-4 text-center font-mono text-sm text-foreground">
+                            <td className="text-center font-mono text-sm text-foreground">
                               {item.deliveries_count}
                             </td>
-                            <td className="px-6 py-4 text-right font-mono font-medium text-primary">
+                            <td className="text-right font-mono font-medium text-primary">
                               {item.total_tonnage} T
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="text-center">
                               <button 
                                 onClick={() => fullPrintFC(item)}
-                                className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center gap-1 text-sm font-medium"
+                                className="btn btn-text btn-sm text-primary hover:bg-primary/10 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2"
                                 title="Imprimer PV"
                               >
                                   <Printer size={16} /> Imprimer
