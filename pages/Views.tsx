@@ -245,6 +245,7 @@ export const Views = () => {
       // Table
       autoTable(doc, {
         startY: 115,
+        margin: { left: 15, right: 15 },
         head: [['DESCRIPTION', 'Quantité / Tonnes']],
         body: [
           [
@@ -261,7 +262,7 @@ export const Views = () => {
         headStyles: { fillColor: [255, 249, 230], textColor: [0, 0, 0], fontStyle: 'bold' },
         styles: { fontSize: 10, cellPadding: 4 },
         columnStyles: {
-          0: { cellWidth: 130 },
+          0: { cellWidth: 125 }, // Reduced to prevent overflow (125 + 50 = 175, fitting within margins)
           1: { cellWidth: 50 }
         },
         didParseCell: (data) => {

@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
-import { AllocationView, Project, Operator, Region, Department, Commune } from '../types';
-import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Truck, EyeOff, Eye } from 'lucide-react';
+import { AllocationView, Project, Operator, Region, Department, Commune, DeliveryView } from '../types';
+import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Truck, EyeOff, Eye, Printer, MapPin, Calendar, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 
@@ -26,9 +26,15 @@ export const Allocations = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [communes, setCommunes] = useState<Commune[]>([]);
 
-  // Modal State
+  // Edit/Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
+
+  // View/Preview Modal State
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [viewAllocation, setViewAllocation] = useState<AllocationView | null>(null);
+  const [viewDeliveries, setViewDeliveries] = useState<DeliveryView[]>([]);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -95,6 +101,31 @@ export const Allocations = () => {
       });
     }
     setIsModalOpen(true);
+  };
+
+  const handleViewAllocation = async (alloc: AllocationView) => {
+    setViewAllocation(alloc);
+    setIsViewOpen(true);
+    setViewLoading(true);
+    try {
+      // Fetch all deliveries then filter (simplest approach reusing existing service)
+      // In a larger app, you'd want a specific db.getDeliveriesByAllocation(id)
+      const allDeliveries = await db.getDeliveriesView();
+      const relevant = allDeliveries.filter(d => d.allocation_id === alloc.id);
+      
+      // Sort by date descending
+      relevant.sort((a, b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime());
+      
+      setViewDeliveries(relevant);
+    } catch (e) {
+      console.error("Error fetching deliveries for view", e);
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  const handlePrintView = () => {
+    window.print();
   };
 
   const handleDelete = async (id: string) => {
@@ -493,6 +524,13 @@ export const Allocations = () => {
                       </td>
                       <td className="text-right">
                          <div className="flex justify-end gap-1">
+                            <button 
+                                onClick={() => handleViewAllocation(alloc)}
+                                className="btn btn-circle btn-text btn-sm text-purple-600"
+                                title="Voir Détails"
+                            >
+                                <Eye size={16} />
+                            </button>
                             {alloc.status !== 'CLOSED' && (
                                <button 
                                  onClick={() => handleCreateDelivery(alloc)}
@@ -535,7 +573,7 @@ export const Allocations = () => {
         </table>
       </div>
 
-      {/* Modal */}
+      {/* CREATE/EDIT Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
@@ -707,6 +745,204 @@ export const Allocations = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* VIEW/PREVIEW Modal */}
+      {isViewOpen && viewAllocation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in print-modal-overlay">
+           <style>{`
+             @media print {
+               body > * { display: none !important; }
+               .print-modal-overlay { 
+                 position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                 background: white; z-index: 9999; display: flex !important; 
+                 align-items: flex-start; justify-content: center; overflow: visible;
+               }
+               .print-modal-content {
+                 box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important;
+               }
+               .no-print { display: none !important; }
+             }
+           `}</style>
+           <div className="bg-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-border print-modal-content">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
+                  <div className="flex items-center gap-3">
+                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <User size={20} />
+                     </div>
+                     <div>
+                        <h2 className="text-lg font-bold text-foreground leading-tight">{viewAllocation.operator_name}</h2>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                           <span>{viewAllocation.allocation_key}</span>
+                           <span className="w-1 h-1 rounded-full bg-border"></span>
+                           <span className={`px-1.5 rounded-sm font-bold ${
+                              viewAllocation.status === 'OPEN' ? 'bg-blue-100 text-blue-700' :
+                              viewAllocation.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' :
+                              viewAllocation.status === 'CLOSED' ? 'bg-slate-200 text-slate-700' : 'bg-red-100 text-red-700'
+                           }`}>{viewAllocation.status}</span>
+                        </div>
+                     </div>
+                  </div>
+                  <div className="flex items-center gap-2 no-print">
+                     <button 
+                       onClick={handlePrintView}
+                       className="flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary hover:bg-muted text-secondary-foreground rounded-lg transition-colors"
+                     >
+                        <Printer size={16} /> Imprimer
+                     </button>
+                     <button onClick={() => setIsViewOpen(false)} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full">
+                        <X size={20} />
+                     </button>
+                  </div>
+              </div>
+
+              <div className="p-6 space-y-8">
+                 {/* Section 1: Overview Grid */}
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
+                       <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          <MapPin size={12} /> Localisation
+                       </h4>
+                       <div className="space-y-1">
+                          <p className="text-sm font-semibold text-foreground">{viewAllocation.commune_name}</p>
+                          <p className="text-xs text-muted-foreground">{viewAllocation.department_name}, {viewAllocation.region_name}</p>
+                       </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                       <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          <Layers size={12} /> Projet
+                       </h4>
+                       <div className="space-y-1">
+                          <p className="text-sm font-semibold text-foreground">{viewAllocation.project_phase || 'Phase N/A'}</p>
+                          <p className="text-xs text-muted-foreground">Responsable: {viewAllocation.responsible_name}</p>
+                       </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30">
+                       <h4 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          <Calendar size={12} /> Activité
+                       </h4>
+                       <div className="space-y-1">
+                          <p className="text-sm font-semibold text-foreground">{viewDeliveries.length} Expédition(s)</p>
+                          <p className="text-xs text-muted-foreground">Dernière: {viewDeliveries[0] ? new Date(viewDeliveries[0].delivery_date).toLocaleDateString() : '-'}</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Section 2: Performance Comparison */}
+                 <div>
+                    <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                       <Layers size={16} className="text-primary" /> Performance & Quota
+                    </h3>
+                    <div className="bg-muted/20 p-6 rounded-2xl border border-border">
+                       <div className="flex items-end justify-between mb-2">
+                          <div>
+                             <span className="text-3xl font-bold text-primary">{viewAllocation.delivered_tonnage} T</span>
+                             <span className="text-sm text-muted-foreground ml-2">Livré</span>
+                          </div>
+                          <div className="text-right">
+                             <span className="text-sm text-muted-foreground block">Sur un objectif de</span>
+                             <span className="text-xl font-bold text-foreground">{viewAllocation.target_tonnage} T</span>
+                          </div>
+                       </div>
+                       
+                       {/* Progress Bar */}
+                       <div className="h-4 w-full bg-secondary rounded-full overflow-hidden mb-2">
+                          <div 
+                             className={`h-full transition-all duration-1000 ${
+                                viewAllocation.progress > 100 ? 'bg-red-500' : 'bg-primary'
+                             }`}
+                             style={{ width: `${Math.min(viewAllocation.progress, 100)}%` }}
+                          ></div>
+                       </div>
+                       
+                       <div className="flex justify-between text-xs font-medium">
+                          <span className="text-primary">{viewAllocation.progress.toFixed(1)}% Réalisé</span>
+                          <span className={viewAllocation.target_tonnage - viewAllocation.delivered_tonnage < 0 ? 'text-red-500' : 'text-muted-foreground'}>
+                             {Math.max(0, viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T Restant
+                             {viewAllocation.target_tonnage - viewAllocation.delivered_tonnage < 0 && ` (+${Math.abs(viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T Excès)`}
+                          </span>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Section 3: Fleet Involved */}
+                 <div>
+                    <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                       <Truck size={16} className="text-primary" /> Flotte Mobilisée
+                    </h3>
+                    {viewDeliveries.length > 0 ? (
+                       <div className="flex flex-wrap gap-2">
+                          {Array.from(new Set(viewDeliveries.map(d => `${d.truck_plate}|${d.driver_name}`))).map((combo: string, idx) => {
+                             const [plate, driver] = combo.split('|');
+                             return (
+                                <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg shadow-sm">
+                                   <div className="p-1 bg-muted rounded">
+                                      <Truck size={14} className="text-muted-foreground" />
+                                   </div>
+                                   <div>
+                                      <p className="text-xs font-bold text-foreground">{plate || 'Inconnu'}</p>
+                                      <p className="text-[10px] text-muted-foreground">{driver || 'Non assigné'}</p>
+                                   </div>
+                                </div>
+                             )
+                          })}
+                       </div>
+                    ) : (
+                       <p className="text-sm text-muted-foreground italic">Aucune livraison enregistrée.</p>
+                    )}
+                 </div>
+
+                 {/* Section 4: Deliveries List */}
+                 <div>
+                    <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                       <Package size={16} className="text-primary" /> Historique des Expéditions
+                    </h3>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                       <table className="w-full text-sm text-left">
+                          <thead className="bg-muted text-muted-foreground uppercase text-xs font-semibold">
+                             <tr>
+                                <th className="px-4 py-3">Date</th>
+                                <th className="px-4 py-3">N° BL</th>
+                                <th className="px-4 py-3">Camion</th>
+                                <th className="px-4 py-3 text-right">Tonnage</th>
+                             </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                             {viewLoading ? (
+                                <tr><td colSpan={4} className="p-4 text-center">Chargement...</td></tr>
+                             ) : viewDeliveries.length === 0 ? (
+                                <tr><td colSpan={4} className="p-4 text-center text-muted-foreground italic">Aucune donnée.</td></tr>
+                             ) : (
+                                viewDeliveries.map((d, i) => (
+                                   <tr key={i} className="hover:bg-muted/20">
+                                      <td className="px-4 py-3">{new Date(d.delivery_date).toLocaleDateString()}</td>
+                                      <td className="px-4 py-3 font-mono font-medium">{d.bl_number}</td>
+                                      <td className="px-4 py-3 text-muted-foreground text-xs">{d.truck_plate}</td>
+                                      <td className="px-4 py-3 text-right font-bold">{d.tonnage_loaded} T</td>
+                                   </tr>
+                                ))
+                             )}
+                          </tbody>
+                          {viewDeliveries.length > 0 && (
+                             <tfoot className="bg-muted/30 font-bold text-foreground">
+                                <tr>
+                                   <td colSpan={3} className="px-4 py-3 text-right">TOTAL CHARGÉ</td>
+                                   <td className="px-4 py-3 text-right text-primary">{viewAllocation.delivered_tonnage} T</td>
+                                </tr>
+                             </tfoot>
+                          )}
+                       </table>
+                    </div>
+                 </div>
+
+              </div>
+              
+              <div className="p-6 border-t border-border bg-muted/10 text-center text-xs text-muted-foreground no-print">
+                 Document généré le {new Date().toLocaleDateString()} via MASAE Tracker
+              </div>
+           </div>
         </div>
       )}
     </div>
