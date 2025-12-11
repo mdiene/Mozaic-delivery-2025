@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../services/db';
 import { AllocationView, Project, Operator, Region, Department, Commune, DeliveryView } from '../types';
-import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Truck, EyeOff, Eye, Printer, MapPin, Calendar, Package } from 'lucide-react';
+import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Truck, EyeOff, Eye, Printer, MapPin, Calendar, Package, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 
@@ -476,97 +476,131 @@ export const Allocations = () => {
                     </tr>
                   )}
                   
-                  {group.items.map((alloc) => (
-                    <tr key={alloc.id} className="hover:bg-muted/50 transition-colors">
-                      <td>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-foreground">{alloc.operator_name}</span>
-                          <span className="text-xs font-mono text-muted-foreground">{alloc.allocation_key}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="flex flex-col">
-                          <span className="text-sm text-foreground">{alloc.commune_name}</span>
-                          <span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="font-mono font-medium text-foreground">{alloc.target_tonnage} T</span>
-                      </td>
-                      <td className="w-48">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="font-bold text-primary">{alloc.delivered_tonnage} T</span>
-                            <span className="text-muted-foreground">{alloc.progress.toFixed(1)}%</span>
+                  {group.items.map((alloc) => {
+                    // Logic for colors and icons
+                    let progressColor = 'bg-purple-600';
+                    let progressTextColor = 'text-purple-600';
+                    let StatusIcon = TrendingUp;
+
+                    if (alloc.progress > 100) {
+                        progressColor = 'bg-red-500';
+                        progressTextColor = 'text-red-500';
+                        StatusIcon = AlertTriangle;
+                    } else if (alloc.progress >= 100) {
+                        progressColor = 'bg-emerald-500';
+                        progressTextColor = 'text-emerald-500';
+                        StatusIcon = CheckCircle;
+                    } else if (alloc.progress >= 70) {
+                        progressColor = 'bg-sky-500';
+                        progressTextColor = 'text-sky-500';
+                    } else if (alloc.progress >= 40) {
+                        progressColor = 'bg-amber-500';
+                        progressTextColor = 'text-amber-500';
+                    }
+
+                    return (
+                      <tr key={alloc.id} className="hover:bg-muted/50 transition-colors">
+                        <td>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{alloc.operator_name}</span>
+                            <span className="text-xs font-mono text-muted-foreground">{alloc.allocation_key}</span>
                           </div>
-                          <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                            <div 
-                              className={`h-2 rounded-full transition-all duration-500 ${
-                                alloc.progress >= 100 ? 'bg-success' : 'bg-primary'
-                              }`} 
-                              style={{ width: `${Math.min(alloc.progress, 100)}%` }}
-                            ></div>
+                        </td>
+                        <td>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-foreground">{alloc.commune_name}</span>
+                            <span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                         <span className={`badge badge-soft text-xs 
-                           ${alloc.status === 'OPEN' ? 'badge-info' : ''}
-                           ${alloc.status === 'IN_PROGRESS' ? 'badge-warning' : ''}
-                           ${alloc.status === 'CLOSED' ? 'badge-secondary' : ''}
-                           ${alloc.status === 'OVER_DELIVERED' ? 'badge-error' : ''}
-                         `}>
-                           {alloc.status === 'OPEN' && 'OUVERT'}
-                           {alloc.status === 'IN_PROGRESS' && 'EN COURS'}
-                           {alloc.status === 'CLOSED' && 'CLÔTURÉ'}
-                           {alloc.status === 'OVER_DELIVERED' && 'DÉPASSÉ'}
-                         </span>
-                      </td>
-                      <td className="text-right">
-                         <div className="flex justify-end gap-1">
-                            <button 
-                                onClick={() => handleViewAllocation(alloc)}
-                                className="btn btn-circle btn-text btn-sm text-purple-600"
-                                title="Voir Détails"
-                            >
-                                <Eye size={16} />
-                            </button>
-                            {alloc.status !== 'CLOSED' && (
-                               <button 
-                                 onClick={() => handleCreateDelivery(alloc)}
-                                 className="btn btn-circle btn-text btn-sm text-emerald-600"
-                                 title="Nouvelle Expédition"
-                               >
-                                  <Truck size={16} />
-                               </button>
-                            )}
-                            {alloc.status !== 'CLOSED' && (
-                               <button 
-                                 onClick={() => handleCloseAllocation(alloc.id)}
-                                 className="btn btn-circle btn-text btn-sm text-amber-600"
-                                 title="Clôturer"
-                               >
-                                  <Lock size={16} />
-                               </button>
-                            )}
-                            <button 
-                              onClick={() => handleOpenModal(alloc)}
-                              className="btn btn-circle btn-text btn-sm text-blue-600"
-                              title="Modifier"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(alloc.id)}
-                              className="btn btn-circle btn-text btn-sm btn-text-error"
-                              title="Supprimer"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                         </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>
+                          <span className="font-mono font-medium text-foreground">{alloc.target_tonnage} T</span>
+                        </td>
+                        <td className="w-52">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className={`font-bold ${progressTextColor}`}>{alloc.delivered_tonnage} T</span>
+                              <span className="text-muted-foreground">{alloc.progress.toFixed(1)}%</span>
+                            </div>
+                            <div className="flex items-center gap-x-1">
+                                {Array.from({ length: 10 }).map((_, idx) => {
+                                    const threshold = (idx + 1) * 10;
+                                    const isActive = alloc.progress >= (threshold - 9);
+                                    return (
+                                        <div 
+                                            key={idx}
+                                            className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
+                                                isActive 
+                                                    ? alloc.progress >= threshold 
+                                                        ? progressColor 
+                                                        : `${progressColor} opacity-60` // Current active step slightly lighter
+                                                    : `${progressColor} opacity-10` // Inactive step
+                                            }`}
+                                        ></div>
+                                    );
+                                })}
+                                <StatusIcon className={`size-3.5 ${progressTextColor} ml-1`} />
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                           <span className={`badge badge-soft text-xs 
+                             ${alloc.status === 'OPEN' ? 'badge-info' : ''}
+                             ${alloc.status === 'IN_PROGRESS' ? 'badge-warning' : ''}
+                             ${alloc.status === 'CLOSED' ? 'badge-secondary' : ''}
+                             ${alloc.status === 'OVER_DELIVERED' ? 'badge-error' : ''}
+                           `}>
+                             {alloc.status === 'OPEN' && 'OUVERT'}
+                             {alloc.status === 'IN_PROGRESS' && 'EN COURS'}
+                             {alloc.status === 'CLOSED' && 'CLÔTURÉ'}
+                             {alloc.status === 'OVER_DELIVERED' && 'DÉPASSÉ'}
+                           </span>
+                        </td>
+                        <td className="text-right">
+                           <div className="flex justify-end gap-1">
+                              <button 
+                                  onClick={() => handleViewAllocation(alloc)}
+                                  className="btn btn-circle btn-text btn-sm text-purple-600"
+                                  title="Voir Détails"
+                              >
+                                  <Eye size={16} />
+                              </button>
+                              {alloc.status !== 'CLOSED' && (
+                                 <button 
+                                   onClick={() => handleCreateDelivery(alloc)}
+                                   className="btn btn-circle btn-text btn-sm text-emerald-600"
+                                   title="Nouvelle Expédition"
+                                 >
+                                    <Truck size={16} />
+                                 </button>
+                              )}
+                              {alloc.status !== 'CLOSED' && (
+                                 <button 
+                                   onClick={() => handleCloseAllocation(alloc.id)}
+                                   className="btn btn-circle btn-text btn-sm text-amber-600"
+                                   title="Clôturer"
+                                 >
+                                    <Lock size={16} />
+                                 </button>
+                              )}
+                              <button 
+                                onClick={() => handleOpenModal(alloc)}
+                                className="btn btn-circle btn-text btn-sm text-blue-600"
+                                title="Modifier"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(alloc.id)}
+                                className="btn btn-circle btn-text btn-sm btn-text-error"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                </React.Fragment>
             ))}
           </tbody>
@@ -830,39 +864,153 @@ export const Allocations = () => {
                     </div>
                  </div>
 
-                 {/* Section 2: Performance Comparison */}
+                 {/* Section 2: Performance Comparison - REDESIGNED with Segmented Progress Bar */}
                  <div>
                     <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-                       <Layers size={16} className="text-primary" /> Performance & Quota
+                       <TrendingUp size={16} className={
+                          viewAllocation.progress > 100 ? "text-red-500" :
+                          viewAllocation.progress >= 90 ? "text-emerald-500" :
+                          viewAllocation.progress >= 50 ? "text-blue-500" :
+                          "text-amber-500"
+                       } /> Performance & Quota
                     </h3>
-                    <div className="bg-muted/20 p-6 rounded-2xl border border-border">
-                       <div className="flex items-end justify-between mb-2">
-                          <div>
-                             <span className="text-3xl font-bold text-primary">{viewAllocation.delivered_tonnage} T</span>
-                             <span className="text-sm text-muted-foreground ml-2">Livré</span>
+                    
+                    {/* Dynamic Background Card based on status */}
+                    <div className={`
+                       relative overflow-hidden rounded-2xl border p-6
+                       ${viewAllocation.progress >= 100 ? 'bg-gradient-to-br from-red-50 to-white dark:from-red-900/10 dark:to-card border-red-200 dark:border-red-900/30' :
+                         viewAllocation.progress >= 70 ? 'bg-gradient-to-br from-sky-50 to-white dark:from-sky-900/10 dark:to-card border-sky-200 dark:border-sky-900/30' :
+                         viewAllocation.progress >= 40 ? 'bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/10 dark:to-card border-amber-200 dark:border-amber-900/30' :
+                         'bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/10 dark:to-card border-purple-200 dark:border-purple-900/30'
+                       }
+                    `}>
+                       {/* Background Icon Watermark */}
+                       <div className="absolute right-4 top-4 opacity-5 pointer-events-none">
+                          <Layers size={100} />
+                       </div>
+
+                       <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 relative z-10">
+                          <div className="space-y-1">
+                             <span className="text-xs font-bold uppercase tracking-wider opacity-60">Volume Livré</span>
+                             <div className="flex items-baseline gap-2">
+                                <span className={`text-4xl font-extrabold ${
+                                   viewAllocation.progress >= 100 ? 'text-red-600 dark:text-red-400' :
+                                   viewAllocation.progress >= 70 ? 'text-sky-600 dark:text-sky-400' :
+                                   viewAllocation.progress >= 40 ? 'text-amber-600 dark:text-amber-400' :
+                                   'text-purple-600 dark:text-purple-400'
+                                }`}>{viewAllocation.delivered_tonnage}</span>
+                                <span className="text-xl font-bold opacity-50">T</span>
+                             </div>
                           </div>
-                          <div className="text-right">
-                             <span className="text-sm text-muted-foreground block">Sur un objectif de</span>
-                             <span className="text-xl font-bold text-foreground">{viewAllocation.target_tonnage} T</span>
+                          
+                          <div className="text-left md:text-right mt-4 md:mt-0">
+                             <span className="text-xs font-bold uppercase tracking-wider opacity-60">Objectif Cible</span>
+                             <div className="flex items-baseline gap-2 md:justify-end">
+                                <span className="text-2xl font-bold text-foreground">{viewAllocation.target_tonnage}</span>
+                                <span className="text-lg font-medium opacity-50">T</span>
+                             </div>
                           </div>
                        </div>
                        
-                       {/* Progress Bar */}
-                       <div className="h-4 w-full bg-secondary rounded-full overflow-hidden mb-2">
-                          <div 
-                             className={`h-full transition-all duration-1000 ${
-                                viewAllocation.progress > 100 ? 'bg-red-500' : 'bg-primary'
-                             }`}
-                             style={{ width: `${Math.min(viewAllocation.progress, 100)}%` }}
-                          ></div>
+                       {/* FlyonUI 10-Step Segmented Progress Bar */}
+                       <div className="flex items-center gap-x-1 relative z-10 w-full mt-4">
+                          {/* Define colors based on global progress */}
+                          {(() => {
+                             let progressColor = 'bg-primary';
+                             let progressTextColor = 'text-primary';
+                             let StatusIcon = TrendingUp;
+
+                             if (viewAllocation.progress > 100) {
+                               progressColor = 'bg-red-500';
+                               progressTextColor = 'text-red-500';
+                               StatusIcon = AlertTriangle;
+                             } else if (viewAllocation.progress === 100) {
+                               progressColor = 'bg-emerald-500';
+                               progressTextColor = 'text-emerald-500';
+                               StatusIcon = CheckCircle;
+                             } else if (viewAllocation.progress >= 70) {
+                               progressColor = 'bg-sky-500'; // Info
+                               progressTextColor = 'text-sky-500';
+                             } else if (viewAllocation.progress >= 40) {
+                               progressColor = 'bg-amber-500'; // Warning
+                               progressTextColor = 'text-amber-500';
+                             } else {
+                               progressColor = 'bg-purple-600'; // Primary
+                               progressTextColor = 'text-purple-600';
+                             }
+
+                             // Generate 10 steps
+                             return (
+                               <>
+                                 {Array.from({ length: 10 }).map((_, idx) => {
+                                    // Each step represents 10%
+                                    // Step 0 is 0-10%, Step 1 is 10-20%...
+                                    // Logic: A step is filled if current progress > step's starting point
+                                    // E.g., Progress 25%: Step 0 (0-10) filled, Step 1 (10-20) filled, Step 2 (20-30) filled?
+                                    // Usually step N represents the Nth 10% chunk. 
+                                    // Simple logic: if progress >= (idx + 1) * 10, full fill.
+                                    // If progress is between idx*10 and (idx+1)*10, it's the active current step.
+                                    // Here we just use a threshold logic matching standard stepped bars.
+                                    const threshold = (idx + 1) * 10;
+                                    const isActive = viewAllocation.progress >= (threshold - 9); // e.g. at 1%, first bar lights up
+
+                                    return (
+                                      <div 
+                                         key={idx}
+                                         className={`h-3 flex-1 rounded-full transition-all duration-500 ${
+                                            isActive 
+                                              ? viewAllocation.progress >= threshold 
+                                                 ? progressColor 
+                                                 : `${progressColor} opacity-60` // Current active step slightly lighter
+                                              : `${progressColor} opacity-10` // Inactive step
+                                         }`}
+                                         role="progressbar" 
+                                         aria-label={`Step ${idx + 1}`}
+                                         aria-valuenow={viewAllocation.progress}
+                                      ></div>
+                                    );
+                                 })}
+                                 
+                                 {/* Icon at the end */}
+                                 <div className="ml-2 shrink-0">
+                                    <StatusIcon className={`size-6 ${progressTextColor}`} />
+                                 </div>
+                               </>
+                             );
+                          })()}
+                       </div>
+                       <div className="text-right mt-1">
+                          <span className={`text-xs font-bold ${
+                             viewAllocation.progress > 100 ? 'text-red-500' :
+                             viewAllocation.progress >= 70 ? 'text-sky-500' :
+                             'text-muted-foreground'
+                          }`}>{viewAllocation.progress.toFixed(1)}% Complété</span>
                        </div>
                        
-                       <div className="flex justify-between text-xs font-medium">
-                          <span className="text-primary">{viewAllocation.progress.toFixed(1)}% Réalisé</span>
-                          <span className={viewAllocation.target_tonnage - viewAllocation.delivered_tonnage < 0 ? 'text-red-500' : 'text-muted-foreground'}>
-                             {Math.max(0, viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T Restant
-                             {viewAllocation.target_tonnage - viewAllocation.delivered_tonnage < 0 && ` (+${Math.abs(viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T Excès)`}
-                          </span>
+                       {/* Footer Stats */}
+                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-black/5 dark:border-white/5 relative z-10">
+                          <div className="flex items-center gap-2">
+                             {viewAllocation.target_tonnage - viewAllocation.delivered_tonnage < 0 ? (
+                                <>
+                                   <div className="p-1.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                                      <AlertTriangle size={14} />
+                                   </div>
+                                   <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                                      Excès: +{Math.abs(viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T
+                                   </span>
+                                </>
+                             ) : (
+                                <span className="text-sm font-medium text-muted-foreground">
+                                   Reste à livrer: {Math.max(0, viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T
+                                </span>
+                             )}
+                          </div>
+                          
+                          {viewAllocation.progress >= 100 && (
+                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                Objectif Atteint
+                             </span>
+                          )}
                        </div>
                     </div>
                  </div>
