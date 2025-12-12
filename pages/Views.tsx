@@ -1,13 +1,21 @@
 
-import { useEffect, useState, useMemo, Fragment } from 'react';
+import { useEffect, useState, useMemo, Fragment, useRef } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView, Project } from '../types';
 import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useSearchParams } from 'react-router-dom';
 
 export const Views = () => {
-  const [activeTab, setActiveTab] = useState<'bon_livraison' | 'fin_cession'>('bon_livraison');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Get active tab from URL or default to 'bon_livraison'
+  const activeTab = (searchParams.get('tab') as 'bon_livraison' | 'fin_cession') || 'bon_livraison';
+  
+  const setActiveTab = (tab: 'bon_livraison' | 'fin_cession') => {
+    setSearchParams({ tab });
+  };
+
   const [blData, setBlData] = useState<BonLivraisonView[]>([]);
   const [fcData, setFcData] = useState<FinDeCessionView[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -17,8 +25,12 @@ export const Views = () => {
   // Filters
   const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<number | 'all'>('all');
   
+  // Date Range Filter State
+  const [dateRange, setDateRange] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
+  const dateRangeInputRef = useRef<HTMLInputElement>(null);
+  
   // Grouping State
-  const [blGroupBy, setBlGroupBy] = useState<'none' | 'operator' | 'region' | 'date'>('none');
+  const [blGroupBy, setBlGroupBy] = useState<'none' | 'operator' | 'region' | 'date'>('date');
   const [fcGroupBy, setFcGroupBy] = useState<'none' | 'region'>('none');
 
   // Load Projects and set default filter ONCE on mount
@@ -40,14 +52,37 @@ export const Views = () => {
     loadProjects();
   }, []);
 
+  // Initialize Flatpickr
+  useEffect(() => {
+    if (dateRangeInputRef.current && (window as any).flatpickr) {
+      const fp = (window as any).flatpickr(dateRangeInputRef.current, {
+        mode: 'range',
+        dateFormat: "Y-m-d",
+        locale: {
+          rangeSeparator: " au "
+        },
+        onChange: (selectedDates: Date[]) => {
+          if (selectedDates.length === 2) {
+            setDateRange({ start: selectedDates[0], end: selectedDates[1] });
+          } else {
+            setDateRange({ start: null, end: null });
+          }
+        }
+      });
+
+      // Cleanup
+      return () => fp.destroy();
+    }
+  }, []);
+
   // Load Tab Data when tab changes
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       if (activeTab === 'bon_livraison') {
         const data = await db.getBonLivraisonViews();
-        // Default sort: Earliest to Latest Date
-        data.sort((a, b) => new Date(a.delivery_date).getTime() - new Date(b.delivery_date).getTime());
+        // Default sort: Latest to Earliest
+        data.sort((a, b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime());
         setBlData(data);
       } else if (activeTab === 'fin_cession') {
         const data = await db.getFinDeCessionViews();
@@ -61,12 +96,32 @@ export const Views = () => {
   // Filter Logic
   const filteredBlData = useMemo(() => {
     let data = blData;
+    
+    // Phase Filter
     if (selectedPhaseFilter !== 'all') {
-      data = blData.filter(item => item.numero_phase === selectedPhaseFilter);
+      data = data.filter(item => item.numero_phase === selectedPhaseFilter);
     }
-    // Always sort by date ascending (earliest to latest)
-    return data.sort((a, b) => new Date(a.delivery_date).getTime() - new Date(b.delivery_date).getTime());
-  }, [blData, selectedPhaseFilter]);
+
+    // Date Range Filter
+    if (dateRange.start && dateRange.end) {
+      data = data.filter(item => {
+        if (!item.delivery_date) return false;
+        const itemDate = new Date(item.delivery_date);
+        itemDate.setHours(0,0,0,0);
+        
+        const start = new Date(dateRange.start!);
+        start.setHours(0,0,0,0);
+        
+        const end = new Date(dateRange.end!);
+        end.setHours(23,59,59,999);
+        
+        return itemDate >= start && itemDate <= end;
+      });
+    }
+
+    // Always sort by date descending (latest first)
+    return data.sort((a, b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime());
+  }, [blData, selectedPhaseFilter, dateRange]);
 
   const filteredFcData = useMemo(() => {
     if (selectedPhaseFilter === 'all') return fcData;
@@ -93,12 +148,22 @@ export const Views = () => {
     // Sort groups logic
     let sortedKeys = Object.keys(groups);
     if (blGroupBy === 'date') {
-       // Sort date keys properly
+       // Sort date keys DESCENDING (Newest first)
        sortedKeys.sort((a, b) => {
           // parse DD/MM/YYYY back to time
-          const [da, ma, ya] = a.split('/').map(Number);
-          const [db, mb, yb] = b.split('/').map(Number);
-          return new Date(ya, ma-1, da).getTime() - new Date(yb, mb-1, db).getTime();
+          const partsA = a.split('/');
+          const partsB = b.split('/');
+          if (partsA.length !== 3 || partsB.length !== 3) return a.localeCompare(b);
+          
+          const da = parseInt(partsA[0], 10);
+          const ma = parseInt(partsA[1], 10);
+          const ya = parseInt(partsA[2], 10);
+          
+          const db = parseInt(partsB[0], 10);
+          const mb = parseInt(partsB[1], 10);
+          const yb = parseInt(partsB[2], 10);
+          
+          return new Date(yb, mb-1, db).getTime() - new Date(ya, ma-1, da).getTime();
        });
     } else {
        sortedKeys.sort((a, b) => a.localeCompare(b));
@@ -491,18 +556,20 @@ export const Views = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Vues & Rapports</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            {activeTab === 'fin_cession' ? 'Bon de Fin de Cession' : 'Bon de Livraison'}
+          </h1>
           <p className="text-muted-foreground text-sm">Consulter les données consolidées des projets.</p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-card p-2 rounded-xl border border-border flex items-center gap-2 overflow-x-auto shadow-sm">
-         <div className="flex items-center gap-2 px-3 border-r border-border text-muted-foreground shrink-0">
+      <div className="bg-card p-2 rounded-xl border border-border flex items-center gap-4 overflow-x-auto shadow-sm min-h-[4rem]">
+         <div className="flex items-center gap-2 px-3 border-r border-border text-muted-foreground shrink-0 h-full">
             <Filter size={16} />
             <span className="text-xs font-semibold uppercase hidden sm:inline">Filtrer</span>
          </div>
-         <form className="filter">
+         <form className="filter shrink-0">
             <input 
                className="btn btn-square" 
                type="reset" 
@@ -530,25 +597,39 @@ export const Views = () => {
                />
             ))}
          </form>
+         
+         <div className="divider divider-horizontal text-muted-foreground text-xs mx-0">ou</div>
+
+         {/* Flatpickr Range Picker */}
+         <div className="relative max-w-sm shrink-0">
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+               <Calendar size={16} className="text-muted-foreground" />
+            </div>
+            <input 
+              ref={dateRangeInputRef}
+              type="text" 
+              className="input max-w-sm ps-10 cursor-pointer" 
+              placeholder="Période (Début à Fin)" 
+              id="flatpickr-range" 
+            />
+            {dateRange.start && (
+               <button 
+                 onClick={() => {
+                    // Clear via ref if available or just update state, flatpickr will need clearing too
+                    if (dateRangeInputRef.current && (window as any).flatpickr) {
+                       (dateRangeInputRef.current as any)._flatpickr.clear();
+                    }
+                 }}
+                 className="absolute inset-y-0 end-0 flex items-center pe-3 text-muted-foreground hover:text-foreground"
+               >
+                 <X size={14} />
+               </button>
+            )}
+         </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
-        {/* Tabs */}
-        <div className="flex border-b border-border">
-          <button 
-            onClick={() => setActiveTab('bon_livraison')}
-            className={`flex-1 py-4 text-sm font-medium text-center transition-colors border-b-2 flex items-center justify-center gap-2 ${activeTab === 'bon_livraison' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-          >
-            <FileText size={18} /> Bon de Livraison
-          </button>
-          <button 
-            onClick={() => setActiveTab('fin_cession')}
-            className={`flex-1 py-4 text-sm font-medium text-center transition-colors border-b-2 flex items-center justify-center gap-2 ${activeTab === 'fin_cession' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-          >
-            <Gift size={18} /> Bon de Fin de Cession
-          </button>
-        </div>
-
+        {/* Removed redundant tab buttons */}
         <div className="p-0">
           {activeTab === 'bon_livraison' && (
             <>
@@ -558,9 +639,9 @@ export const Views = () => {
                    <div className="text-xs font-semibold uppercase px-2 text-muted-foreground flex items-center gap-1">
                      <Layers size={14} /> Grouper:
                    </div>
+                   <button onClick={() => setBlGroupBy('date')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'date' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><Calendar size={14} /> Date</button>
                    <button onClick={() => setBlGroupBy('operator')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'operator' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><User size={14} /> Opérateur</button>
                    <button onClick={() => setBlGroupBy('region')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'region' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><MapPin size={14} /> Région</button>
-                   <button onClick={() => setBlGroupBy('date')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${blGroupBy === 'date' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><Calendar size={14} /> Date</button>
                    {blGroupBy !== 'none' && <button onClick={() => setBlGroupBy('none')} className="p-1.5 hover:bg-background rounded text-muted-foreground"><X size={14} /></button>}
                 </div>
               </div>

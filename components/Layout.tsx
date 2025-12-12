@@ -17,7 +17,9 @@ import {
   Network,
   ChevronRight,
   ChevronDown,
-  Check
+  Check,
+  FileText,
+  Gift
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -60,16 +62,8 @@ const Sidebar = ({
 }) => {
   const location = useLocation();
 
-  const mainNavItems = [
-    { name: 'Tableau de bord', path: '/', icon: LayoutDashboard },
-    { name: 'Allocations', path: '/allocations', icon: Map },
-    { name: 'Logistique', path: '/logistics', icon: Package },
-    { name: 'Parc Auto', path: '/fleet', icon: Truck },
-    { name: 'Vues & Rapports', path: '/views', icon: Eye },
-    { name: 'Réseau', path: '/network', icon: Network },
-  ];
-
-  const settingsItem = { name: 'Paramètres', path: '/settings', icon: Settings };
+  // Helper to check if a main route is active (or its children)
+  const isRouteActive = (path: string) => location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
 
   return (
     <aside 
@@ -94,59 +88,131 @@ const Sidebar = ({
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="mt-6 flex flex-col gap-1 px-3">
-        <p className={`text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/50 mb-2 px-3 transition-opacity ${expanded ? 'opacity-100' : 'opacity-0'}`}>
-            Menu Principal
-        </p>
-        {mainNavItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={`group flex items-center gap-3 rounded-lg px-3 py-3 transition-all duration-200 relative overflow-hidden
-                ${isActive 
-                  ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white' 
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
-                }
-              `}
+      {/* Navigation - FlyonUI Menu Structure */}
+      <nav className="mt-6 px-2 overflow-y-auto max-h-[calc(100vh-140px)] no-scrollbar">
+        <ul className="menu w-full p-0 gap-1">
+          
+          <li className="menu-title text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/50 px-3 mb-1 mt-2">
+             <span className={expanded ? 'opacity-100 transition-opacity' : 'opacity-0'}>Menu Principal</span>
+          </li>
+
+          <li>
+            <NavLink 
+              to="/" 
+              className={({ isActive }) => 
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+              }
             >
-              {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-sidebar-primary rounded-r-full"></div>}
-              <item.icon size={20} className={`${isActive ? 'text-sidebar-primary' : 'text-sidebar-foreground/70 group-hover:text-white'} min-w-[20px] transition-colors`} />
-              <span className={`whitespace-nowrap text-sm font-medium transition-all duration-200 ${expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 w-0 overflow-hidden'}`}>
-                {item.name}
-              </span>
-              {isActive && expanded && <ChevronRight size={14} className="ml-auto text-sidebar-primary" />}
+              <LayoutDashboard size={20} className="shrink-0" />
+              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Tableau de bord</span>
             </NavLink>
-          );
-        })}
+          </li>
 
-        {/* Separator */}
-        <div className="my-4 px-4">
-          <div className="h-px bg-sidebar-border/50 w-full"></div>
-        </div>
+          <li>
+            <NavLink 
+              to="/allocations"
+              className={({ isActive }) => 
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+              }
+            >
+              <Map size={20} className="shrink-0" />
+              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Allocations</span>
+            </NavLink>
+          </li>
 
-        <p className={`text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/50 mb-2 px-3 transition-opacity ${expanded ? 'opacity-100' : 'opacity-0'}`}>
-            Système
-        </p>
+          <li>
+            <NavLink 
+              to="/logistics"
+              className={({ isActive }) => 
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+              }
+            >
+              <Package size={20} className="shrink-0" />
+              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Logistique</span>
+            </NavLink>
+          </li>
 
-        {/* Settings Item */}
-        <NavLink
-          to={settingsItem.path}
-          className={`group flex items-center gap-3 rounded-lg px-3 py-3 transition-all duration-200 relative
-            ${location.pathname === settingsItem.path 
-              ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white' 
-              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
-            }
-          `}
-        >
-          {location.pathname === settingsItem.path && <div className="absolute left-0 top-0 bottom-0 w-1 bg-sidebar-primary rounded-r-full"></div>}
-          <settingsItem.icon size={20} className={`${location.pathname === settingsItem.path ? 'text-sidebar-primary' : 'text-sidebar-foreground/70 group-hover:text-white'} min-w-[20px]`} />
-          <span className={`whitespace-nowrap text-sm font-medium transition-opacity duration-200 ${expanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
-            {settingsItem.name}
-          </span>
-        </NavLink>
+          <li>
+            <NavLink 
+              to="/fleet"
+              className={({ isActive }) => 
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+              }
+            >
+              <Truck size={20} className="shrink-0" />
+              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Parc Auto</span>
+            </NavLink>
+          </li>
+
+          {/* Vues & Rapports with Submenu - Non-clickable Parent */}
+          <li>
+            <div 
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group cursor-default ${location.pathname.startsWith('/views') ? 'text-white' : 'text-sidebar-foreground'}`}
+            >
+              <Eye size={20} className="shrink-0" />
+              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Vues & Rapports</span>
+            </div>
+            <ul className="menu gap-1 pl-4 mt-1 border-l border-sidebar-border/30 ml-3">
+              <li>
+                <NavLink 
+                  to="/views?tab=bon_livraison"
+                  className={({ isActive }) => {
+                    // Check active if path is /views and (tab is bon_livraison OR no tab present/default)
+                    const isTabActive = location.pathname === '/views' && (location.search.includes('bon_livraison') || !location.search.includes('tab='));
+                    return `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isTabActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`;
+                  }}
+                >
+                  <FileText size={16} className="shrink-0" />
+                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Bon de Livraison</span>
+                </NavLink>
+              </li>
+              <li>
+                <NavLink 
+                  to="/views?tab=fin_cession"
+                  className={({ isActive }) => {
+                    const isTabActive = location.pathname === '/views' && location.search.includes('fin_cession');
+                    return `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isTabActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`;
+                  }}
+                >
+                  <Gift size={16} className="shrink-0" />
+                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Fin de Cession</span>
+                </NavLink>
+              </li>
+            </ul>
+          </li>
+
+          <li>
+            <NavLink 
+              to="/network"
+              className={({ isActive }) => 
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+              }
+            >
+              <Network size={20} className="shrink-0" />
+              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Réseau</span>
+            </NavLink>
+          </li>
+
+          <div className="my-2 px-2">
+            <div className="h-px bg-sidebar-border/50 w-full"></div>
+          </div>
+
+          <li className="menu-title text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/50 px-3 mb-1">
+             <span className={expanded ? 'opacity-100 transition-opacity' : 'opacity-0'}>Système</span>
+          </li>
+
+          <li>
+            <NavLink 
+              to="/settings"
+              className={({ isActive }) => 
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+              }
+            >
+              <Settings size={20} className="shrink-0" />
+              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Paramètres</span>
+            </NavLink>
+          </li>
+        </ul>
       </nav>
 
       {/* Footer / User Profile */}
@@ -236,7 +302,7 @@ const Header = ({
               {location.pathname === '/allocations' && 'Allocations'}
               {location.pathname === '/logistics' && 'Logistique'}
               {location.pathname === '/fleet' && 'Parc Auto'}
-              {location.pathname === '/views' && 'Rapports'}
+              {location.pathname.startsWith('/views') && 'Rapports'}
               {location.pathname === '/network' && 'Réseau'}
               {location.pathname === '/settings' && 'Paramètres'}
              </h2>
