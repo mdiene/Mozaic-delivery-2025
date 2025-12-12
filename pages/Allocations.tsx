@@ -1,11 +1,12 @@
 
-import { useEffect, useState, useMemo, FormEvent } from 'react';
+import { useEffect, useState, useMemo, FormEvent, Fragment } from 'react';
 import { db } from '../services/db';
 import { AllocationView, Project, Region, Department, Commune, Operator, DeliveryView } from '../types';
 import { 
   Plus, Search, Filter, MapPin, User, Truck, 
   Edit2, Trash2, AlertTriangle, Lock, X, Save,
-  CheckCircle, TrendingUp, Activity, Eye, Printer, Calendar, FileText
+  CheckCircle, TrendingUp, Activity, Eye, Printer, Calendar, FileText,
+  ArrowUpDown, ChevronDown, ChevronRight, Layers, ListFilter
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -13,7 +14,7 @@ import { AdvancedSelect } from '../components/AdvancedSelect';
 
 export const Allocations = () => {
   const navigate = useNavigate();
-  const { selectedProject, projects } = useProject();
+  const { selectedProject, projects, setSelectedProject } = useProject();
   
   const [allocations, setAllocations] = useState<AllocationView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +28,10 @@ export const Allocations = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED'>('ALL');
+
+  // Sorting & Grouping
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -85,6 +90,71 @@ export const Allocations = () => {
       return true;
     });
   }, [allocations, selectedProject, statusFilter, searchTerm]);
+
+  // Sorting Logic
+  const sortedAllocations = useMemo(() => {
+    let sortableItems = [...filteredAllocations];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue: any = a[sortConfig.key as keyof AllocationView];
+        let bValue: any = b[sortConfig.key as keyof AllocationView];
+
+        // Custom sort for performance (progress)
+        if (sortConfig.key === 'performance') {
+           aValue = a.progress;
+           bValue = b.progress;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredAllocations, sortConfig]);
+
+  // Grouping Logic
+  const groupedAllocations = useMemo(() => {
+    const groups: Record<string, AllocationView[]> = {};
+    sortedAllocations.forEach(alloc => {
+        const phase = alloc.project_phase || 'Autres';
+        if (!groups[phase]) groups[phase] = [];
+        groups[phase].push(alloc);
+    });
+    
+    // Sort keys (Phases) - usually reverse chronological or alphabetical
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0])); // Descending phase
+  }, [sortedAllocations]);
+
+  // Initialize expanded groups
+  useEffect(() => {
+    if (allocations.length > 0) {
+        const allPhases = new Set(allocations.map(a => a.project_phase || 'Autres'));
+        setExpandedGroups(allPhases);
+    }
+  }, [allocations.length]); // Run once when data loads
+
+  const toggleGroup = (phase: string) => {
+    const newSet = new Set(expandedGroups);
+    if (newSet.has(phase)) {
+      newSet.delete(phase);
+    } else {
+      newSet.add(phase);
+    }
+    setExpandedGroups(newSet);
+  };
+
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   // Handlers
   const handleCreateDelivery = (alloc: AllocationView) => {
@@ -209,206 +279,298 @@ export const Allocations = () => {
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row gap-4 items-center">
+      {/* Modern Filter Ribbon */}
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        {/* Top Row: Search & Phase */}
+        <div className="p-4 flex flex-col md:flex-row gap-4 items-center border-b border-border/50">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <input 
               type="text" 
-              placeholder="Rechercher Opérateur, Commune..."
+              placeholder="Rechercher Opérateur, Commune, Référence..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
             />
           </div>
           
-          <div className="flex items-center gap-2 overflow-x-auto">
-             <span className="text-xs font-semibold uppercase text-muted-foreground mr-1 flex items-center gap-1">
-               <Filter size={14} /> Statut:
-             </span>
-             {(['ALL', 'OPEN', 'IN_PROGRESS', 'CLOSED', 'OVER_DELIVERED'] as const).map(status => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
-                     statusFilter === status 
-                       ? 'bg-primary/10 text-primary border-primary' 
-                       : 'bg-card hover:bg-muted text-muted-foreground border-border'
-                  }`}
-                >
-                  {status === 'ALL' ? 'Tous' : status}
-                </button>
-             ))}
+          <div className="flex-1 w-full md:w-auto">
+             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <span className="text-xs font-semibold uppercase text-muted-foreground mr-2 shrink-0 flex items-center gap-1">
+                <Layers size={14} /> Phase:
+              </span>
+              <form className="filter">
+                <input 
+                  className="btn btn-square" 
+                  type="reset" 
+                  value="×" 
+                  onClick={() => setSelectedProject('all')}
+                  title="Réinitialiser"
+                />
+                <input 
+                  className="btn" 
+                  type="radio" 
+                  name="allocation-phase" 
+                  aria-label="Toutes"
+                  checked={selectedProject === 'all'}
+                  onChange={() => setSelectedProject('all')}
+                />
+                {projects.map(p => (
+                  <input
+                    key={p.id}
+                    className="btn" 
+                    type="radio" 
+                    name="allocation-phase" 
+                    aria-label={`Phase ${p.numero_phase}`}
+                    checked={selectedProject === p.id}
+                    onChange={() => setSelectedProject(p.id)}
+                  />
+                ))}
+              </form>
+            </div>
           </div>
+        </div>
+
+        {/* Bottom Row: Status Filters - Dedicated Area */}
+        <div className="bg-muted/30 p-3 flex items-center justify-start gap-4 overflow-x-auto">
+           <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+              <ListFilter size={16} />
+              <span className="text-xs font-bold uppercase tracking-wider">Statut:</span>
+           </div>
+           <div className="flex items-center gap-2">
+             {(['ALL', 'OPEN', 'IN_PROGRESS', 'CLOSED', 'OVER_DELIVERED'] as const).map(status => {
+                const labelMap: any = { 'ALL': 'Tous', 'OPEN': 'Ouvert', 'IN_PROGRESS': 'En Cours', 'CLOSED': 'Clôturé', 'OVER_DELIVERED': 'Dépassement' };
+                const isActive = statusFilter === status;
+                
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border shadow-sm
+                       ${isActive 
+                         ? 'bg-primary text-primary-foreground border-primary ring-2 ring-primary/20' 
+                         : 'bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                       }`}
+                  >
+                    {labelMap[status]}
+                  </button>
+                );
+             })}
+           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-         <div className="w-full overflow-x-auto">
-            <table className="table table-striped">
-               <thead>
-                  <tr>
-                     <th>Opérateur / Référence</th>
-                     <th>Localisation</th>
-                     <th>Projet</th>
-                     <th>Performance & Quota</th>
-                     <th>Statut</th>
-                     <th className="text-right">Actions</th>
-                  </tr>
-               </thead>
-               <tbody>
-                  {filteredAllocations.length === 0 && (
-                     <tr>
-                        <td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune allocation trouvée.</td>
-                     </tr>
-                  )}
-                  {filteredAllocations.map(alloc => {
-                     // Progress Bar Logic
-                     const progress = alloc.progress;
-                     let progressColor = 'bg-primary';
-                     let textColor = 'text-primary';
-                     let StatusIcon = Activity;
+      {/* Accordion Content */}
+      <div className="accordion flex flex-col gap-4">
+         {groupedAllocations.length === 0 && (
+            <div className="p-8 text-center text-muted-foreground bg-card rounded-xl border border-border">
+               Aucune allocation trouvée.
+            </div>
+         )}
 
-                     if (progress > 100) {
-                        progressColor = 'bg-red-500';
-                        textColor = 'text-red-500';
-                        StatusIcon = AlertTriangle;
-                     } else if (progress >= 100) {
-                        progressColor = 'bg-emerald-500';
-                        textColor = 'text-emerald-500';
-                        StatusIcon = CheckCircle;
-                     } else if (progress >= 70) {
-                        progressColor = 'bg-sky-500';
-                        textColor = 'text-sky-500';
-                        StatusIcon = TrendingUp;
-                     } else if (progress >= 40) {
-                        progressColor = 'bg-amber-500';
-                        textColor = 'text-amber-500';
-                        StatusIcon = Activity;
-                     } else {
-                        progressColor = 'bg-primary';
-                        textColor = 'text-primary';
-                        StatusIcon = Activity;
-                     }
+         {groupedAllocations.map(([phase, items]) => {
+            const isOpen = expandedGroups.has(phase);
+            const totalTarget = items.reduce((sum, item) => sum + item.target_tonnage, 0);
+            const totalDelivered = items.reduce((sum, item) => sum + item.delivered_tonnage, 0);
+            const progress = totalTarget > 0 ? (totalDelivered / totalTarget) * 100 : 0;
 
-                     // Calculate filled steps (0-10)
-                     const stepsFilled = Math.min(10, Math.floor(progress / 10));
+            return (
+               <div key={phase} className="accordion-item shadow-sm hover:shadow-md transition-shadow duration-200">
+                  <button 
+                     onClick={() => toggleGroup(phase)}
+                     className="accordion-toggle bg-card hover:bg-muted/50 transition-colors duration-200 py-4"
+                     aria-expanded={isOpen}
+                  >
+                     <div className="flex items-center gap-4">
+                        <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90 text-primary' : 'text-muted-foreground'}`}>
+                           <ChevronRight size={20} />
+                        </span>
+                        <div className="flex flex-col">
+                           <span className="text-lg font-bold text-foreground">{phase}</span>
+                           <span className="text-xs text-muted-foreground font-medium">{items.length} Allocations</span>
+                        </div>
+                     </div>
+                     
+                     <div className="flex items-center gap-8 mr-4">
+                        <div className="text-right hidden sm:block">
+                           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Cible Total</p>
+                           <p className="font-mono font-bold text-base">{totalTarget.toLocaleString()} T</p>
+                        </div>
+                        <div className="text-right hidden sm:block">
+                           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Livré Total</p>
+                           <p className={`font-mono font-bold text-base ${progress >= 100 ? 'text-emerald-600' : 'text-primary'}`}>
+                              {totalDelivered.toLocaleString()} T
+                           </p>
+                        </div>
+                     </div>
+                  </button>
 
-                     return (
-                        <tr key={alloc.id}>
-                           <td>
-                              <div className="flex flex-col">
-                                 <span className="font-bold text-foreground text-sm">{alloc.operator_name}</span>
-                                 <span className="text-xs text-muted-foreground font-mono">{alloc.allocation_key}</span>
-                              </div>
-                           </td>
-                           <td>
-                              <div className="flex flex-col text-sm">
-                                 <span className="text-foreground">{alloc.commune_name}</span>
-                                 <span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span>
-                              </div>
-                           </td>
-                           <td>
-                              {alloc.project_phase ? (
-                                 <span className="badge badge-soft badge-secondary text-xs">{alloc.project_phase}</span>
-                              ) : (
-                                 <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                           </td>
-                           <td className="w-64">
-                              <div className="flex flex-col gap-1.5">
-                                 <div className="flex justify-between text-xs font-medium">
-                                    <span className={textColor}>
-                                       {alloc.delivered_tonnage.toLocaleString()} / {alloc.target_tonnage.toLocaleString()} T
-                                    </span>
-                                    <span className="text-muted-foreground">{alloc.progress.toFixed(0)}%</span>
-                                 </div>
-                                 <div className="flex items-center gap-2">
-                                    <div className="flex-1 flex gap-0.5 h-2">
-                                       {[...Array(10)].map((_, i) => (
-                                          <div 
-                                             key={i}
-                                             className={`flex-1 rounded-sm transition-colors duration-300 ${
-                                                i < stepsFilled ? progressColor : 'bg-muted/50'
-                                             }`}
-                                          ></div>
-                                       ))}
+                  <div className={`accordion-content ${!isOpen ? 'hidden' : ''}`}>
+                     <div className="w-full overflow-x-auto">
+                        <table className="table w-full">
+                           <thead className="bg-primary/5 border-b-2 border-primary/10">
+                              <tr>
+                                 <th className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Opérateur / Référence</th>
+                                 <th className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Localisation</th>
+                                 <th className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Phase</th>
+                                 <th 
+                                    className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider cursor-pointer hover:bg-primary/10 transition-colors"
+                                    onClick={() => requestSort('performance')}
+                                 >
+                                    <div className="flex items-center gap-1">
+                                       Performance & Quota
+                                       <ArrowUpDown size={14} className={sortConfig?.key === 'performance' ? 'text-primary' : 'text-primary/50'} />
                                     </div>
-                                    <StatusIcon size={16} className={textColor} />
-                                 </div>
-                              </div>
-                           </td>
-                           <td>
-                              <span className={`badge badge-soft text-xs font-bold
-                                 ${alloc.status === 'OPEN' ? 'badge-info' : ''}
-                                 ${alloc.status === 'IN_PROGRESS' ? 'badge-warning' : ''}
-                                 ${alloc.status === 'CLOSED' ? 'badge-success' : ''}
-                                 ${alloc.status === 'OVER_DELIVERED' ? 'badge-error' : ''}
-                              `}>
-                                 {alloc.status}
-                              </span>
-                           </td>
-                           <td className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                 <button 
-                                   onClick={() => handleView(alloc)}
-                                   className="btn btn-circle btn-text btn-sm text-sky-600"
-                                   title="Voir Détails"
-                                 >
-                                   <Eye size={16} />
-                                 </button>
-                                 <button 
-                                   onClick={() => handleCreateDelivery(alloc)}
-                                   disabled={alloc.status === 'CLOSED'}
-                                   className={`btn btn-circle btn-text btn-sm ${alloc.status === 'CLOSED' ? 'text-muted-foreground opacity-30 cursor-not-allowed' : 'text-emerald-600'}`}
-                                   title={alloc.status === 'CLOSED' ? "Allocation fermée" : "Nouvelle Expédition"}
-                                 >
-                                   <Truck size={16} />
-                                 </button>
-                                 
-                                 <button 
-                                   onClick={() => handleCloseAllocation(alloc.id)}
-                                   disabled={alloc.status === 'CLOSED' || alloc.progress < 100}
-                                   className={`btn btn-circle btn-text btn-sm ${
-                                     (alloc.status === 'CLOSED' || alloc.progress < 100)
-                                       ? 'text-muted-foreground opacity-30 cursor-not-allowed' 
-                                       : 'text-amber-600'
-                                   }`}
-                                   title={
-                                     alloc.status === 'CLOSED' 
-                                       ? "Déjà clôturé" 
-                                       : alloc.progress < 100 
-                                         ? "Objectif non atteint (100% requis pour clôturer)" 
-                                         : "Clôturer"
-                                   }
-                                 >
-                                   <Lock size={16} />
-                                 </button>
+                                 </th>
+                                 <th className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Statut</th>
+                                 <th className="px-4 py-3 text-right text-xs font-bold text-primary uppercase tracking-wider">Actions</th>
+                              </tr>
+                           </thead>
+                           <tbody className="divide-y divide-border">
+                              {items.map(alloc => {
+                                 // Progress Bar Logic
+                                 const progress = alloc.progress;
+                                 let progressColor = 'bg-primary';
+                                 let textColor = 'text-primary';
+                                 let StatusIcon = Activity;
 
-                                 <button 
-                                   onClick={() => handleOpenModal(alloc)}
-                                   className="btn btn-circle btn-text btn-sm text-blue-600"
-                                   title="Modifier"
-                                 >
-                                    <Edit2 size={16} />
-                                 </button>
-                                 <button 
-                                   onClick={() => handleDelete(alloc.id)}
-                                   className="btn btn-circle btn-text btn-sm btn-text-error"
-                                   title="Supprimer"
-                                 >
-                                    <Trash2 size={16} />
-                                 </button>
-                              </div>
-                           </td>
-                        </tr>
-                     );
-                  })}
-               </tbody>
-            </table>
-         </div>
+                                 if (progress > 100) {
+                                    progressColor = 'bg-red-500';
+                                    textColor = 'text-red-500';
+                                    StatusIcon = AlertTriangle;
+                                 } else if (progress >= 100) {
+                                    progressColor = 'bg-emerald-500';
+                                    textColor = 'text-emerald-500';
+                                    StatusIcon = CheckCircle;
+                                 } else if (progress >= 70) {
+                                    progressColor = 'bg-sky-500';
+                                    textColor = 'text-sky-500';
+                                    StatusIcon = TrendingUp;
+                                 } else if (progress >= 40) {
+                                    progressColor = 'bg-amber-500';
+                                    textColor = 'text-amber-500';
+                                    StatusIcon = Activity;
+                                 }
+
+                                 const stepsFilled = Math.min(10, Math.floor(progress / 10));
+
+                                 return (
+                                    <tr key={alloc.id} className="hover:bg-muted/30 transition-colors">
+                                       <td className="px-4 py-3">
+                                          <div className="flex flex-col">
+                                             <span className="font-bold text-foreground text-sm">{alloc.operator_name}</span>
+                                             <span className="text-xs text-muted-foreground font-mono">{alloc.allocation_key}</span>
+                                          </div>
+                                       </td>
+                                       <td className="px-4 py-3">
+                                          <div className="flex flex-col text-sm">
+                                             <span className="text-foreground">{alloc.commune_name}</span>
+                                             <span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span>
+                                          </div>
+                                       </td>
+                                       <td className="px-4 py-3">
+                                          <span className="badge badge-soft badge-secondary text-xs">{alloc.project_phase || '-'}</span>
+                                       </td>
+                                       <td className="px-4 py-3 w-64">
+                                          <div className="flex flex-col gap-1.5">
+                                             <div className="flex justify-between text-xs font-medium">
+                                                <span className={textColor}>
+                                                   {alloc.delivered_tonnage.toLocaleString()} / {alloc.target_tonnage.toLocaleString()} T
+                                                </span>
+                                                <span className="text-muted-foreground">{alloc.progress.toFixed(0)}%</span>
+                                             </div>
+                                             <div className="flex items-center gap-2">
+                                                <div className="flex-1 flex gap-0.5 h-2">
+                                                   {[...Array(10)].map((_, i) => (
+                                                      <div 
+                                                         key={i}
+                                                         className={`flex-1 rounded-sm transition-colors duration-300 ${
+                                                            i < stepsFilled ? progressColor : 'bg-muted/50'
+                                                         }`}
+                                                      ></div>
+                                                   ))}
+                                                </div>
+                                                <StatusIcon size={16} className={textColor} />
+                                             </div>
+                                          </div>
+                                       </td>
+                                       <td className="px-4 py-3">
+                                          <button 
+                                             onClick={() => setStatusFilter(alloc.status as any)}
+                                             className={`badge badge-soft text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity
+                                                ${alloc.status === 'OPEN' ? 'badge-info' : ''}
+                                                ${alloc.status === 'IN_PROGRESS' ? 'badge-warning' : ''}
+                                                ${alloc.status === 'CLOSED' ? 'badge-success' : ''}
+                                                ${alloc.status === 'OVER_DELIVERED' ? 'badge-error' : ''}
+                                             `}
+                                             title="Filtrer par ce statut"
+                                          >
+                                             {alloc.status}
+                                          </button>
+                                       </td>
+                                       <td className="px-4 py-3 text-right">
+                                          <div className="flex items-center justify-end gap-1">
+                                             <button 
+                                               onClick={() => handleView(alloc)}
+                                               className="btn btn-circle btn-text btn-sm text-sky-600 hover:bg-sky-50"
+                                               title="Voir Détails"
+                                             >
+                                               <Eye size={16} />
+                                             </button>
+                                             <button 
+                                               onClick={() => handleCreateDelivery(alloc)}
+                                               disabled={alloc.status === 'CLOSED'}
+                                               className={`btn btn-circle btn-text btn-sm ${alloc.status === 'CLOSED' ? 'text-muted-foreground opacity-30 cursor-not-allowed' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                                               title={alloc.status === 'CLOSED' ? "Allocation fermée" : "Nouvelle Expédition"}
+                                             >
+                                               <Truck size={16} />
+                                             </button>
+                                             
+                                             <button 
+                                               onClick={() => handleCloseAllocation(alloc.id)}
+                                               disabled={alloc.status === 'CLOSED' || alloc.progress < 100}
+                                               className={`btn btn-circle btn-text btn-sm ${
+                                                 (alloc.status === 'CLOSED' || alloc.progress < 100)
+                                                   ? 'text-muted-foreground opacity-30 cursor-not-allowed' 
+                                                   : 'text-amber-600 hover:bg-amber-50'
+                                               }`}
+                                               title={
+                                                 alloc.status === 'CLOSED' 
+                                                   ? "Déjà clôturé" 
+                                                   : alloc.progress < 100 
+                                                     ? "Objectif non atteint (100% requis pour clôturer)" 
+                                                     : "Clôturer"
+                                               }
+                                             >
+                                               <Lock size={16} />
+                                             </button>
+
+                                             <button 
+                                               onClick={() => handleOpenModal(alloc)}
+                                               className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50"
+                                               title="Modifier"
+                                             >
+                                                <Edit2 size={16} />
+                                             </button>
+                                             <button 
+                                               onClick={() => handleDelete(alloc.id)}
+                                               className="btn btn-circle btn-text btn-sm btn-text-error hover:bg-red-50"
+                                               title="Supprimer"
+                                             >
+                                                <Trash2 size={16} />
+                                             </button>
+                                          </div>
+                                       </td>
+                                    </tr>
+                                 );
+                              })}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               </div>
+            );
+         })}
       </div>
 
       {/* Edit/Create Modal */}
