@@ -4,7 +4,7 @@ import { db } from '../services/db';
 import { AllocationView, Project, Region, Department, Commune, Operator, DeliveryView } from '../types';
 import { 
   Plus, Search, Filter, MapPin, User, Truck, 
-  Edit2, Trash2, AlertTriangle, Lock, X, Save,
+  Edit2, Trash2, AlertTriangle, Lock, Unlock, X, Save,
   CheckCircle, TrendingUp, Activity, Eye, Printer, Calendar, FileText,
   ArrowUpDown, ChevronDown, ChevronRight, Layers, ListFilter
 } from 'lucide-react';
@@ -495,18 +495,27 @@ export const Allocations = () => {
                                           </div>
                                        </td>
                                        <td className="px-4 py-3">
-                                          <button 
-                                             onClick={() => setStatusFilter(alloc.status as any)}
-                                             className={`badge badge-soft text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity
-                                                ${alloc.status === 'OPEN' ? 'badge-info' : ''}
-                                                ${alloc.status === 'IN_PROGRESS' ? 'badge-warning' : ''}
-                                                ${alloc.status === 'CLOSED' ? 'badge-success' : ''}
-                                                ${alloc.status === 'OVER_DELIVERED' ? 'badge-error' : ''}
-                                             `}
-                                             title="Filtrer par ce statut"
-                                          >
-                                             {alloc.status}
-                                          </button>
+                                          {(() => {
+                                             const config = {
+                                                'OPEN': { label: 'Ouvert', icon: Unlock, className: 'badge-info' },
+                                                'IN_PROGRESS': { label: 'En Cours', icon: Activity, className: 'badge-warning' },
+                                                'CLOSED': { label: 'Clôturé', icon: Lock, className: 'badge-success' },
+                                                'OVER_DELIVERED': { label: 'Dépassement', icon: AlertTriangle, className: 'badge-error' }
+                                             }[alloc.status as string] || { label: alloc.status, icon: Activity, className: 'badge-secondary' };
+                                             
+                                             const StatusIconComponent = config.icon;
+
+                                             return (
+                                                <button 
+                                                   onClick={() => setStatusFilter(alloc.status as any)}
+                                                   className={`badge badge-soft text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity gap-1.5 ${config.className}`}
+                                                   title="Filtrer par ce statut"
+                                                >
+                                                   <StatusIconComponent size={12} />
+                                                   {config.label}
+                                                </button>
+                                             );
+                                          })()}
                                        </td>
                                        <td className="px-4 py-3 text-right">
                                           <div className="flex items-center justify-end gap-1">
