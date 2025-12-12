@@ -459,14 +459,14 @@ export const Logistics = () => {
               <div className={`accordion-content ${!isOpen ? 'hidden' : ''}`}>
                  <div className="w-full overflow-x-auto">
                     <table className="table table-striped">
-                      <thead>
+                      <thead className="bg-primary/5 border-b-2 border-primary/20">
                         <tr>
-                          <th className="w-32">N° BL</th>
-                          <th>Destination</th>
-                          <th>Transport</th>
-                          <th>Charge</th>
-                          <th>Date</th>
-                          <th className="text-right w-24">Actions</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider w-32">N° BL</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Destination</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Transport</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Charge</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Date</th>
+                          <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider w-24">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -492,7 +492,7 @@ export const Logistics = () => {
                               {/* Items */}
                               {subGroup.items.map((del) => (
                                 <tr key={del.id} className="hover:bg-muted/50 transition-colors">
-                                  <td>
+                                  <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
                                       <div className="p-1.5 bg-primary/10 rounded text-primary">
                                          <FileText size={14} />
@@ -500,7 +500,7 @@ export const Logistics = () => {
                                       <span className="font-bold font-mono text-foreground text-sm">{del.bl_number}</span>
                                     </div>
                                   </td>
-                                  <td>
+                                  <td className="px-4 py-3">
                                     <div className="flex flex-col">
                                       <span className="text-sm font-medium text-foreground">{del.operator_name}</span>
                                       <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -508,7 +508,7 @@ export const Logistics = () => {
                                       </span>
                                     </div>
                                   </td>
-                                  <td>
+                                  <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
                                       <div className="p-1.5 bg-muted rounded text-muted-foreground">
                                         <TruckIcon size={14} />
@@ -519,13 +519,13 @@ export const Logistics = () => {
                                       </div>
                                     </div>
                                   </td>
-                                  <td>
+                                  <td className="px-4 py-3">
                                     <span className="text-sm font-bold text-foreground bg-muted px-2 py-1 rounded">{del.tonnage_loaded} T</span>
                                   </td>
-                                  <td className="text-sm text-muted-foreground">
+                                  <td className="px-4 py-3 text-sm text-muted-foreground">
                                     {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}
                                   </td>
-                                  <td className="text-right">
+                                  <td className="px-4 py-3 text-right">
                                      <div className="flex justify-end gap-1">
                                         <button 
                                           onClick={() => handleOpenModal(del)}

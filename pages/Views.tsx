@@ -567,13 +567,13 @@ export const Views = () => {
 
               <div className="w-full overflow-x-auto">
                 <table className="table table-striped">
-                  <thead>
+                  <thead className="bg-primary/5 border-b-2 border-primary/20">
                     <tr>
-                      <th>N° BL</th>
-                      <th>Date</th>
-                      <th>Opérateur / Détails</th>
-                      <th>Localisation</th>
-                      <th className="text-center">Actions</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">N° BL</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Date</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Opérateur / Détails</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Localisation</th>
+                      <th className="px-4 py-3 text-center text-sm font-bold text-primary uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -588,7 +588,7 @@ export const Views = () => {
                         )}
                         {group.items.map((item, idx) => (
                           <tr key={idx}>
-                            <td>
+                            <td className="px-4 py-3">
                                <div className="flex flex-col">
                                   <span className="font-mono font-medium text-foreground">{item.bl_number}</span>
                                   {/* Caption Added under N° BL */}
@@ -597,10 +597,10 @@ export const Views = () => {
                                   </span>
                                </div>
                             </td>
-                            <td className="text-sm text-muted-foreground">
+                            <td className="px-4 py-3 text-sm text-muted-foreground">
                               {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}
                             </td>
-                            <td>
+                            <td className="px-4 py-3">
                               <div className="flex flex-col gap-1">
                                 <span className="text-sm font-bold text-foreground">{item.operator_name}</span>
                                 {item.operator_coop_name && (
@@ -616,10 +616,10 @@ export const Views = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="text-sm text-muted-foreground">
+                            <td className="px-4 py-3 text-sm text-muted-foreground">
                               {item.commune}, {item.department}, {item.region}
                             </td>
-                            <td className="text-center">
+                            <td className="px-4 py-3 text-center">
                                <div className="flex items-center justify-center gap-2">
                                   <button 
                                     onClick={() => downloadBLPdf(item)}
@@ -663,14 +663,14 @@ export const Views = () => {
 
               <div className="w-full overflow-x-auto">
                 <table className="table table-striped">
-                  <thead>
+                  <thead className="bg-primary/5 border-b-2 border-primary/20">
                     <tr>
-                      <th>Opérateur</th>
-                      <th>Localisation</th>
-                      <th>Phase Projet</th>
-                      <th className="text-center">Nbr Livraisons</th>
-                      <th className="text-right">Tonnage Total</th>
-                      <th className="text-center">Actions</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Opérateur</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Localisation</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Phase Projet</th>
+                      <th className="px-4 py-3 text-center text-sm font-bold text-primary uppercase tracking-wider">Nbr Livraisons</th>
+                      <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider">Tonnage Total</th>
+                      <th className="px-4 py-3 text-center text-sm font-bold text-primary uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -685,7 +685,7 @@ export const Views = () => {
                         )}
                         {group.items.map((item, idx) => (
                           <tr key={idx}>
-                            <td>
+                            <td className="px-4 py-3">
                               <div className="flex flex-col">
                                 <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
                                 {item.operator_coop_name && (
@@ -693,19 +693,19 @@ export const Views = () => {
                                 )}
                               </div>
                             </td>
-                            <td className="text-sm text-muted-foreground">
+                            <td className="px-4 py-3 text-sm text-muted-foreground">
                               {item.commune}, {item.department}, {item.region}
                             </td>
-                            <td className="text-sm text-foreground">
+                            <td className="px-4 py-3 text-sm text-foreground">
                               Phase {item.project_phase}
                             </td>
-                            <td className="text-center font-mono text-sm text-foreground">
+                            <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
                               {item.deliveries_count}
                             </td>
-                            <td className="text-right font-mono font-medium text-primary">
+                            <td className="px-4 py-3 text-right font-mono font-medium text-primary">
                               {item.total_tonnage} T
                             </td>
-                            <td className="text-center">
+                            <td className="px-4 py-3 text-center">
                               <button 
                                 onClick={() => fullPrintFC(item)}
                                 className="btn btn-text btn-sm text-primary hover:bg-primary/10 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2"

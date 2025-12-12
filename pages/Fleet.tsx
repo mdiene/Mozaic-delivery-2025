@@ -180,20 +180,20 @@ export const Fleet = () => {
         <div className="w-full overflow-x-auto">
           {activeTab === 'trucks' ? (
             <table className="table table-striped">
-              <thead>
+              <thead className="bg-primary/5 border-b-2 border-primary/20">
                 <tr>
-                  <th>Immatriculation</th>
-                  <th>Capacité</th>
-                  <th>Chauffeur Assigné</th>
-                  <th>Statut</th>
-                  <th className="text-right">Actions</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Immatriculation</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Capacité</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Chauffeur Assigné</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Statut</th>
+                  <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {trucks.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Aucun camion trouvé.</td></tr>}
                 {trucks.map(truck => (
                   <tr key={truck.id}>
-                    <td>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-muted rounded-lg text-muted-foreground">
                           <Truck size={18} />
@@ -204,8 +204,8 @@ export const Fleet = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="text-sm text-foreground">{truck.capacity_tonnes} Tonnes</td>
-                    <td>
+                    <td className="px-4 py-3 text-sm text-foreground">{truck.capacity_tonnes} Tonnes</td>
+                    <td className="px-4 py-3">
                       {truck.driver_name ? (
                         <div className="flex items-center gap-2">
                           <User size={14} className="text-muted-foreground" />
@@ -215,7 +215,7 @@ export const Fleet = () => {
                         <span className="text-xs text-muted-foreground italic">Non assigné</span>
                       )}
                     </td>
-                    <td>
+                    <td className="px-4 py-3">
                        <span className={`badge badge-soft text-xs 
                         ${truck.status === 'AVAILABLE' ? 'badge-success' : ''}
                         ${truck.status === 'IN_TRANSIT' ? 'badge-warning' : ''}
@@ -224,7 +224,7 @@ export const Fleet = () => {
                         {truck.status === 'AVAILABLE' ? 'DISPONIBLE' : truck.status === 'IN_TRANSIT' ? 'EN TRANSIT' : 'MAINTENANCE'}
                       </span>
                     </td>
-                    <td className="text-right">
+                    <td className="px-4 py-3 text-right">
                       <button onClick={() => handleEdit(truck)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
                       <button onClick={() => handleDelete(truck.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                     </td>
@@ -234,14 +234,14 @@ export const Fleet = () => {
             </table>
           ) : (
             <table className="table table-striped">
-              <thead>
+              <thead className="bg-primary/5 border-b-2 border-primary/20">
                 <tr>
-                  <th>Nom</th>
-                  <th>Téléphone</th>
-                  <th>Permis</th>
-                  <th>Statut</th>
-                  <th>Camion Assigné</th>
-                  <th className="text-right">Actions</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Nom</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Téléphone</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Permis</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Statut</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Camion Assigné</th>
+                  <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,7 +255,7 @@ export const Fleet = () => {
                     </tr>
                     {assignedDrivers.map(driver => (
                       <tr key={driver.id}>
-                        <td>
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-muted rounded-full text-muted-foreground">
                               <User size={18} />
@@ -263,22 +263,22 @@ export const Fleet = () => {
                             <span className="font-medium text-foreground">{driver.name}</span>
                           </div>
                         </td>
-                        <td className="text-sm text-foreground">{driver.phone}</td>
-                        <td className="text-sm font-mono text-muted-foreground">{driver.license_number}</td>
-                        <td>
+                        <td className="px-4 py-3 text-sm text-foreground">{driver.phone}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
+                        <td className="px-4 py-3">
                           <span className={`badge badge-soft text-xs 
                             ${driver.status === 'ACTIVE' ? 'badge-success' : 'badge-secondary'}
                           `}>
                             {driver.status === 'ACTIVE' ? 'ACTIF' : 'INACTIF'}
                           </span>
                         </td>
-                        <td className="text-sm">
+                        <td className="px-4 py-3 text-sm">
                           <div className="flex items-center gap-2">
                             <Truck size={14} className="text-muted-foreground" />
                             <span className="font-mono font-medium text-foreground">{driver.truck_plate}</span>
                           </div>
                         </td>
-                        <td className="text-right">
+                        <td className="px-4 py-3 text-right">
                           <button onClick={() => handleEdit(driver)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
                           <button onClick={() => handleDelete(driver.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                         </td>
@@ -295,7 +295,7 @@ export const Fleet = () => {
                     </tr>
                     {unassignedDrivers.map(driver => (
                       <tr key={driver.id}>
-                        <td>
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-muted rounded-full text-muted-foreground">
                               <User size={18} />
@@ -303,19 +303,19 @@ export const Fleet = () => {
                             <span className="font-medium text-foreground">{driver.name}</span>
                           </div>
                         </td>
-                        <td className="text-sm text-foreground">{driver.phone}</td>
-                        <td className="text-sm font-mono text-muted-foreground">{driver.license_number}</td>
-                        <td>
+                        <td className="px-4 py-3 text-sm text-foreground">{driver.phone}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{driver.license_number}</td>
+                        <td className="px-4 py-3">
                           <span className={`badge badge-soft text-xs 
                             ${driver.status === 'ACTIVE' ? 'badge-success' : 'badge-secondary'}
                           `}>
                             {driver.status === 'ACTIVE' ? 'ACTIF' : 'INACTIF'}
                           </span>
                         </td>
-                        <td className="text-sm">
+                        <td className="px-4 py-3 text-sm">
                           <span className="text-xs text-muted-foreground italic">Aucun</span>
                         </td>
-                        <td className="text-right">
+                        <td className="px-4 py-3 text-right">
                           {/* Assign Truck Action */}
                           <button 
                             onClick={() => handleAssignTruck(driver)}

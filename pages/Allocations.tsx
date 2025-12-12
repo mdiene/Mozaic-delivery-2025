@@ -408,13 +408,13 @@ export const Allocations = () => {
                   <div className={`accordion-content ${!isOpen ? 'hidden' : ''}`}>
                      <div className="w-full overflow-x-auto">
                         <table className="table w-full">
-                           <thead className="bg-primary/5 border-b-2 border-primary/10">
+                           <thead className="bg-primary/5 border-b-2 border-primary/20">
                               <tr>
-                                 <th className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Opérateur / Référence</th>
-                                 <th className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Localisation</th>
-                                 <th className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Phase</th>
+                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Opérateur / Référence</th>
+                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Localisation</th>
+                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Phase</th>
                                  <th 
-                                    className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider cursor-pointer hover:bg-primary/10 transition-colors"
+                                    className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider cursor-pointer hover:bg-primary/10 transition-colors"
                                     onClick={() => requestSort('performance')}
                                  >
                                     <div className="flex items-center gap-1">
@@ -422,8 +422,8 @@ export const Allocations = () => {
                                        <ArrowUpDown size={14} className={sortConfig?.key === 'performance' ? 'text-primary' : 'text-primary/50'} />
                                     </div>
                                  </th>
-                                 <th className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Statut</th>
-                                 <th className="px-4 py-3 text-right text-xs font-bold text-primary uppercase tracking-wider">Actions</th>
+                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Statut</th>
+                                 <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider">Actions</th>
                               </tr>
                            </thead>
                            <tbody className="divide-y divide-border">

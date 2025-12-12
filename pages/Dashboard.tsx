@@ -2,18 +2,16 @@
 import { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
-  XAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { db } from '../services/db';
 import { 
   TrendingUp, Truck, AlertTriangle, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
-  Activity, ChevronDown, ChevronUp, Network, MoreHorizontal, Maximize2, Minimize2
+  Activity, ChevronDown, ChevronUp, Maximize2, Minimize2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
-import RegionalGraph from '../components/RegionalGraph';
-import { NetworkHierarchy } from '../types';
 
 // Aquiry Palette
 const COLORS = [
@@ -56,11 +54,11 @@ const CustomTooltip = ({ active, payload, label, chartType }: any) => {
                   style={{ backgroundColor: entry.stroke || entry.fill }}
                 />
                 <span className="capitalize text-muted-foreground font-medium">
-                  {entry.name === 'Planned' ? 'Prévu' : 'Livré'}
+                  {entry.name === 'Planned' ? 'Prévu' : entry.name === 'Delivered' ? 'Livré' : 'Volume'}
                 </span>
               </div>
               <span className="font-mono font-bold text-foreground">
-                {entry.value}
+                {entry.value} T
               </span>
             </div>
           ))}
@@ -75,12 +73,12 @@ export const Dashboard = () => {
   const { selectedProject, projects } = useProject();
   const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, alerts: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
-  const [graphData, setGraphData] = useState<NetworkHierarchy>([]);
+  const [truckData, setTruckData] = useState<{name: string, value: number}[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
   const [isMounted, setIsMounted] = useState(false);
-  const [isGraphOpen, setIsGraphOpen] = useState(false);
+  const [isTruckChartOpen, setIsTruckChartOpen] = useState(true); // Default open
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
@@ -91,14 +89,14 @@ export const Dashboard = () => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [s, c, g] = await Promise.all([
+        const [s, c, t] = await Promise.all([
           db.getStats(selectedProject),
           db.getChartData(selectedProject),
-          db.getNetworkHierarchy(selectedProject)
+          db.getTruckStats(selectedProject)
         ]);
         setStats(s);
         setChartData(c);
-        setGraphData(g);
+        setTruckData(t);
       } catch (e: any) {
         console.error('Error loading dashboard data:', e.message || e);
       } finally {
@@ -321,7 +319,7 @@ export const Dashboard = () => {
           <div className="bg-card p-6 rounded-2xl shadow-soft-xl border border-border flex-1">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-lg text-foreground">Activité Récente</h3>
-              <MoreHorizontal size={20} className="text-muted-foreground cursor-pointer" />
+              <Activity size={20} className="text-muted-foreground" />
             </div>
             
             <div className="space-y-6 relative">
@@ -342,39 +340,39 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Collapsible Network Graph with Fullscreen Mode */}
+      {/* Collapsible Truck Performance Chart with Fullscreen Mode */}
       <div className={`pt-2 transition-all duration-300 ${isFullScreen ? 'fixed inset-0 z-50 bg-background p-6 overflow-hidden' : ''}`}>
         
         {/* Toggle/Header Bar */}
         <div 
-           onClick={() => !isFullScreen && setIsGraphOpen(!isGraphOpen)}
+           onClick={() => !isFullScreen && setIsTruckChartOpen(!isTruckChartOpen)}
            className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer
-             ${isGraphOpen || isFullScreen 
+             ${isTruckChartOpen || isFullScreen 
                ? 'bg-card border-border shadow-soft-xl' 
                : 'bg-card/50 border-transparent hover:bg-card hover:shadow-soft-sm'
              }`}
         >
            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl transition-colors ${isGraphOpen || isFullScreen ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                 <Network size={24} />
+              <div className={`p-3 rounded-xl transition-colors ${isTruckChartOpen || isFullScreen ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground'}`}>
+                 <Truck size={24} />
               </div>
               <div className="text-left">
-                 <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">Carte du Réseau</h3>
-                 <p className="text-sm text-muted-foreground">Visualisation interactive</p>
+                 <h3 className="font-bold text-lg text-foreground group-hover:text-amber-600 transition-colors">Performance Flotte & Transporteurs</h3>
+                 <p className="text-sm text-muted-foreground">Volume total livré par camion ({selectedProject === 'all' ? 'Global' : 'Par Phase'})</p>
               </div>
            </div>
            
            <div className="flex items-center gap-2">
               {/* Fullscreen Button - Only visible if open */}
-              {(isGraphOpen || isFullScreen) && (
+              {(isTruckChartOpen || isFullScreen) && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsFullScreen(!isFullScreen);
-                    // Ensure graph stays open if we exit fullscreen
-                    if (!isFullScreen) setIsGraphOpen(true);
+                    // Ensure chart stays open if we exit fullscreen
+                    if (!isFullScreen) setIsTruckChartOpen(true);
                   }}
-                  className="p-2 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
+                  className="p-2 text-muted-foreground hover:text-amber-600 hover:bg-muted rounded-lg transition-colors"
                   title={isFullScreen ? "Réduire" : "Plein écran"}
                 >
                    {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
@@ -382,19 +380,62 @@ export const Dashboard = () => {
               )}
               
               {!isFullScreen && (
-                 isGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />
+                 isTruckChartOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />
               )}
            </div>
         </div>
 
-        {/* Graph Content */}
-        {(isGraphOpen || isFullScreen) && (
-          <div className={`mt-6 animate-in slide-in-from-top-4 fade-in duration-300 ${isFullScreen ? 'h-[calc(100vh-140px)]' : 'h-[500px]'}`}>
-             {graphData.length > 0 ? (
-               <RegionalGraph regions={graphData} />
+        {/* Chart Content */}
+        {(isTruckChartOpen || isFullScreen) && (
+          <div className={`mt-6 bg-card rounded-2xl border border-border p-6 shadow-sm animate-in slide-in-from-top-4 fade-in duration-300 ${isFullScreen ? 'h-[calc(100vh-140px)]' : 'h-[500px]'}`}>
+             {truckData.length > 0 ? (
+               <ResponsiveContainer width="100%" height="100%">
+                 <BarChart 
+                    data={truckData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }} // Increased bottom for labels
+                 >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis 
+                      dataKey="name" 
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                      interval={0}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis 
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+                      unit=" T"
+                    />
+                    <Tooltip 
+                      cursor={{ fill: 'var(--muted)', opacity: 0.3 }} 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
+                              <p className="mb-1 text-sm font-bold text-foreground">{label}</p>
+                              <p className="text-xs text-muted-foreground">Volume Livré: <span className="font-mono font-bold text-amber-600">{payload[0].value} T</span></p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="value" 
+                      fill="var(--chart-3)" // Amber
+                      radius={[4, 4, 0, 0]}
+                      barSize={40}
+                    />
+                 </BarChart>
+               </ResponsiveContainer>
              ) : (
-               <div className="w-full h-full bg-card rounded-2xl border border-border flex items-center justify-center text-muted-foreground shadow-inner">
-                 {loading ? 'Chargement...' : 'Aucune donnée disponible.'}
+               <div className="w-full h-full flex items-center justify-center text-muted-foreground shadow-inner bg-muted/5 rounded-xl">
+                 {loading ? 'Chargement...' : 'Aucune donnée de livraison disponible pour cette sélection.'}
                </div>
              )}
           </div>

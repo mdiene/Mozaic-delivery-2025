@@ -1,5 +1,4 @@
 
-
 import { supabase } from '../lib/supabaseClient';
 import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion, NetworkDeliveryNode } from '../types';
 
@@ -223,6 +222,36 @@ export const db = {
     });
 
     return Object.values(chartData);
+  },
+
+  getTruckStats: async (projectId?: string) => {
+    let query = supabase
+      .from('deliveries')
+      .select(`
+        tonnage_loaded,
+        trucks ( plate_number ),
+        allocations!inner ( project_id )
+      `);
+    
+    if (projectId && projectId !== 'all') {
+      query = query.eq('allocations.project_id', projectId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      safeLog('Error fetching truck stats:', error);
+      return [];
+    }
+
+    const stats: Record<string, number> = {};
+    data?.forEach((d: any) => {
+      const plate = d.trucks?.plate_number || 'Inconnu';
+      stats[plate] = (stats[plate] || 0) + (Number(d.tonnage_loaded) || 0);
+    });
+
+    return Object.entries(stats)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   },
 
   getRegionPerformance: async (projectId?: string): Promise<RegionPerformance[]> => {
