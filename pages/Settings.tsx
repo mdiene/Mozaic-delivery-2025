@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment, FormEvent } from 'react';
 import { db } from '../services/db';
 import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers, Save } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
@@ -90,7 +90,7 @@ export const Settings = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     try {
       let table = '';
@@ -566,7 +566,7 @@ export const Settings = () => {
                       if (regionDepts.length === 0) return null;
 
                       return (
-                        <React.Fragment key={region.id}>
+                        <Fragment key={region.id}>
                           <tr className="bg-muted/50 border-y border-border">
                             <td colSpan={4} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
                               Région: {region.name}
@@ -583,7 +583,7 @@ export const Settings = () => {
                               </td>
                             </tr>
                           ))}
-                        </React.Fragment>
+                        </Fragment>
                       );
                     })
                   }
@@ -600,7 +600,7 @@ export const Settings = () => {
                        if (deptCommunes.length === 0) return null;
 
                        return (
-                         <React.Fragment key={dept.id}>
+                         <Fragment key={dept.id}>
                            <tr className="bg-muted/50 border-y border-border">
                              <td colSpan={4} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
                                Département: {dept.name}
@@ -617,7 +617,7 @@ export const Settings = () => {
                                </td>
                              </tr>
                            ))}
-                         </React.Fragment>
+                         </Fragment>
                        );
                     })
                   }

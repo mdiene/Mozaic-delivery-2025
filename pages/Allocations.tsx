@@ -1,75 +1,60 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, FormEvent } from 'react';
 import { db } from '../services/db';
-import { AllocationView, Project, Operator, Region, Department, Commune, DeliveryView } from '../types';
-import { Plus, Search, Filter, Edit2, Trash2, X, Save, RefreshCw, User, Phone, Layers, Lock, CheckCircle, Truck, EyeOff, Eye, Printer, MapPin, Calendar, Package, TrendingUp, AlertTriangle } from 'lucide-react';
+import { AllocationView, Project, Region, Department, Commune, Operator, DeliveryView } from '../types';
+import { 
+  Plus, Search, Filter, MapPin, User, Truck, 
+  Edit2, Trash2, AlertTriangle, Lock, X, Save,
+  CheckCircle, TrendingUp, Activity, Eye, Printer, Calendar, FileText
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { AdvancedSelect, Option } from '../components/AdvancedSelect';
-
-type GroupBy = 'none' | 'project';
+import { useProject } from '../components/Layout';
+import { AdvancedSelect } from '../components/AdvancedSelect';
 
 export const Allocations = () => {
   const navigate = useNavigate();
+  const { selectedProject, projects } = useProject();
+  
   const [allocations, setAllocations] = useState<AllocationView[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   
-  // Filter & Grouping State
-  const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<string>('all');
-  const [groupBy, setGroupBy] = useState<GroupBy>('none');
-  const [hideClosed, setHideClosed] = useState(false);
-
-  // Dropdown Data
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [operators, setOperators] = useState<Operator[]>([]);
+  // Reference Data for Modal
   const [regions, setRegions] = useState<Region[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [communes, setCommunes] = useState<Commune[]>([]);
+  const [operators, setOperators] = useState<Operator[]>([]);
 
-  // Edit/Create Modal State
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED'>('ALL');
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
 
-  // View/Preview Modal State
-  const [isViewOpen, setIsViewOpen] = useState(false);
+  // View Modal State
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewAllocation, setViewAllocation] = useState<AllocationView | null>(null);
   const [viewDeliveries, setViewDeliveries] = useState<DeliveryView[]>([]);
-  const [viewLoading, setViewLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [all, proj, ops, reg, dep, com] = await Promise.all([
+      const [data, r, d, c, o] = await Promise.all([
         db.getAllocationsView(),
-        db.getProjects(),
-        db.getOperators(),
         db.getRegions(),
         db.getDepartments(),
-        db.getCommunes()
+        db.getCommunes(),
+        db.getOperators()
       ]);
-      setAllocations(all);
-      setProjects(proj);
-      setOperators(ops);
-      setRegions(reg);
-      setDepartments(dep);
-      setCommunes(com);
-      
-      // Auto-Status Update Logic
-      all.forEach(async (a) => {
-        // Auto-Close if 100%
-        if (a.progress >= 100 && (a.status === 'OPEN' || a.status === 'IN_PROGRESS')) {
-           console.log(`Auto-closing allocation ${a.allocation_key}`);
-           await db.updateItem('allocations', a.id, { status: 'CLOSED' });
-        }
-        // Auto-Start if > 0% and OPEN
-        else if (a.progress > 0 && a.status === 'OPEN') {
-           console.log(`Auto-starting allocation ${a.allocation_key}`);
-           await db.updateItem('allocations', a.id, { status: 'IN_PROGRESS' });
-        }
-      });
-      
+      setAllocations(data);
+      setRegions(r);
+      setDepartments(d);
+      setCommunes(c);
+      setOperators(o);
     } catch (e) {
-      console.error('Error fetching allocation data:', e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -79,535 +64,354 @@ export const Allocations = () => {
     fetchData();
   }, []);
 
+  // Filter Logic
+  const filteredAllocations = useMemo(() => {
+    return allocations.filter(alloc => {
+      // 1. Project Context Filter (Header)
+      if (selectedProject !== 'all' && alloc.project_id !== selectedProject) return false;
+
+      // 2. Status Filter
+      if (statusFilter !== 'ALL' && alloc.status !== statusFilter) return false;
+
+      // 3. Search
+      if (searchTerm) {
+        const lower = searchTerm.toLowerCase();
+        return (
+          alloc.operator_name.toLowerCase().includes(lower) ||
+          alloc.commune_name.toLowerCase().includes(lower) ||
+          (alloc.allocation_key && alloc.allocation_key.toLowerCase().includes(lower))
+        );
+      }
+      return true;
+    });
+  }, [allocations, selectedProject, statusFilter, searchTerm]);
+
+  // Handlers
+  const handleCreateDelivery = (alloc: AllocationView) => {
+    navigate(`/logistics?action=new&allocationId=${alloc.id}`);
+  };
+
+  const handleCloseAllocation = async (id: string) => {
+    if (!confirm('Voulez-vous vraiment clôturer cette allocation ? Elle ne pourra plus recevoir de livraisons.')) return;
+    try {
+      await db.updateItem('allocations', id, { status: 'CLOSED' });
+      fetchData();
+    } catch (e) {
+      alert("Erreur lors de la clôture.");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Supprimer cette allocation ? Attention, cela supprimera toutes les livraisons associées.')) return;
+    try {
+      await db.deleteItem('allocations', id);
+      fetchData();
+    } catch (e) {
+      alert("Impossible de supprimer.");
+    }
+  };
+
+  const handleView = async (alloc: AllocationView) => {
+    setViewAllocation(alloc);
+    // Fetch deliveries for this specific allocation
+    try {
+      const allDeliveries = await db.getDeliveriesView();
+      const related = allDeliveries.filter(d => d.allocation_id === alloc.id);
+      setViewDeliveries(related);
+      setIsViewModalOpen(true);
+    } catch (e) {
+      console.error("Error fetching deliveries for view", e);
+      alert("Erreur lors du chargement des livraisons.");
+    }
+  };
+
   const handleOpenModal = (alloc?: AllocationView) => {
     if (alloc) {
-      setFormData({ 
-        ...alloc,
-        // Map DB fields back to UI inputs
-        responsible_phone: alloc.responsible_phone_raw || ''
-      });
+      setFormData({ ...alloc });
     } else {
       setFormData({
-        target_tonnage: 0,
         status: 'OPEN',
-        allocation_key: '',
-        project_id: '',
-        operator_id: '',
-        region_id: '',
-        department_id: '',
-        commune_id: '',
-        responsible_name: '',
-        responsible_phone: ''
+        target_tonnage: 0,
+        allocation_key: `ALL-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`
       });
     }
     setIsModalOpen(true);
   };
 
-  const handleViewAllocation = async (alloc: AllocationView) => {
-    setViewAllocation(alloc);
-    setIsViewOpen(true);
-    setViewLoading(true);
-    try {
-      // Fetch all deliveries then filter (simplest approach reusing existing service)
-      // In a larger app, you'd want a specific db.getDeliveriesByAllocation(id)
-      const allDeliveries = await db.getDeliveriesView();
-      const relevant = allDeliveries.filter(d => d.allocation_id === alloc.id);
-      
-      // Sort by date descending
-      relevant.sort((a, b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime());
-      
-      setViewDeliveries(relevant);
-    } catch (e) {
-      console.error("Error fetching deliveries for view", e);
-    } finally {
-      setViewLoading(false);
-    }
-  };
-
-  const handlePrintView = () => {
-    window.print();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette allocation ?')) return;
-    try {
-      await db.deleteItem('allocations', id);
-      fetchData();
-    } catch (e) {
-      alert('Erreur lors de la suppression. Elle peut être liée à des livraisons existantes.');
-    }
-  };
-
-  const handleCreateDelivery = (alloc: AllocationView) => {
-    // Navigate to Logistics page with params to trigger modal
-    navigate(`/logistics?action=new&allocationId=${alloc.id}`);
-  };
-
-  const generateKey = () => {
-    const proj = projects.find(p => p.id === formData.project_id);
-    const reg = regions.find(r => r.id === formData.region_id);
-    const op = operators.find(o => o.id === formData.operator_id);
-    
-    const phasePart = proj ? `PH${proj.numero_phase}` : 'PHX';
-    const regPart = reg ? reg.code : 'XX';
-    const opPart = op ? op.name.substring(0, 3).toUpperCase().replace(/\s/g, '') : 'OP';
-    const random = Math.floor(1000 + Math.random() * 9000);
-
-    const key = `${phasePart}-${regPart}-${opPart}-${random}`;
-    setFormData({ ...formData, allocation_key: key });
-  };
-
-  // Auto-fill location data and responsible person when operator is selected
-  const handleOperatorChange = (opId: string) => {
-    const op = operators.find(o => o.id === opId);
-    if (!op) {
-      setFormData({ ...formData, operator_id: opId });
-      return;
-    }
-
-    // Find location hierarchy
-    const commune = communes.find(c => c.id === op.commune_id);
-    const dept = commune ? departments.find(d => d.id === commune.department_id) : null;
-    const reg = dept ? regions.find(r => r.id === dept.region_id) : null;
-
-    setFormData({
-      ...formData,
-      operator_id: opId,
-      commune_id: commune?.id || '',
-      department_id: dept?.id || '',
-      region_id: reg?.id || '',
-      project_id: op.projet_id || formData.project_id,
-      // Auto-fill responsible person from operator details
-      responsible_name: op.name,
-      responsible_phone: op.phone || ''
-    });
-  };
-
-  // Reverse Auto-fill: When commune is selected, fill department and region
-  const handleCommuneChange = (communeId: string) => {
-    const selectedCommune = communes.find(c => c.id === communeId);
-    
-    if (selectedCommune) {
-      const dept = departments.find(d => d.id === selectedCommune.department_id);
-      const reg = dept ? regions.find(r => r.id === dept.region_id) : null;
-      
-      setFormData((prev: any) => ({
-        ...prev,
-        commune_id: communeId,
-        department_id: dept ? dept.id : prev.department_id,
-        region_id: reg ? reg.id : prev.region_id
-      }));
-    } else {
-      setFormData((prev: any) => ({ ...prev, commune_id: communeId }));
-    }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    
-    // Client-side Validation
-    if (Number(formData.target_tonnage) <= 0) {
-      alert("Le tonnage cible doit être supérieur à 0");
-      return;
-    }
-    if (!formData.allocation_key) {
-      alert("La clé d'allocation est requise");
-      return;
-    }
-
     try {
-      // Allowlist Strategy: Explicitly construct payload with ONLY columns that exist in 'allocations' table
-      const dbPayload: any = {
+      const payload = {
         allocation_key: formData.allocation_key,
+        project_id: formData.project_id,
         region_id: formData.region_id,
         department_id: formData.department_id,
         commune_id: formData.commune_id,
         operator_id: formData.operator_id,
-        responsible_name: formData.responsible_name,
-        // Map UI phone input to DB columns
-        responsible_phone_raw: formData.responsible_phone || null,
-        responsible_phone_normalized: formData.responsible_phone ? formData.responsible_phone.replace(/\s/g, '') : null,
         target_tonnage: Number(formData.target_tonnage),
         status: formData.status || 'OPEN',
-        // Foreign keys: map empty strings to null
-        project_id: formData.project_id || null
+        responsible_name: formData.responsible_name,
+        responsible_phone_raw: formData.responsible_phone_raw
       };
 
-      if (!formData.id) {
-         await db.createItem('allocations', dbPayload);
+      if (formData.id) {
+        await db.updateItem('allocations', formData.id, payload);
       } else {
-         await db.updateItem('allocations', formData.id, dbPayload);
+        await db.createItem('allocations', payload);
       }
-      
       setIsModalOpen(false);
       fetchData();
-    } catch (error: any) {
-      console.error("Save Error:", error);
-      // Try to extract readable error
-      const msg = error.details || error.hint || error.message || JSON.stringify(error);
-      alert(`Échec de l'enregistrement: ${msg}`);
+    } catch (err: any) {
+      console.error(err);
+      alert('Erreur lors de l\'enregistrement: ' + (err.message || JSON.stringify(err)));
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    try {
-      // Optimistic Update
-      setAllocations(prev => prev.map(a => a.id === id ? { ...a, status: newStatus as any } : a));
-      
-      await db.updateItem('allocations', id, { status: newStatus });
-    } catch (e) {
-      alert("Erreur lors de la mise à jour du statut.");
-      fetchData(); // Revert
-    }
+  const handlePrint = () => {
+    window.print();
   };
 
-  const handleCloseAllocation = async (id: string) => {
-    if (confirm("Confirmez-vous la clôture de cette allocation ?")) {
-      await handleStatusChange(id, 'CLOSED');
-    }
-  };
+  // Helper for cascading selects in Modal
+  const filteredDepartments = useMemo(() => {
+    if (!formData.region_id) return [];
+    return departments.filter(d => d.region_id === formData.region_id);
+  }, [departments, formData.region_id]);
 
-  // Helper to filter communes based on selected region/dept
-  const getAvailableCommunes = () => {
-    return communes.filter(c => {
-      // If Department is selected, must match department
-      if (formData.department_id) {
-        return c.department_id === formData.department_id;
-      }
-      // If Region is selected (but no Dept), must match Region
-      if (formData.region_id) {
-        const dept = departments.find(d => d.id === c.department_id);
-        return dept?.region_id === formData.region_id;
-      }
-      // Otherwise show all
-      return true;
-    });
-  };
-  
-  // Calculate assigned operator IDs to filter dropdown
-  const assignedOperatorIds = new Set(allocations.map(a => a.operator_id));
+  const filteredCommunes = useMemo(() => {
+    if (!formData.department_id) return [];
+    return communes.filter(c => c.department_id === formData.department_id);
+  }, [communes, formData.department_id]);
 
-  // Helper to get selected project object
-  const selectedProject = projects.find(p => p.id === formData.project_id);
+  // Derived View Data
+  const viewUniqueTrucks = useMemo(() => {
+    const trucks = new Set(viewDeliveries.map(d => d.truck_plate));
+    return Array.from(trucks).filter(Boolean);
+  }, [viewDeliveries]);
 
-  // Grouping and Filtering Logic
-  const filteredAllocations = useMemo(() => {
-    return allocations.filter(a => {
-      // Search Term
-      const matchesSearch = 
-        a.operator_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.allocation_key?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.region_name?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      if (!matchesSearch) return false;
-
-      // Closed Filter
-      if (hideClosed && a.status === 'CLOSED') return false;
-
-      // Project Filter
-      if (selectedPhaseFilter === 'all') return true;
-      if (selectedPhaseFilter === 'unassigned') return !a.project_id;
-      return a.project_id === selectedPhaseFilter;
-    });
-  }, [allocations, searchTerm, selectedPhaseFilter, hideClosed]);
-
-  const groupedAllocations = useMemo(() => {
-    if (groupBy === 'none') {
-      return [{ key: 'All', items: filteredAllocations }];
-    }
-    
-    // Group by Project
-    const groups: Record<string, AllocationView[]> = {};
-    filteredAllocations.forEach(a => {
-      const key = a.project_phase || 'Phase Non Assignée';
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(a);
-    });
-
-    return Object.entries(groups).map(([key, items]) => ({ key, items }));
-  }, [filteredAllocations, groupBy]);
-
-  // Transform operators for AdvancedSelect
-  const operatorOptions: Option[] = useMemo(() => {
-    return operators
-      .filter(o => {
-        if (selectedProject) {
-          const opProject = projects.find(p => p.id === o.projet_id);
-          if (!opProject || opProject.numero_phase !== selectedProject.numero_phase) {
-            return false;
-          }
-        }
-        if (assignedOperatorIds.has(o.id) && o.id !== formData.operator_id) return false;
-        return true;
-      })
-      .map(o => ({
-        value: o.id,
-        label: o.name,
-        subLabel: `${o.commune_name || ''} ${(!formData.project_id && o.project_name && o.project_name !== '-') ? `- ${o.project_name}` : ''}`
-      }));
-  }, [operators, selectedProject, assignedOperatorIds, formData.operator_id, formData.project_id, projects]);
+  const viewUniqueDrivers = useMemo(() => {
+    const drivers = new Set(viewDeliveries.map(d => d.driver_name));
+    return Array.from(drivers).filter(Boolean);
+  }, [viewDeliveries]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Allocations</h1>
-          <p className="text-muted-foreground text-sm">Gérer les quotas régionaux et l'affectation des opérateurs.</p>
+          <p className="text-muted-foreground text-sm">Gérer les quotas par commune et par opérateur.</p>
         </div>
         <button 
           onClick={() => handleOpenModal()}
-          className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
         >
           <Plus size={18} />
           Nouvelle Allocation
         </button>
       </div>
 
-      {/* Filters & Search Toolbar */}
+      {/* Filter Bar */}
       <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <input 
               type="text" 
-              placeholder="Rechercher opérateur, région, clé..."
+              placeholder="Rechercher Opérateur, Commune..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
             />
           </div>
           
-          <div className="flex items-center gap-2">
-             <button
-                onClick={() => setHideClosed(!hideClosed)}
-                className={`px-3 py-2 rounded-lg border flex items-center gap-2 text-sm transition-colors ${
-                  hideClosed
-                    ? 'bg-primary/10 text-primary border-primary' 
-                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                }`}
-                title={hideClosed ? "Afficher les allocations fermées" : "Masquer les allocations fermées"}
-             >
-               {hideClosed ? <EyeOff size={16} /> : <Eye size={16} />} 
-               <span className="hidden sm:inline">Masquer Fermés</span>
-             </button>
-
-             <button
-                onClick={() => setGroupBy(prev => prev === 'none' ? 'project' : 'none')}
-                className={`px-3 py-2 rounded-lg border flex items-center gap-2 text-sm transition-colors ${
-                  groupBy === 'project' 
-                    ? 'bg-primary/10 text-primary border-primary' 
-                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                }`}
-             >
-               <Layers size={16} /> Grouper par Phase
-             </button>
+          <div className="flex items-center gap-2 overflow-x-auto">
+             <span className="text-xs font-semibold uppercase text-muted-foreground mr-1 flex items-center gap-1">
+               <Filter size={14} /> Statut:
+             </span>
+             {(['ALL', 'OPEN', 'IN_PROGRESS', 'CLOSED', 'OVER_DELIVERED'] as const).map(status => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
+                     statusFilter === status 
+                       ? 'bg-primary/10 text-primary border-primary' 
+                       : 'bg-card hover:bg-muted text-muted-foreground border-border'
+                  }`}
+                >
+                  {status === 'ALL' ? 'Tous' : status}
+                </button>
+             ))}
           </div>
         </div>
-
-        {/* Phase Filters - Horizontal Scroll */}
-        <div className="overflow-x-auto pb-2">
-           <form className="filter">
-             <input 
-               className="btn btn-square" 
-               type="reset" 
-               value="×" 
-               onClick={() => setSelectedPhaseFilter('all')}
-               title="Réinitialiser"
-             />
-             <input 
-               className="btn" 
-               type="radio" 
-               name="alloc-phase" 
-               aria-label="Toutes les Phases"
-               checked={selectedPhaseFilter === 'all'}
-               onChange={() => setSelectedPhaseFilter('all')}
-             />
-             <input 
-               className="btn" 
-               type="radio" 
-               name="alloc-phase" 
-               aria-label="Non Assignée"
-               checked={selectedPhaseFilter === 'unassigned'}
-               onChange={() => setSelectedPhaseFilter('unassigned')}
-             />
-             {projects.map(p => (
-               <input
-                 key={p.id}
-                 className="btn" 
-                 type="radio" 
-                 name="alloc-phase" 
-                 aria-label={`Phase ${p.numero_phase}${p.numero_marche ? ` - ${p.numero_marche}` : ''}`}
-                 checked={selectedPhaseFilter === p.id}
-                 onChange={() => setSelectedPhaseFilter(p.id)}
-               />
-             ))}
-           </form>
-        </div>
       </div>
 
-      <div className="w-full overflow-x-auto bg-card rounded-xl border border-border shadow-sm min-h-[500px]">
-        <table className="table table-striped">
-          <thead>
-            <tr>
-              <th>Opérateur / Clé</th>
-              <th>Localisation</th>
-              <th>Objectif</th>
-              <th>Progression</th>
-              <th>Statut</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAllocations.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                   {searchTerm ? 'Aucun résultat trouvé.' : 'Aucune allocation disponible.'}
-                </td>
-              </tr>
-            )}
-
-            {groupedAllocations.map((group) => (
-               <React.Fragment key={group.key}>
-                  {groupBy !== 'none' && (
-                    <tr className="bg-slate-100 dark:bg-slate-800/50 border-y border-border">
-                       <td colSpan={6} className="px-6 py-3 text-sm font-bold text-foreground">
-                          {group.key} ({group.items.length})
-                       </td>
-                    </tr>
+      {/* Table */}
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+         <div className="w-full overflow-x-auto">
+            <table className="table table-striped">
+               <thead>
+                  <tr>
+                     <th>Opérateur / Référence</th>
+                     <th>Localisation</th>
+                     <th>Projet</th>
+                     <th>Performance & Quota</th>
+                     <th>Statut</th>
+                     <th className="text-right">Actions</th>
+                  </tr>
+               </thead>
+               <tbody>
+                  {filteredAllocations.length === 0 && (
+                     <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune allocation trouvée.</td>
+                     </tr>
                   )}
-                  
-                  {group.items.map((alloc) => {
-                    // Logic for colors and icons
-                    let progressColor = 'bg-purple-600';
-                    let progressTextColor = 'text-purple-600';
-                    let StatusIcon = TrendingUp;
+                  {filteredAllocations.map(alloc => {
+                     // Progress Bar Logic
+                     const progress = alloc.progress;
+                     let progressColor = 'bg-primary';
+                     let textColor = 'text-primary';
+                     let StatusIcon = Activity;
 
-                    if (alloc.progress > 100) {
+                     if (progress > 100) {
                         progressColor = 'bg-red-500';
-                        progressTextColor = 'text-red-500';
+                        textColor = 'text-red-500';
                         StatusIcon = AlertTriangle;
-                    } else if (alloc.progress >= 100) {
+                     } else if (progress >= 100) {
                         progressColor = 'bg-emerald-500';
-                        progressTextColor = 'text-emerald-500';
+                        textColor = 'text-emerald-500';
                         StatusIcon = CheckCircle;
-                    } else if (alloc.progress >= 70) {
+                     } else if (progress >= 70) {
                         progressColor = 'bg-sky-500';
-                        progressTextColor = 'text-sky-500';
-                    } else if (alloc.progress >= 40) {
+                        textColor = 'text-sky-500';
+                        StatusIcon = TrendingUp;
+                     } else if (progress >= 40) {
                         progressColor = 'bg-amber-500';
-                        progressTextColor = 'text-amber-500';
-                    }
+                        textColor = 'text-amber-500';
+                        StatusIcon = Activity;
+                     } else {
+                        progressColor = 'bg-primary';
+                        textColor = 'text-primary';
+                        StatusIcon = Activity;
+                     }
 
-                    return (
-                      <tr key={alloc.id} className="hover:bg-muted/50 transition-colors">
-                        <td>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-foreground">{alloc.operator_name}</span>
-                            <span className="text-xs font-mono text-muted-foreground">{alloc.allocation_key}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="flex flex-col">
-                            <span className="text-sm text-foreground">{alloc.commune_name}</span>
-                            <span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="font-mono font-medium text-foreground">{alloc.target_tonnage} T</span>
-                        </td>
-                        <td className="w-52">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className={`font-bold ${progressTextColor}`}>{alloc.delivered_tonnage} T</span>
-                              <span className="text-muted-foreground">{alloc.progress.toFixed(1)}%</span>
-                            </div>
-                            <div className="flex items-center gap-x-1">
-                                {Array.from({ length: 10 }).map((_, idx) => {
-                                    const threshold = (idx + 1) * 10;
-                                    const isActive = alloc.progress >= (threshold - 9);
-                                    return (
-                                        <div 
-                                            key={idx}
-                                            className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
-                                                isActive 
-                                                    ? alloc.progress >= threshold 
-                                                        ? progressColor 
-                                                        : `${progressColor} opacity-60` // Current active step slightly lighter
-                                                    : `${progressColor} opacity-10` // Inactive step
-                                            }`}
-                                        ></div>
-                                    );
-                                })}
-                                <StatusIcon className={`size-3.5 ${progressTextColor} ml-1`} />
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                           <span className={`badge badge-soft text-xs 
-                             ${alloc.status === 'OPEN' ? 'badge-info' : ''}
-                             ${alloc.status === 'IN_PROGRESS' ? 'badge-warning' : ''}
-                             ${alloc.status === 'CLOSED' ? 'badge-secondary' : ''}
-                             ${alloc.status === 'OVER_DELIVERED' ? 'badge-error' : ''}
-                           `}>
-                             {alloc.status === 'OPEN' && 'OUVERT'}
-                             {alloc.status === 'IN_PROGRESS' && 'EN COURS'}
-                             {alloc.status === 'CLOSED' && 'CLÔTURÉ'}
-                             {alloc.status === 'OVER_DELIVERED' && 'DÉPASSÉ'}
-                           </span>
-                        </td>
-                        <td className="text-right">
-                           <div className="flex justify-end gap-1">
-                              <button 
-                                  onClick={() => handleViewAllocation(alloc)}
-                                  className="btn btn-circle btn-text btn-sm text-purple-600"
-                                  title="Voir Détails"
-                              >
-                                  <Eye size={16} />
-                              </button>
-                              {alloc.status !== 'CLOSED' && (
+                     // Calculate filled steps (0-10)
+                     const stepsFilled = Math.min(10, Math.floor(progress / 10));
+
+                     return (
+                        <tr key={alloc.id}>
+                           <td>
+                              <div className="flex flex-col">
+                                 <span className="font-bold text-foreground text-sm">{alloc.operator_name}</span>
+                                 <span className="text-xs text-muted-foreground font-mono">{alloc.allocation_key}</span>
+                              </div>
+                           </td>
+                           <td>
+                              <div className="flex flex-col text-sm">
+                                 <span className="text-foreground">{alloc.commune_name}</span>
+                                 <span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span>
+                              </div>
+                           </td>
+                           <td>
+                              {alloc.project_phase ? (
+                                 <span className="badge badge-soft badge-secondary text-xs">{alloc.project_phase}</span>
+                              ) : (
+                                 <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                           </td>
+                           <td className="w-64">
+                              <div className="flex flex-col gap-1.5">
+                                 <div className="flex justify-between text-xs font-medium">
+                                    <span className={textColor}>
+                                       {alloc.delivered_tonnage.toLocaleString()} / {alloc.target_tonnage.toLocaleString()} T
+                                    </span>
+                                    <span className="text-muted-foreground">{alloc.progress.toFixed(0)}%</span>
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                    <div className="flex-1 flex gap-0.5 h-2">
+                                       {[...Array(10)].map((_, i) => (
+                                          <div 
+                                             key={i}
+                                             className={`flex-1 rounded-sm transition-colors duration-300 ${
+                                                i < stepsFilled ? progressColor : 'bg-muted/50'
+                                             }`}
+                                          ></div>
+                                       ))}
+                                    </div>
+                                    <StatusIcon size={16} className={textColor} />
+                                 </div>
+                              </div>
+                           </td>
+                           <td>
+                              <span className={`badge badge-soft text-xs font-bold
+                                 ${alloc.status === 'OPEN' ? 'badge-info' : ''}
+                                 ${alloc.status === 'IN_PROGRESS' ? 'badge-warning' : ''}
+                                 ${alloc.status === 'CLOSED' ? 'badge-success' : ''}
+                                 ${alloc.status === 'OVER_DELIVERED' ? 'badge-error' : ''}
+                              `}>
+                                 {alloc.status}
+                              </span>
+                           </td>
+                           <td className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                 <button 
+                                   onClick={() => handleView(alloc)}
+                                   className="btn btn-circle btn-text btn-sm text-sky-600"
+                                   title="Voir Détails"
+                                 >
+                                   <Eye size={16} />
+                                 </button>
                                  <button 
                                    onClick={() => handleCreateDelivery(alloc)}
-                                   className="btn btn-circle btn-text btn-sm text-emerald-600"
-                                   title="Nouvelle Expédition"
+                                   disabled={alloc.status === 'CLOSED'}
+                                   className={`btn btn-circle btn-text btn-sm ${alloc.status === 'CLOSED' ? 'text-muted-foreground opacity-30 cursor-not-allowed' : 'text-emerald-600'}`}
+                                   title={alloc.status === 'CLOSED' ? "Allocation fermée" : "Nouvelle Expédition"}
                                  >
-                                    <Truck size={16} />
+                                   <Truck size={16} />
                                  </button>
-                              )}
-                              {alloc.status !== 'CLOSED' && (
+                                 
                                  <button 
                                    onClick={() => handleCloseAllocation(alloc.id)}
-                                   className="btn btn-circle btn-text btn-sm text-amber-600"
-                                   title="Clôturer"
+                                   disabled={alloc.status === 'CLOSED' || alloc.progress < 100}
+                                   className={`btn btn-circle btn-text btn-sm ${
+                                     (alloc.status === 'CLOSED' || alloc.progress < 100)
+                                       ? 'text-muted-foreground opacity-30 cursor-not-allowed' 
+                                       : 'text-amber-600'
+                                   }`}
+                                   title={
+                                     alloc.status === 'CLOSED' 
+                                       ? "Déjà clôturé" 
+                                       : alloc.progress < 100 
+                                         ? "Objectif non atteint (100% requis pour clôturer)" 
+                                         : "Clôturer"
+                                   }
                                  >
-                                    <Lock size={16} />
+                                   <Lock size={16} />
                                  </button>
-                              )}
-                              <button 
-                                onClick={() => handleOpenModal(alloc)}
-                                className="btn btn-circle btn-text btn-sm text-blue-600"
-                                title="Modifier"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(alloc.id)}
-                                className="btn btn-circle btn-text btn-sm btn-text-error"
-                                title="Supprimer"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                           </div>
-                        </td>
-                      </tr>
-                    );
+
+                                 <button 
+                                   onClick={() => handleOpenModal(alloc)}
+                                   className="btn btn-circle btn-text btn-sm text-blue-600"
+                                   title="Modifier"
+                                 >
+                                    <Edit2 size={16} />
+                                 </button>
+                                 <button 
+                                   onClick={() => handleDelete(alloc.id)}
+                                   className="btn btn-circle btn-text btn-sm btn-text-error"
+                                   title="Supprimer"
+                                 >
+                                    <Trash2 size={16} />
+                                 </button>
+                              </div>
+                           </td>
+                        </tr>
+                     );
                   })}
-               </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+               </tbody>
+            </table>
+         </div>
       </div>
 
-      {/* CREATE/EDIT Modal */}
+      {/* Edit/Create Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
@@ -616,479 +420,385 @@ export const Allocations = () => {
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
             
-            <form onSubmit={handleSave}>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-card">
-                
-                {/* Operator Select (Advanced) */}
-                <div className="md:col-span-2">
-                   <label className="block text-sm font-medium text-foreground mb-1">Opérateur</label>
-                   <AdvancedSelect 
-                      options={operatorOptions}
-                      value={formData.operator_id || ''}
-                      onChange={(val) => handleOperatorChange(val)}
-                      placeholder="Rechercher un Opérateur..."
-                   />
-                   {formData.operator_id && !operatorOptions.find(o => o.value === formData.operator_id) && (
-                      <p className="text-xs text-amber-600 mt-1">L'opérateur actuellement assigné ne correspond pas aux filtres de projet.</p>
-                   )}
-                </div>
-
-                {/* Project Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Projet (Phase)</label>
-                  <select 
-                    required 
-                    className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                    value={formData.project_id || ''}
-                    onChange={e => setFormData({...formData, project_id: e.target.value})}
-                  >
-                    <option value="">Sélectionner un projet...</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.id}>
-                        Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Region Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Région</label>
-                  <select 
-                    required 
-                    className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                    value={formData.region_id || ''}
-                    onChange={e => setFormData({...formData, region_id: e.target.value, department_id: '', commune_id: ''})}
-                  >
-                    <option value="">Sélectionner...</option>
-                    {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                </div>
-
-                {/* Department Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Département</label>
-                  <select 
-                    required 
-                    className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                    value={formData.department_id || ''}
-                    onChange={e => setFormData({...formData, department_id: e.target.value, commune_id: ''})}
-                    disabled={!formData.region_id}
-                  >
-                    <option value="">Sélectionner...</option>
-                    {departments
-                      .filter(d => d.region_id === formData.region_id)
-                      .map(d => <option key={d.id} value={d.id}>{d.name}</option>)
-                    }
-                  </select>
-                </div>
-
-                {/* Commune Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Commune</label>
-                  <select 
-                    required 
-                    className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                    value={formData.commune_id || ''}
-                    onChange={e => handleCommuneChange(e.target.value)}
-                  >
-                    <option value="">Sélectionner...</option>
-                    {getAvailableCommunes().map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-
-                {/* Allocation Key Generation */}
-                <div className="md:col-span-2">
-                   <div className="flex justify-between items-center mb-1">
-                      <label className="block text-sm font-medium text-foreground">Clé d'Allocation</label>
-                      <button 
-                        type="button" 
-                        onClick={generateKey}
-                        className="text-xs flex items-center gap-1 text-primary hover:underline"
-                      >
-                         <RefreshCw size={12} /> Générer
-                      </button>
-                   </div>
-                   <input 
-                      required 
-                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground font-mono"
-                      value={formData.allocation_key || ''}
-                      onChange={e => setFormData({...formData, allocation_key: e.target.value})}
-                      placeholder="Ex: PH3-XX-OP-1234"
-                   />
-                </div>
-
-                {/* Target Tonnage */}
-                <div>
-                   <label className="block text-sm font-medium text-foreground mb-1">Objectif (Tonnes)</label>
-                   <input 
-                      type="number"
-                      required 
-                      min="1"
-                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                      value={formData.target_tonnage || ''}
-                      onChange={e => setFormData({...formData, target_tonnage: e.target.value})}
-                   />
-                </div>
-
-                {/* Responsible Person */}
-                <div>
-                   <label className="block text-sm font-medium text-foreground mb-1">Responsable</label>
-                   <input 
-                      required 
-                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                      value={formData.responsible_name || ''}
-                      onChange={e => setFormData({...formData, responsible_name: e.target.value})}
-                      placeholder="Nom complet"
-                   />
-                </div>
-
-                <div>
-                   <label className="block text-sm font-medium text-foreground mb-1">Téléphone</label>
-                   <input 
-                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                      value={formData.responsible_phone || ''}
-                      onChange={e => setFormData({...formData, responsible_phone: e.target.value})}
-                      placeholder="77 000 00 00"
-                   />
-                </div>
-
-                {/* Status (Only on Edit) */}
-                {formData.id && (
-                   <div>
-                     <label className="block text-sm font-medium text-foreground mb-1">Statut</label>
+            <form onSubmit={handleSave} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+               {/* Left Col */}
+               <div className="space-y-4">
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Projet</label>
                      <select 
-                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
-                       value={formData.status || 'OPEN'}
-                       onChange={e => setFormData({...formData, status: e.target.value})}
+                        required
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.project_id || ''}
+                        onChange={e => setFormData({...formData, project_id: e.target.value})}
                      >
-                        <option value="OPEN">Ouvert</option>
-                        <option value="IN_PROGRESS">En Cours</option>
-                        <option value="CLOSED">Clôturé</option>
-                        <option value="OVER_DELIVERED">Dépassé</option>
+                        <option value="">Sélectionner un Projet...</option>
+                        {projects.map(p => (
+                           <option key={p.id} value={p.id}>Phase {p.numero_phase} {p.numero_marche ? `- ${p.numero_marche}` : ''}</option>
+                        ))}
                      </select>
-                   </div>
-                )}
-                
-                <div className="md:col-span-2 flex justify-end gap-2 pt-4 border-t border-border mt-2">
-                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
-                   <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
+                  </div>
+                  
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Région</label>
+                     <select 
+                        required
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.region_id || ''}
+                        onChange={e => setFormData({...formData, region_id: e.target.value, department_id: '', commune_id: ''})}
+                     >
+                        <option value="">Sélectionner...</option>
+                        {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                     </select>
+                  </div>
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Département</label>
+                     <select 
+                        required
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.department_id || ''}
+                        onChange={e => setFormData({...formData, department_id: e.target.value, commune_id: ''})}
+                        disabled={!formData.region_id}
+                     >
+                        <option value="">Sélectionner...</option>
+                        {filteredDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                     </select>
+                  </div>
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Commune</label>
+                     <select 
+                        required
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.commune_id || ''}
+                        onChange={e => setFormData({...formData, commune_id: e.target.value})}
+                        disabled={!formData.department_id}
+                     >
+                        <option value="">Sélectionner...</option>
+                        {filteredCommunes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                     </select>
+                  </div>
+               </div>
+
+               {/* Right Col */}
+               <div className="space-y-4">
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Opérateur</label>
+                     <AdvancedSelect 
+                        options={operators.map(op => ({
+                           value: op.id, 
+                           label: op.name, 
+                           subLabel: op.is_coop ? op.coop_name : 'Individuel'
+                        }))}
+                        value={formData.operator_id || ''}
+                        onChange={(val) => setFormData({...formData, operator_id: val})}
+                        placeholder="Rechercher Opérateur..."
+                     />
+                  </div>
+
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Objectif Tonnage (T)</label>
+                     <input 
+                        type="number"
+                        step="0.01"
+                        required
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.target_tonnage || ''}
+                        onChange={e => setFormData({...formData, target_tonnage: e.target.value})}
+                     />
+                  </div>
+
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Responsable (Sur site)</label>
+                     <input 
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.responsible_name || ''}
+                        onChange={e => setFormData({...formData, responsible_name: e.target.value})}
+                        placeholder="Nom complet"
+                     />
+                  </div>
+
+                  <div>
+                     <label className="block text-sm font-medium text-foreground mb-1">Téléphone Responsable</label>
+                     <input 
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        value={formData.responsible_phone_raw || ''}
+                        onChange={e => setFormData({...formData, responsible_phone_raw: e.target.value})}
+                        placeholder="77 000 00 00"
+                     />
+                  </div>
+                  
+                  {formData.id && (
+                     <div>
+                        <label className="block text-sm font-medium text-foreground mb-1">Statut</label>
+                        <select 
+                           className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                           value={formData.status || 'OPEN'}
+                           onChange={e => setFormData({...formData, status: e.target.value})}
+                        >
+                           <option value="OPEN">Ouvert</option>
+                           <option value="IN_PROGRESS">En Cours</option>
+                           <option value="CLOSED">Clôturé</option>
+                        </select>
+                     </div>
+                  )}
+               </div>
+
+               <div className="md:col-span-2 pt-4 flex justify-end gap-2 border-t border-border mt-2">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
+                  <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
                      <Save size={16} /> Enregistrer
-                   </button>
-                </div>
-              </div>
+                  </button>
+               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* VIEW/PREVIEW Modal */}
-      {isViewOpen && viewAllocation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in print-modal-overlay">
-           <style>{`
-             @media print {
-               body > * { display: none !important; }
-               .print-modal-overlay { 
-                 position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                 background: white; z-index: 9999; display: flex !important; 
-                 align-items: flex-start; justify-content: center; overflow: visible;
+      {/* VIEW / PREVIEW MODAL */}
+      {isViewModalOpen && viewAllocation && (
+        <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+           {/* Print Styles */}
+           <style>
+             {`
+               @media print {
+                 body > *:not(.print-content-wrapper) {
+                   display: none !important;
+                 }
+                 .print-content-wrapper {
+                   display: block !important;
+                   position: absolute;
+                   top: 0;
+                   left: 0;
+                   width: 100%;
+                   height: 100%;
+                   background: white;
+                   z-index: 9999;
+                 }
+                 .no-print {
+                   display: none !important;
+                 }
+                 /* Enhance print appearance */
+                 .print-card {
+                   border: 1px solid #ddd !important;
+                   box-shadow: none !important;
+                 }
                }
-               .print-modal-content {
-                 box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important;
-               }
-               .no-print { display: none !important; }
-             }
-           `}</style>
-           <div className="bg-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-border print-modal-content">
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
-                  <div className="flex items-center gap-3">
-                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <User size={20} />
-                     </div>
-                     <div>
-                        <h2 className="text-lg font-bold text-foreground leading-tight">{viewAllocation.operator_name}</h2>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                           <span>{viewAllocation.allocation_key}</span>
-                           <span className="w-1 h-1 rounded-full bg-border"></span>
-                           <span className={`px-1.5 rounded-sm font-bold ${
-                              viewAllocation.status === 'OPEN' ? 'bg-blue-100 text-blue-700' :
-                              viewAllocation.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' :
-                              viewAllocation.status === 'CLOSED' ? 'bg-slate-200 text-slate-700' : 'bg-red-100 text-red-700'
-                           }`}>{viewAllocation.status}</span>
-                        </div>
-                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 no-print">
-                     <button 
-                       onClick={handlePrintView}
-                       className="flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary hover:bg-muted text-secondary-foreground rounded-lg transition-colors"
-                     >
-                        <Printer size={16} /> Imprimer
-                     </button>
-                     <button onClick={() => setIsViewOpen(false)} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full">
-                        <X size={20} />
-                     </button>
-                  </div>
-              </div>
+             `}
+           </style>
 
-              <div className="p-6 space-y-8">
-                 {/* Section 1: Overview Grid */}
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
-                       <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-                          <MapPin size={12} /> Localisation
-                       </h4>
-                       <div className="space-y-1">
-                          <p className="text-sm font-semibold text-foreground">{viewAllocation.commune_name}</p>
-                          <p className="text-xs text-muted-foreground">{viewAllocation.department_name}, {viewAllocation.region_name}</p>
-                       </div>
+           <div className="print-content-wrapper min-h-screen p-4 md:p-8">
+              <div className="max-w-5xl mx-auto bg-card rounded-xl shadow-2xl border border-border p-8 print-card">
+                 {/* Header Actions - Hidden on Print */}
+                 <div className="flex justify-between items-start mb-8 no-print border-b border-border pb-4">
+                    <div>
+                       <h2 className="text-2xl font-bold text-foreground">Détails de l'Allocation</h2>
+                       <p className="text-muted-foreground text-sm">Vue complète et statut des livraisons</p>
                     </div>
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                       <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-                          <Layers size={12} /> Projet
-                       </h4>
-                       <div className="space-y-1">
-                          <p className="text-sm font-semibold text-foreground">{viewAllocation.project_phase || 'Phase N/A'}</p>
-                          <p className="text-xs text-muted-foreground">Responsable: {viewAllocation.responsible_name}</p>
-                       </div>
-                    </div>
-                    <div className="p-4 rounded-xl bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30">
-                       <h4 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-                          <Calendar size={12} /> Activité
-                       </h4>
-                       <div className="space-y-1">
-                          <p className="text-sm font-semibold text-foreground">{viewDeliveries.length} Expédition(s)</p>
-                          <p className="text-xs text-muted-foreground">Dernière: {viewDeliveries[0] ? new Date(viewDeliveries[0].delivery_date).toLocaleDateString() : '-'}</p>
-                       </div>
+                    <div className="flex gap-2">
+                       <button 
+                         onClick={handlePrint}
+                         className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90"
+                       >
+                          <Printer size={18} /> Imprimer
+                       </button>
+                       <button 
+                         onClick={() => setIsViewModalOpen(false)}
+                         className="flex items-center gap-2 bg-muted text-muted-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted/80"
+                       >
+                          <X size={18} /> Fermer
+                       </button>
                     </div>
                  </div>
 
-                 {/* Section 2: Performance Comparison - REDESIGNED with Segmented Progress Bar */}
-                 <div>
-                    <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-                       <TrendingUp size={16} className={
-                          viewAllocation.progress > 100 ? "text-red-500" :
-                          viewAllocation.progress >= 90 ? "text-emerald-500" :
-                          viewAllocation.progress >= 50 ? "text-blue-500" :
-                          "text-amber-500"
-                       } /> Performance & Quota
-                    </h3>
-                    
-                    {/* Dynamic Background Card based on status */}
-                    <div className={`
-                       relative overflow-hidden rounded-2xl border p-6
-                       ${viewAllocation.progress >= 100 ? 'bg-gradient-to-br from-red-50 to-white dark:from-red-900/10 dark:to-card border-red-200 dark:border-red-900/30' :
-                         viewAllocation.progress >= 70 ? 'bg-gradient-to-br from-sky-50 to-white dark:from-sky-900/10 dark:to-card border-sky-200 dark:border-sky-900/30' :
-                         viewAllocation.progress >= 40 ? 'bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/10 dark:to-card border-amber-200 dark:border-amber-900/30' :
-                         'bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/10 dark:to-card border-purple-200 dark:border-purple-900/30'
-                       }
-                    `}>
-                       {/* Background Icon Watermark */}
-                       <div className="absolute right-4 top-4 opacity-5 pointer-events-none">
-                          <Layers size={100} />
-                       </div>
-
-                       <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 relative z-10">
-                          <div className="space-y-1">
-                             <span className="text-xs font-bold uppercase tracking-wider opacity-60">Volume Livré</span>
-                             <div className="flex items-baseline gap-2">
-                                <span className={`text-4xl font-extrabold ${
-                                   viewAllocation.progress >= 100 ? 'text-red-600 dark:text-red-400' :
-                                   viewAllocation.progress >= 70 ? 'text-sky-600 dark:text-sky-400' :
-                                   viewAllocation.progress >= 40 ? 'text-amber-600 dark:text-amber-400' :
-                                   'text-purple-600 dark:text-purple-400'
-                                }`}>{viewAllocation.delivered_tonnage}</span>
-                                <span className="text-xl font-bold opacity-50">T</span>
-                             </div>
+                 {/* PRINTABLE CONTENT */}
+                 <div className="space-y-8">
+                    {/* Header Section */}
+                    <div className="flex flex-col md:flex-row justify-between gap-6">
+                       <div className="flex-1">
+                          <div className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-wider mb-2">
+                             {viewAllocation.status}
                           </div>
-                          
-                          <div className="text-left md:text-right mt-4 md:mt-0">
-                             <span className="text-xs font-bold uppercase tracking-wider opacity-60">Objectif Cible</span>
-                             <div className="flex items-baseline gap-2 md:justify-end">
-                                <span className="text-2xl font-bold text-foreground">{viewAllocation.target_tonnage}</span>
-                                <span className="text-lg font-medium opacity-50">T</span>
+                          <h1 className="text-3xl font-bold text-foreground mb-1">{viewAllocation.operator_name}</h1>
+                          <p className="text-lg text-muted-foreground font-mono">{viewAllocation.allocation_key}</p>
+                       </div>
+                       <div className="text-right">
+                          <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Responsable</p>
+                          <p className="font-medium text-foreground text-lg">{viewAllocation.responsible_name || 'Non spécifié'}</p>
+                          <p className="font-mono text-muted-foreground">{viewAllocation.responsible_phone_raw || '-'}</p>
+                       </div>
+                    </div>
+
+                    {/* Section 1: Overview Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       <div className="p-6 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 print-card">
+                          <h3 className="text-blue-800 dark:text-blue-300 font-bold mb-4 flex items-center gap-2">
+                             <MapPin size={18} /> Localisation
+                          </h3>
+                          <div className="space-y-3">
+                             <div className="flex justify-between border-b border-blue-200/50 pb-2">
+                                <span className="text-muted-foreground text-sm">Région</span>
+                                <span className="font-medium text-foreground">{viewAllocation.region_name}</span>
+                             </div>
+                             <div className="flex justify-between border-b border-blue-200/50 pb-2">
+                                <span className="text-muted-foreground text-sm">Département</span>
+                                <span className="font-medium text-foreground">{viewAllocation.department_name}</span>
+                             </div>
+                             <div className="flex justify-between">
+                                <span className="text-muted-foreground text-sm">Commune</span>
+                                <span className="font-medium text-foreground">{viewAllocation.commune_name}</span>
                              </div>
                           </div>
                        </div>
-                       
-                       {/* FlyonUI 10-Step Segmented Progress Bar */}
-                       <div className="flex items-center gap-x-1 relative z-10 w-full mt-4">
-                          {/* Define colors based on global progress */}
-                          {(() => {
-                             let progressColor = 'bg-primary';
-                             let progressTextColor = 'text-primary';
-                             let StatusIcon = TrendingUp;
 
-                             if (viewAllocation.progress > 100) {
-                               progressColor = 'bg-red-500';
-                               progressTextColor = 'text-red-500';
-                               StatusIcon = AlertTriangle;
-                             } else if (viewAllocation.progress === 100) {
-                               progressColor = 'bg-emerald-500';
-                               progressTextColor = 'text-emerald-500';
-                               StatusIcon = CheckCircle;
-                             } else if (viewAllocation.progress >= 70) {
-                               progressColor = 'bg-sky-500'; // Info
-                               progressTextColor = 'text-sky-500';
-                             } else if (viewAllocation.progress >= 40) {
-                               progressColor = 'bg-amber-500'; // Warning
-                               progressTextColor = 'text-amber-500';
-                             } else {
-                               progressColor = 'bg-purple-600'; // Primary
-                               progressTextColor = 'text-purple-600';
-                             }
-
-                             // Generate 10 steps
-                             return (
-                               <>
-                                 {Array.from({ length: 10 }).map((_, idx) => {
-                                    // Each step represents 10%
-                                    // Step 0 is 0-10%, Step 1 is 10-20%...
-                                    // Logic: A step is filled if current progress > step's starting point
-                                    // E.g., Progress 25%: Step 0 (0-10) filled, Step 1 (10-20) filled, Step 2 (20-30) filled?
-                                    // Usually step N represents the Nth 10% chunk. 
-                                    // Simple logic: if progress >= (idx + 1) * 10, full fill.
-                                    // If progress is between idx*10 and (idx+1)*10, it's the active current step.
-                                    // Here we just use a threshold logic matching standard stepped bars.
-                                    const threshold = (idx + 1) * 10;
-                                    const isActive = viewAllocation.progress >= (threshold - 9); // e.g. at 1%, first bar lights up
-
-                                    return (
-                                      <div 
-                                         key={idx}
-                                         className={`h-3 flex-1 rounded-full transition-all duration-500 ${
-                                            isActive 
-                                              ? viewAllocation.progress >= threshold 
-                                                 ? progressColor 
-                                                 : `${progressColor} opacity-60` // Current active step slightly lighter
-                                              : `${progressColor} opacity-10` // Inactive step
-                                         }`}
-                                         role="progressbar" 
-                                         aria-label={`Step ${idx + 1}`}
-                                         aria-valuenow={viewAllocation.progress}
-                                      ></div>
-                                    );
-                                 })}
-                                 
-                                 {/* Icon at the end */}
-                                 <div className="ml-2 shrink-0">
-                                    <StatusIcon className={`size-6 ${progressTextColor}`} />
-                                 </div>
-                               </>
-                             );
-                          })()}
-                       </div>
-                       <div className="text-right mt-1">
-                          <span className={`text-xs font-bold ${
-                             viewAllocation.progress > 100 ? 'text-red-500' :
-                             viewAllocation.progress >= 70 ? 'text-sky-500' :
-                             'text-muted-foreground'
-                          }`}>{viewAllocation.progress.toFixed(1)}% Complété</span>
-                       </div>
-                       
-                       {/* Footer Stats */}
-                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-black/5 dark:border-white/5 relative z-10">
-                          <div className="flex items-center gap-2">
-                             {viewAllocation.target_tonnage - viewAllocation.delivered_tonnage < 0 ? (
-                                <>
-                                   <div className="p-1.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                                      <AlertTriangle size={14} />
-                                   </div>
-                                   <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                                      Excès: +{Math.abs(viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T
-                                   </span>
-                                </>
-                             ) : (
-                                <span className="text-sm font-medium text-muted-foreground">
-                                   Reste à livrer: {Math.max(0, viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T
+                       <div className="p-6 rounded-xl bg-slate-50 dark:bg-slate-900/20 border border-border print-card">
+                          <h3 className="text-foreground font-bold mb-4 flex items-center gap-2">
+                             <FileText size={18} /> Détails Projet
+                          </h3>
+                          <div className="space-y-3">
+                             <div className="flex justify-between border-b border-border pb-2">
+                                <span className="text-muted-foreground text-sm">Phase</span>
+                                <span className="font-medium text-foreground">{viewAllocation.project_phase}</span>
+                             </div>
+                             <div className="flex justify-between">
+                                <span className="text-muted-foreground text-sm">Date Création</span>
+                                <span className="font-medium text-foreground">
+                                   {new Date(viewAllocation.created_at).toLocaleDateString('fr-FR')}
                                 </span>
-                             )}
+                             </div>
                           </div>
-                          
-                          {viewAllocation.progress >= 100 && (
-                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-                                Objectif Atteint
-                             </span>
+                       </div>
+                    </div>
+
+                    {/* Section 2: Performance Comparison */}
+                    <div className="space-y-4">
+                       <h3 className="font-bold text-lg text-foreground border-l-4 border-primary pl-3">Performance & Quota</h3>
+                       
+                       {/* Stats Cards */}
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="p-4 rounded-lg bg-card border border-border shadow-sm print-card text-center">
+                             <p className="text-xs font-semibold text-muted-foreground uppercase">Objectif Alloué</p>
+                             <p className="text-2xl font-bold text-foreground mt-1">{viewAllocation.target_tonnage} T</p>
+                          </div>
+                          <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 print-card text-center">
+                             <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase">Total Chargé</p>
+                             <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 mt-1">{viewAllocation.delivered_tonnage} T</p>
+                          </div>
+                          <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 print-card text-center">
+                             <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase">Restant</p>
+                             <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-1">
+                                {(viewAllocation.target_tonnage - viewAllocation.delivered_tonnage).toFixed(2)} T
+                             </p>
+                          </div>
+                       </div>
+
+                       {/* Progress Bar Visual */}
+                       <div className="relative pt-4">
+                          <div className="flex justify-between text-xs font-semibold mb-1">
+                             <span>0%</span>
+                             <span>Progression: {viewAllocation.progress.toFixed(1)}%</span>
+                             <span>100%</span>
+                          </div>
+                          <div className="h-4 bg-muted rounded-full overflow-hidden w-full border border-border">
+                             <div 
+                               className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 relative"
+                               style={{ width: `${Math.min(viewAllocation.progress, 100)}%` }}
+                             >
+                               {viewAllocation.progress > 100 && (
+                                  <div className="absolute right-0 top-0 bottom-0 w-1 bg-red-500 animate-pulse"></div>
+                               )}
+                             </div>
+                          </div>
+                          {viewAllocation.progress > 100 && (
+                             <p className="text-xs text-red-500 mt-1 font-medium flex items-center justify-end gap-1">
+                                <AlertTriangle size={12} /> Dépassement de quota
+                             </p>
                           )}
                        </div>
                     </div>
-                 </div>
 
-                 {/* Section 3: Fleet Involved */}
-                 <div>
-                    <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                       <Truck size={16} className="text-primary" /> Flotte Mobilisée
-                    </h3>
-                    {viewDeliveries.length > 0 ? (
-                       <div className="flex flex-wrap gap-2">
-                          {Array.from(new Set(viewDeliveries.map(d => `${d.truck_plate}|${d.driver_name}`))).map((combo: string, idx) => {
-                             const [plate, driver] = combo.split('|');
-                             return (
-                                <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg shadow-sm">
-                                   <div className="p-1 bg-muted rounded">
-                                      <Truck size={14} className="text-muted-foreground" />
-                                   </div>
-                                   <div>
-                                      <p className="text-xs font-bold text-foreground">{plate || 'Inconnu'}</p>
-                                      <p className="text-[10px] text-muted-foreground">{driver || 'Non assigné'}</p>
-                                   </div>
-                                </div>
-                             )
-                          })}
+                    {/* Section 3: Fleet Summary */}
+                    <div className="space-y-4">
+                       <h3 className="font-bold text-lg text-foreground border-l-4 border-indigo-500 pl-3">Flotte & Transporteurs</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="bg-muted/30 p-4 rounded-lg border border-border">
+                             <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                                <Truck size={16} /> Camions Identifiés ({viewUniqueTrucks.length})
+                             </h4>
+                             <div className="flex flex-wrap gap-2">
+                                {viewUniqueTrucks.length > 0 ? (
+                                   viewUniqueTrucks.map(plate => (
+                                      <span key={plate} className="px-2 py-1 bg-background border border-border rounded text-xs font-mono font-medium shadow-sm">
+                                         {plate}
+                                      </span>
+                                   ))
+                                ) : ( <span className="text-xs text-muted-foreground italic">Aucun camion enregistré</span> )}
+                             </div>
+                          </div>
+                          <div className="bg-muted/30 p-4 rounded-lg border border-border">
+                             <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                                <User size={16} /> Chauffeurs ({viewUniqueDrivers.length})
+                             </h4>
+                             <div className="flex flex-wrap gap-2">
+                                {viewUniqueDrivers.length > 0 ? (
+                                   viewUniqueDrivers.map(driver => (
+                                      <span key={driver} className="px-2 py-1 bg-background border border-border rounded text-xs font-medium shadow-sm">
+                                         {driver}
+                                      </span>
+                                   ))
+                                ) : ( <span className="text-xs text-muted-foreground italic">Aucun chauffeur enregistré</span> )}
+                             </div>
+                          </div>
                        </div>
-                    ) : (
-                       <p className="text-sm text-muted-foreground italic">Aucune livraison enregistrée.</p>
-                    )}
-                 </div>
+                    </div>
 
-                 {/* Section 4: Deliveries List */}
-                 <div>
-                    <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                       <Package size={16} className="text-primary" /> Historique des Expéditions
-                    </h3>
-                    <div className="border border-border rounded-lg overflow-hidden">
-                       <table className="w-full text-sm text-left">
-                          <thead className="bg-muted text-muted-foreground uppercase text-xs font-semibold">
-                             <tr>
-                                <th className="px-4 py-3">Date</th>
-                                <th className="px-4 py-3">N° BL</th>
-                                <th className="px-4 py-3">Camion</th>
-                                <th className="px-4 py-3 text-right">Tonnage</th>
-                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                             {viewLoading ? (
-                                <tr><td colSpan={4} className="p-4 text-center">Chargement...</td></tr>
-                             ) : viewDeliveries.length === 0 ? (
-                                <tr><td colSpan={4} className="p-4 text-center text-muted-foreground italic">Aucune donnée.</td></tr>
-                             ) : (
-                                viewDeliveries.map((d, i) => (
-                                   <tr key={i} className="hover:bg-muted/20">
-                                      <td className="px-4 py-3">{new Date(d.delivery_date).toLocaleDateString()}</td>
-                                      <td className="px-4 py-3 font-mono font-medium">{d.bl_number}</td>
-                                      <td className="px-4 py-3 text-muted-foreground text-xs">{d.truck_plate}</td>
-                                      <td className="px-4 py-3 text-right font-bold">{d.tonnage_loaded} T</td>
-                                   </tr>
-                                ))
-                             )}
-                          </tbody>
-                          {viewDeliveries.length > 0 && (
-                             <tfoot className="bg-muted/30 font-bold text-foreground">
+                    {/* Section 4: Deliveries List */}
+                    <div className="space-y-4">
+                       <h3 className="font-bold text-lg text-foreground border-l-4 border-slate-500 pl-3">
+                          Historique des Expéditions ({viewDeliveries.length})
+                       </h3>
+                       <div className="w-full overflow-hidden border border-border rounded-lg">
+                          <table className="w-full text-sm text-left">
+                             <thead className="bg-muted border-b border-border">
                                 <tr>
-                                   <td colSpan={3} className="px-4 py-3 text-right">TOTAL CHARGÉ</td>
-                                   <td className="px-4 py-3 text-right text-primary">{viewAllocation.delivered_tonnage} T</td>
+                                   <th className="px-4 py-3 font-semibold text-foreground">N° BL</th>
+                                   <th className="px-4 py-3 font-semibold text-foreground">Date</th>
+                                   <th className="px-4 py-3 font-semibold text-foreground">Camion</th>
+                                   <th className="px-4 py-3 font-semibold text-foreground">Chauffeur</th>
+                                   <th className="px-4 py-3 font-semibold text-foreground text-right">Charge</th>
                                 </tr>
-                             </tfoot>
-                          )}
-                       </table>
+                             </thead>
+                             <tbody className="divide-y divide-border bg-card">
+                                {viewDeliveries.length === 0 && (
+                                   <tr>
+                                      <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground italic">
+                                         Aucune expédition enregistrée pour cette allocation.
+                                      </td>
+                                   </tr>
+                                )}
+                                {viewDeliveries.map(del => (
+                                   <tr key={del.id}>
+                                      <td className="px-4 py-3 font-mono font-medium">{del.bl_number}</td>
+                                      <td className="px-4 py-3 text-muted-foreground">
+                                         {new Date(del.delivery_date).toLocaleDateString('fr-FR')}
+                                      </td>
+                                      <td className="px-4 py-3 font-mono text-xs">{del.truck_plate}</td>
+                                      <td className="px-4 py-3 text-sm">{del.driver_name}</td>
+                                      <td className="px-4 py-3 font-bold text-right">{del.tonnage_loaded} T</td>
+                                   </tr>
+                                ))}
+                             </tbody>
+                             {viewDeliveries.length > 0 && (
+                                <tfoot className="bg-muted/50 border-t border-border font-bold">
+                                   <tr>
+                                      <td colSpan={4} className="px-4 py-3 text-right">TOTAL CHARGÉ</td>
+                                      <td className="px-4 py-3 text-right text-primary">{viewAllocation.delivered_tonnage} T</td>
+                                   </tr>
+                                </tfoot>
+                             )}
+                          </table>
+                       </div>
                     </div>
-                 </div>
 
-              </div>
-              
-              <div className="p-6 border-t border-border bg-muted/10 text-center text-xs text-muted-foreground no-print">
-                 Document généré le {new Date().toLocaleDateString()} via MASAE Tracker
+                 </div>
               </div>
            </div>
         </div>

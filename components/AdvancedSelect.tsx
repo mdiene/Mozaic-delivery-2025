@@ -1,12 +1,12 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, FC, ReactNode } from 'react';
 import { ChevronsUpDown, Check, Search } from 'lucide-react';
 
 export interface Option {
   value: string;
   label: string;
   subLabel?: string;
-  extraInfo?: React.ReactNode;
+  extraInfo?: ReactNode;
 }
 
 interface AdvancedSelectProps {
@@ -21,7 +21,7 @@ interface AdvancedSelectProps {
   name?: string;
 }
 
-export const AdvancedSelect: React.FC<AdvancedSelectProps> = ({
+export const AdvancedSelect: FC<AdvancedSelectProps> = ({
   options,
   value,
   onChange,

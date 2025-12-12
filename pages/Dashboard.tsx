@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+
+import { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  XAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { db } from '../services/db';
 import { 
   TrendingUp, Truck, AlertTriangle, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
-  Activity, Layers, ChevronDown, ChevronUp, Network, MoreHorizontal, Maximize2, Minimize2
+  Activity, ChevronDown, ChevronUp, Network, MoreHorizontal, Maximize2, Minimize2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';

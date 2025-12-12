@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Fragment } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView, Project } from '../types';
 import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download } from 'lucide-react';
@@ -578,7 +578,7 @@ export const Views = () => {
                   </thead>
                   <tbody>
                     {groupedBlData.map((group) => (
-                      <React.Fragment key={group.key}>
+                      <Fragment key={group.key}>
                         {blGroupBy !== 'none' && (
                           <tr className="bg-muted/30">
                             <td colSpan={5} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
@@ -640,7 +640,7 @@ export const Views = () => {
                             </td>
                           </tr>
                         ))}
-                      </React.Fragment>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -675,7 +675,7 @@ export const Views = () => {
                   </thead>
                   <tbody>
                     {groupedFcData.map((group) => (
-                      <React.Fragment key={group.key}>
+                      <Fragment key={group.key}>
                         {fcGroupBy !== 'none' && (
                           <tr className="bg-muted/30">
                             <td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">
@@ -716,7 +716,7 @@ export const Views = () => {
                             </td>
                           </tr>
                         ))}
-                      </React.Fragment>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

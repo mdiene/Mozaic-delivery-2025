@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Fragment, FormEvent } from 'react';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
 import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight } from 'lucide-react';
@@ -148,7 +148,7 @@ export const Logistics = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     
     // Client Validation
@@ -280,7 +280,7 @@ export const Logistics = () => {
   const assignedDriverName = selectedTruck?.driver_name || (formData.driver_id ? drivers.find(d => d.id === formData.driver_id)?.name : '');
 
   // Calculate real-time stats for the selected allocation
-  const calculatedDelivered = React.useMemo(() => {
+  const calculatedDelivered = useMemo(() => {
     if (!formData.allocation_id) return 0;
     return deliveries
       .filter(d => d.allocation_id === formData.allocation_id)
@@ -471,7 +471,7 @@ export const Logistics = () => {
                       </thead>
                       <tbody>
                          {projectGroup.subGroups.map((subGroup) => (
-                           <React.Fragment key={subGroup.key}>
+                           <Fragment key={subGroup.key}>
                               {/* Sub-Group Header (Only if grouping is active) */}
                               {groupBy !== 'none' && (
                                 <tr className="bg-muted/30">
@@ -547,7 +547,7 @@ export const Logistics = () => {
                                   </td>
                                 </tr>
                               ))}
-                           </React.Fragment>
+                           </Fragment>
                          ))}
                       </tbody>
                     </table>

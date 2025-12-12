@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+
+import { useRef, useEffect } from 'react';
 import { Network } from 'vis-network';
 import { NetworkHierarchy } from '../types';
 
