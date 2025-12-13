@@ -20,7 +20,8 @@ import {
   Folder,
   Calendar,
   TrendingUp,
-  ChevronUp
+  ChevronUp,
+  RotateCcw
 } from 'lucide-react';
 
 // Stats Helper Interface
@@ -70,11 +71,11 @@ const calculateNodeStats = (node: any, level: 'region' | 'dept' | 'commune' | 'o
   traverse(node, level);
 
   // Count immediate children for display (e.g., Region -> N Depts)
-  if (level === 'region') count = node.departments.length;
-  if (level === 'dept') count = node.communes.length;
-  if (level === 'commune') count = node.operators.length;
-  if (level === 'operator') count = node.allocations.length;
-  if (level === 'allocation') count = node.deliveries.length;
+  if (level === 'region') count = node.departments?.length || 0;
+  if (level === 'dept') count = node.communes?.length || 0;
+  if (level === 'commune') count = node.operators?.length || 0;
+  if (level === 'operator') count = node.allocations?.length || 0;
+  if (level === 'allocation') count = node.deliveries?.length || 0;
 
   return { count, totalTarget, totalDelivered };
 };
@@ -103,11 +104,6 @@ const Section: React.FC<SectionProps> = ({
   className = "",
   scrollRef
 }) => {
-  // Mode Logic:
-  // hidden: minimal height, content hidden
-  // split: flex-1, fixed container height, internal scrolling
-  // maximized: h-auto, content expands parent, no internal vertical scrolling
-  
   if (mode === 'hidden') {
     return (
       <div className={`flex-none h-[52px] bg-card border border-border rounded-xl shadow-soft-xl overflow-hidden ${className}`}>
@@ -247,6 +243,7 @@ interface ListItemProps {
   hasChildren?: boolean;
   statusColor?: string;
   rightInfo?: ReactNode;
+  progress?: { target: number; delivered: number };
 }
 
 const ListItem: React.FC<ListItemProps> = ({
@@ -257,112 +254,58 @@ const ListItem: React.FC<ListItemProps> = ({
   icon: Icon,
   hasChildren = true,
   statusColor = "",
-  rightInfo
-}) => (
-  <button
-    onClick={onClick}
-    className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all duration-200 group border
-      ${selected 
-        ? 'bg-primary/10 border-primary/20 text-primary shadow-sm' 
-        : 'bg-transparent border-transparent hover:bg-muted text-foreground hover:text-foreground'
-      }
-    `}
-  >
-    <div className="flex items-center gap-3 overflow-hidden flex-1">
-      {Icon && (
-        <div className={`shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`}>
-          <Icon size={18} />
-        </div>
-      )}
-      <div className="flex flex-col overflow-hidden flex-1 min-w-0">
-        <span className={`text-sm font-semibold truncate ${selected ? 'text-primary' : 'text-foreground'}`}>
-          {label}
-        </span>
-        {subLabel && (
-          <span className={`text-xs truncate ${selected ? 'text-primary/80' : 'text-muted-foreground'}`}>
-            {subLabel}
-          </span>
-        )}
-      </div>
-    </div>
-    
-    <div className="flex items-center gap-2 pl-2 shrink-0">
-      {rightInfo}
-      {statusColor && (
-        <span className={`w-2 h-2 rounded-full ${statusColor}`}></span>
-      )}
-      {hasChildren && (
-        <ChevronRight 
-          size={16} 
-          className={`transition-transform ${selected ? 'text-primary' : 'text-muted-foreground/50'}`} 
-        />
-      )}
-    </div>
-  </button>
-);
-
-interface TreeRowProps {
-  label: string;
-  type: 'region' | 'dept' | 'commune';
-  expanded?: boolean;
-  selected?: boolean;
-  onToggle?: () => void;
-  onSelect?: () => void;
-  stats: LevelStats;
-}
-
-// 4. Tree Row Component
-const TreeRow: React.FC<TreeRowProps> = ({
-  label,
-  type,
-  expanded,
-  selected,
-  onToggle,
-  onSelect,
-  stats
+  rightInfo,
+  progress
 }) => {
-  const paddingLeft = type === 'region' ? 'pl-2' : type === 'dept' ? 'pl-6' : 'pl-10';
-  const Icon = type === 'region' ? MapPin : type === 'dept' ? Folder : MapPin;
+  // Logic for small progress bar inside list item
+  const percent = progress && progress.target > 0 ? (progress.delivered / progress.target) * 100 : 0;
   
-  // Progress color based on completion
-  const progress = stats.totalTarget > 0 ? (stats.totalDelivered / stats.totalTarget) * 100 : 0;
-  let statColor = 'text-muted-foreground';
-  if (progress >= 100) statColor = 'text-emerald-600 font-bold';
-  else if (progress > 0) statColor = 'text-primary font-medium';
-
   return (
-    <div 
-      className={`
-        flex items-center justify-between py-1.5 pr-2 rounded-md cursor-pointer transition-colors duration-200
-        ${paddingLeft}
-        ${selected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50 text-foreground'}
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all duration-200 group border
+        ${selected 
+          ? 'bg-primary/10 border-primary/20 text-primary shadow-sm' 
+          : 'bg-transparent border-transparent hover:bg-muted text-foreground hover:text-foreground'
+        }
       `}
-      onClick={onSelect || onToggle}
     >
-      <div className="flex items-center gap-2 overflow-hidden flex-1">
-        {type !== 'commune' && (
-          <button 
-            onClick={(e) => { e.stopPropagation(); if(onToggle) onToggle(); }}
-            className={`p-0.5 rounded-sm hover:bg-muted-foreground/10 transition-colors ${expanded ? 'text-foreground' : 'text-muted-foreground'}`}
-          >
-            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
+      <div className="flex items-center gap-3 overflow-hidden flex-1">
+        {Icon && (
+          <div className={`shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`}>
+            <Icon size={18} />
+          </div>
         )}
-        {type === 'commune' && <div className="w-4" />} {/* Spacer for no chevron */}
-        
-        <Icon size={14} className={`shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground'}`} />
-        <span className={`text-sm truncate ${type === 'region' ? 'font-bold' : 'font-medium'}`}>
-          {label}
-        </span>
+        <div className="flex flex-col overflow-hidden flex-1 min-w-0">
+          <span className={`text-sm font-semibold truncate ${selected ? 'text-primary' : 'text-foreground'}`}>
+            {label}
+          </span>
+          {subLabel && (
+            <span className={`text-xs truncate ${selected ? 'text-primary/80' : 'text-muted-foreground'}`}>
+              {subLabel}
+            </span>
+          )}
+          {progress && (
+             <div className="w-full h-1 bg-muted-foreground/10 rounded-full mt-1.5 overflow-hidden">
+                <div className={`h-full ${percent >= 100 ? 'bg-emerald-500' : 'bg-primary/50'}`} style={{ width: `${Math.min(percent, 100)}%` }}></div>
+             </div>
+          )}
+        </div>
       </div>
-
+      
       <div className="flex items-center gap-2 pl-2 shrink-0">
-        <span className={`text-[10px] font-mono ${statColor}`}>
-          {stats.totalDelivered.toLocaleString()} / {stats.totalTarget.toLocaleString()} T
-        </span>
-        {type === 'commune' && selected && <ChevronRight size={14} className="text-primary" />}
+        {rightInfo}
+        {statusColor && (
+          <span className={`w-2 h-2 rounded-full ${statusColor}`}></span>
+        )}
+        {hasChildren && (
+          <ChevronRight 
+            size={16} 
+            className={`transition-transform ${selected ? 'text-primary' : 'text-muted-foreground/50'}`} 
+          />
+        )}
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -375,10 +318,9 @@ export const GlobalView = () => {
   // Layout State: 'split' (both), 'geo' (maximized), 'drivers' (maximized)
   const [layoutMode, setLayoutMode] = useState<'split' | 'geo' | 'drivers'>('split');
 
-  // Tree Expansion State (Set of IDs)
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  // Selection State (Horizontal Flow)
+  // New Column Selection State (Horizontal Flow)
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [selectedCommuneId, setSelectedCommuneId] = useState<string | null>(null);
   const [selectedOperatorId, setSelectedOperatorId] = useState<string | null>(null);
   const [selectedAllocId, setSelectedAllocId] = useState<string | null>(null);
@@ -409,38 +351,87 @@ export const GlobalView = () => {
         console.error("Error loading global view data", e);
       } finally {
         setLoading(false);
-        setExpandedIds(new Set());
-        setSelectedCommuneId(null);
-        setSelectedOperatorId(null);
-        setSelectedAllocId(null);
-        setSelectedDriverId(null);
+        resetSelections();
       }
     };
     loadData();
   }, [selectedProject]);
 
-  // Derived Data
-  const selectedCommuneData = useMemo(() => {
-    if (!selectedCommuneId) return null;
-    for (const r of hierarchy) {
-      for (const d of r.departments) {
-        const c = d.communes.find(c => c.id === selectedCommuneId);
-        if (c) return c;
-      }
+  // --- Auto-Selection Effects (Visible on Start) ---
+  useEffect(() => {
+    if (!loading && hierarchy.length > 0 && !selectedRegionId) {
+      // Automatically expand first region to show departments (Requirement: "load all departments visible")
+      // In Miller columns, this translates to selecting the first region.
+      setSelectedRegionId(hierarchy[0].id);
     }
-    return null;
-  }, [hierarchy, selectedCommuneId]);
+  }, [loading, hierarchy, selectedRegionId]);
 
-  const operators = selectedCommuneData ? selectedCommuneData.operators.sort((a,b) => a.name.localeCompare(b.name)) : [];
-  const selectedOperator = operators.find(o => o.id === selectedOperatorId);
-  const allocations = selectedOperator ? selectedOperator.allocations : [];
-  const selectedAllocation = allocations.find(a => a.id === selectedAllocId);
-  const deliveries = selectedAllocation ? selectedAllocation.deliveries.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
+  // --- Derived Data for Columns ---
+
+  // 1. Region Data (Always available from hierarchy)
+  const selectedRegion = useMemo(() => hierarchy.find(r => r.id === selectedRegionId), [hierarchy, selectedRegionId]);
+
+  // 2. Department Data
+  const departments = useMemo(() => selectedRegion ? selectedRegion.departments.sort((a,b) => a.name.localeCompare(b.name)) : [], [selectedRegion]);
+  const selectedDept = useMemo(() => departments.find(d => d.id === selectedDeptId), [departments, selectedDeptId]);
+
+  // 3. Commune Data
+  const communes = useMemo(() => selectedDept ? selectedDept.communes.sort((a,b) => a.name.localeCompare(b.name)) : [], [selectedDept]);
+  const selectedCommune = useMemo(() => communes.find(c => c.id === selectedCommuneId), [communes, selectedCommuneId]);
+
+  // 4. Operator Data
+  const operators = useMemo(() => selectedCommune ? selectedCommune.operators.sort((a,b) => a.name.localeCompare(b.name)) : [], [selectedCommune]);
+  const selectedOperator = useMemo(() => operators.find(o => o.id === selectedOperatorId), [operators, selectedOperatorId]);
+
+  // 5. Allocation Data
+  const allocations = useMemo(() => selectedOperator ? selectedOperator.allocations : [], [selectedOperator]);
+  const selectedAllocation = useMemo(() => allocations.find(a => a.id === selectedAllocId), [allocations, selectedAllocId]);
+
+  // 6. Delivery Data
+  const deliveries = useMemo(() => selectedAllocation ? selectedAllocation.deliveries.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [], [selectedAllocation]);
+
+  // --- Stats Calculations ---
+  
+  const totalZoneStats = useMemo(() => {
+    let totalTarget = 0;
+    let totalDelivered = 0;
+    let count = hierarchy.length;
+    hierarchy.forEach(r => {
+       const stats = calculateNodeStats(r, 'region');
+       totalTarget += stats.totalTarget;
+       totalDelivered += stats.totalDelivered;
+    });
+    return { count, totalTarget, totalDelivered };
+  }, [hierarchy]);
+
+  // Stats for the "Department" column (Aggregate of selected Region)
+  const deptColumnStats = useMemo(() => {
+    if (!selectedRegion) return { count: 0, totalTarget: 0, totalDelivered: 0 };
+    return calculateNodeStats(selectedRegion, 'region'); // Returns stats for depts
+  }, [selectedRegion]);
+
+  // Stats for "Commune" column
+  const communeColumnStats = useMemo(() => {
+    if (!selectedDept) return { count: 0, totalTarget: 0, totalDelivered: 0 };
+    return calculateNodeStats(selectedDept, 'dept');
+  }, [selectedDept]);
+
+  // Stats for "Operator" column
+  const operatorColumnStats = useMemo(() => {
+    if (!selectedCommune) return { count: 0, totalTarget: 0, totalDelivered: 0 };
+    return calculateNodeStats(selectedCommune, 'commune');
+  }, [selectedCommune]);
+
+  const allocationStats = useMemo(() => {
+    if (!selectedOperator) return { count: 0, totalTarget: 0, totalDelivered: 0 };
+    return calculateNodeStats(selectedOperator, 'operator');
+  }, [selectedOperator]);
 
   const deliveryStats = useMemo(() => {
     return {
       count: deliveries.length,
-      totalDelivered: deliveries.reduce((acc, curr) => acc + curr.tonnage, 0)
+      totalDelivered: deliveries.reduce((acc, curr) => acc + curr.tonnage, 0),
+      totalTarget: 0
     };
   }, [deliveries]);
 
@@ -465,6 +456,13 @@ export const GlobalView = () => {
     return Object.values(stats).sort((a, b) => b.totalTonnage - a.totalTonnage);
   }, [flatDeliveries]);
 
+  // Auto-select first driver (Requirement: "same behavior for performance chauffeurs")
+  useEffect(() => {
+    if (!loading && driverStats.length > 0 && !selectedDriverId) {
+      setSelectedDriverId(driverStats[0].driverId);
+    }
+  }, [loading, driverStats, selectedDriverId]);
+
   const selectedDriver = useMemo(() => {
     return driverStats.find(d => d.driverId === selectedDriverId);
   }, [driverStats, selectedDriverId]);
@@ -480,24 +478,28 @@ export const GlobalView = () => {
     }
   };
 
-  const toggleExpand = (id: string) => {
-    const newSet = new Set(expandedIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setExpandedIds(newSet);
+  const resetSelections = () => {
+    setSelectedRegionId(null);
+    setSelectedDeptId(null);
+    setSelectedCommuneId(null);
+    setSelectedOperatorId(null);
+    setSelectedAllocId(null);
+    setSelectedDriverId(null);
   };
 
-  const expandAll = () => {
-    const allIds = new Set<string>();
-    hierarchy.forEach(r => {
-      allIds.add(r.id);
-      r.departments.forEach(d => allIds.add(d.id));
-    });
-    setExpandedIds(allIds);
+  const handleRegionSelect = (id: string) => {
+    setSelectedRegionId(id);
+    setSelectedDeptId(null);
+    setSelectedCommuneId(null);
+    setSelectedOperatorId(null);
+    setSelectedAllocId(null);
   };
 
-  const collapseAll = () => {
-    setExpandedIds(new Set());
+  const handleDeptSelect = (id: string) => {
+    setSelectedDeptId(id);
+    setSelectedCommuneId(null);
+    setSelectedOperatorId(null);
+    setSelectedAllocId(null);
   };
 
   const handleCommuneSelect = (id: string) => {
@@ -506,38 +508,18 @@ export const GlobalView = () => {
     setSelectedAllocId(null);
   };
 
-  const zoneStats = useMemo(() => {
-    let totalTarget = 0;
-    let totalDelivered = 0;
-    let count = hierarchy.length;
-    hierarchy.forEach(r => {
-       const stats = calculateNodeStats(r, 'region');
-       totalTarget += stats.totalTarget;
-       totalDelivered += stats.totalDelivered;
-    });
-    return { count, totalTarget, totalDelivered };
-  }, [hierarchy]);
-
-  const operatorStats = useMemo(() => {
-    if (!selectedCommuneData) return { count: 0, totalTarget: 0, totalDelivered: 0 };
-    return calculateNodeStats(selectedCommuneData, 'commune');
-  }, [selectedCommuneData]);
-
-  const allocationStats = useMemo(() => {
-    if (!selectedOperator) return { count: 0, totalTarget: 0, totalDelivered: 0 };
-    return calculateNodeStats(selectedOperator, 'operator');
-  }, [selectedOperator]);
-
+  // Scroll effect for Miller Columns
   useEffect(() => {
     if (scrollContainerRef.current) {
-      if (selectedAllocId || selectedOperatorId) {
+      // Auto-scroll to the right when a deep selection is made
+      if (selectedOperatorId || selectedAllocId) {
         scrollContainerRef.current.scrollTo({ 
           left: scrollContainerRef.current.scrollWidth, 
           behavior: 'smooth' 
         });
       }
     }
-  }, [selectedOperatorId, selectedAllocId]);
+  }, [selectedDeptId, selectedCommuneId, selectedOperatorId, selectedAllocId]);
 
   if (loading) {
     return (
@@ -566,19 +548,11 @@ export const GlobalView = () => {
         <div className="flex flex-wrap items-center gap-3">
            <div className="flex bg-card border border-border rounded-lg p-1 shadow-sm">
               <button 
-                onClick={collapseAll}
+                onClick={resetSelections}
                 className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                title="Fermer tous les dossiers"
+                title="Réinitialiser la vue"
               >
-                <Minimize2 size={14} /> <span className="hidden sm:inline">Tout Réduire</span>
-              </button>
-              <div className="w-px bg-border mx-1 my-1"></div>
-              <button 
-                onClick={expandAll}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 rounded-md transition-colors"
-                title="Ouvrir tous les dossiers"
-              >
-                <Maximize2 size={14} /> <span className="hidden sm:inline">Tout Déplier</span>
+                <RotateCcw size={14} /> <span className="hidden sm:inline">Réinitialiser</span>
               </button>
            </div>
 
@@ -613,7 +587,7 @@ export const GlobalView = () => {
       {/* --- MAIN LAYOUT : Vertical Accordion Sections --- */}
       <div className="flex-1 min-h-0 flex flex-col gap-4">
         
-        {/* SECTION 1: HIERARCHY */}
+        {/* SECTION 1: HIERARCHY (MILLER COLUMNS) */}
         <Section 
           title="Zones Géographiques" 
           icon={MapPin} 
@@ -624,18 +598,18 @@ export const GlobalView = () => {
             <div className="flex items-baseline gap-2">
                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider hidden sm:inline">Total:</span>
                <span className="text-sm font-bold font-mono text-primary">
-                 {zoneStats.totalDelivered.toLocaleString()} / {zoneStats.totalTarget.toLocaleString()} T
+                 {totalZoneStats.totalDelivered.toLocaleString()} / {totalZoneStats.totalTarget.toLocaleString()} T
                </span>
             </div>
           }
         >
-            {/* Column 1: Tree */}
+            {/* Column 1: Regions */}
             <Column 
-              title="Navigation" 
-              stats={zoneStats}
+              title="Régions" 
+              stats={totalZoneStats}
               isScrollable={geoMode === 'split'}
               headerAction={
-                <button onClick={collapseAll} className="text-muted-foreground hover:text-foreground" title="Réinitialiser vue">
+                <button onClick={resetSelections} className="text-muted-foreground hover:text-foreground" title="Réinitialiser">
                   <LayoutList size={14} />
                 </button>
               }
@@ -643,59 +617,86 @@ export const GlobalView = () => {
               {hierarchy.map(region => {
                 const rStats = calculateNodeStats(region, 'region');
                 return (
-                  <div key={region.id} className="mb-1">
-                    <TreeRow 
-                      label={region.name} 
-                      type="region" 
-                      stats={rStats}
-                      expanded={expandedIds.has(region.id)}
-                      onToggle={() => toggleExpand(region.id)}
-                    />
-                    {expandedIds.has(region.id) && (
-                      <div className="border-l border-border/50 ml-3.5 my-1">
-                        {region.departments.sort((a,b) => a.name.localeCompare(b.name)).map(dept => {
-                          const dStats = calculateNodeStats(dept, 'dept');
-                          return (
-                            <div key={dept.id}>
-                              <TreeRow 
-                                label={dept.name} 
-                                type="dept" 
-                                stats={dStats}
-                                expanded={expandedIds.has(dept.id)}
-                                onToggle={() => toggleExpand(dept.id)}
-                              />
-                              {expandedIds.has(dept.id) && (
-                                <div className="border-l border-border/50 ml-7 my-1 space-y-0.5">
-                                  {dept.communes.sort((a,b) => a.name.localeCompare(b.name)).map(commune => {
-                                    const cStats = calculateNodeStats(commune, 'commune');
-                                    return (
-                                      <TreeRow 
-                                        key={commune.id}
-                                        label={commune.name} 
-                                        type="commune" 
-                                        stats={cStats}
-                                        selected={selectedCommuneId === commune.id}
-                                        onSelect={() => handleCommuneSelect(commune.id)}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <ListItem 
+                    key={region.id}
+                    label={region.name}
+                    icon={MapPin}
+                    selected={selectedRegionId === region.id}
+                    onClick={() => handleRegionSelect(region.id)}
+                    rightInfo={
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {rStats.totalDelivered.toLocaleString()} / {rStats.totalTarget.toLocaleString()} T
+                      </span>
+                    }
+                    progress={{ target: rStats.totalTarget, delivered: rStats.totalDelivered }}
+                  />
                 );
               })}
             </Column>
 
-            {/* Column 2: Operators */}
-            {selectedCommuneData && (
+            {/* Column 2: Departments */}
+            {selectedRegion && (
+              <Column 
+                title="Départements" 
+                stats={deptColumnStats}
+                isScrollable={geoMode === 'split'}
+                className="animate-in slide-in-from-left-4 fade-in duration-300"
+              >
+                {departments.map(dept => {
+                  const dStats = calculateNodeStats(dept, 'dept');
+                  return (
+                    <ListItem 
+                      key={dept.id}
+                      label={dept.name}
+                      icon={Folder}
+                      selected={selectedDeptId === dept.id}
+                      onClick={() => handleDeptSelect(dept.id)}
+                      rightInfo={
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          {dStats.totalDelivered.toLocaleString()} / {dStats.totalTarget.toLocaleString()} T
+                        </span>
+                      }
+                      progress={{ target: dStats.totalTarget, delivered: dStats.totalDelivered }}
+                    />
+                  );
+                })}
+              </Column>
+            )}
+
+            {/* Column 3: Communes */}
+            {selectedDept && (
+              <Column 
+                title="Communes" 
+                stats={communeColumnStats}
+                isScrollable={geoMode === 'split'}
+                className="animate-in slide-in-from-left-4 fade-in duration-300"
+              >
+                {communes.map(commune => {
+                  const cStats = calculateNodeStats(commune, 'commune');
+                  return (
+                    <ListItem 
+                      key={commune.id}
+                      label={commune.name}
+                      icon={MapPin}
+                      selected={selectedCommuneId === commune.id}
+                      onClick={() => handleCommuneSelect(commune.id)}
+                      rightInfo={
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          {cStats.totalDelivered.toLocaleString()} / {cStats.totalTarget.toLocaleString()} T
+                        </span>
+                      }
+                      progress={{ target: cStats.totalTarget, delivered: cStats.totalDelivered }}
+                    />
+                  );
+                })}
+              </Column>
+            )}
+
+            {/* Column 4: Operators */}
+            {selectedCommune && (
               <Column 
                 title="Opérateurs" 
-                stats={operatorStats} 
+                stats={operatorColumnStats} 
                 isScrollable={geoMode === 'split'}
                 className="animate-in slide-in-from-left-4 fade-in duration-300"
               >
@@ -715,7 +716,7 @@ export const GlobalView = () => {
               </Column>
             )}
 
-            {/* Column 3: Allocations */}
+            {/* Column 5: Allocations */}
             {selectedOperator && (
               <Column 
                 title="Allocations" 
@@ -755,7 +756,7 @@ export const GlobalView = () => {
               </Column>
             )}
 
-            {/* Column 4: Deliveries */}
+            {/* Column 6: Deliveries */}
             {selectedAllocation && (
               <Column 
                 title="Livraisons" 
