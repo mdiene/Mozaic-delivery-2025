@@ -9,6 +9,7 @@ import { Settings } from './pages/Settings';
 import { Views } from './pages/Views';
 import { NetworkPage } from './pages/Network';
 import { Itinerary } from './pages/Itinerary';
+import { GlobalView } from './pages/GlobalView';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/network" element={<Navigate to="/network/map" replace />} />
           <Route path="/network/map" element={<NetworkPage />} />
           <Route path="/network/itinerary" element={<Itinerary />} />
+          <Route path="/network/global" element={<GlobalView />} />
           
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />

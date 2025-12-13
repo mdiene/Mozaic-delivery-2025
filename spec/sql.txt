@@ -1,0 +1,164 @@
+
+-- MASAE Delivery Tracker - SQL Schema
+-- Target Database: PostgreSQL (Supabase)
+
+-- 1. Projects
+-- Represents the overarching contracts or phases of the campaign.
+CREATE TABLE project (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    numero_marche TEXT NOT NULL,
+    numero_bon_disposition TEXT,
+    numero_phase INTEGER NOT NULL,
+    tonnage_total NUMERIC DEFAULT 0,
+    date_mise_disposition DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. Geographic Hierarchy
+CREATE TABLE regions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    code TEXT NOT NULL
+);
+
+CREATE TABLE departments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    region_id UUID REFERENCES regions(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL
+);
+
+CREATE TABLE communes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    department_id UUID REFERENCES departments(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL
+);
+
+-- 3. Operators (Beneficiaries)
+CREATE TABLE operators (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    commune_id UUID REFERENCES communes(id),
+    projet_id UUID REFERENCES project(id), -- Operators are often tied to specific project phases
+    contact_info TEXT,
+    operateur_coop_gie BOOLEAN DEFAULT FALSE,
+    coop_name TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. Fleet Management
+CREATE TABLE trucks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    plate_number TEXT NOT NULL UNIQUE,
+    capacity_tonnes NUMERIC DEFAULT 0,
+    status TEXT CHECK (status IN ('AVAILABLE', 'IN_TRANSIT', 'MAINTENANCE')) DEFAULT 'AVAILABLE',
+    trailer_number TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE drivers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    phone_normalized TEXT,
+    license_number TEXT,
+    status TEXT CHECK (status IN ('ACTIVE', 'INACTIVE')) DEFAULT 'ACTIVE',
+    truck_id UUID REFERENCES trucks(id) ON DELETE SET NULL, -- Current assignment
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 5. Allocations (Quotas)
+CREATE TABLE allocations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    allocation_key TEXT UNIQUE, -- e.g., generated ID
+    project_id UUID REFERENCES project(id),
+    region_id UUID REFERENCES regions(id),
+    department_id UUID REFERENCES departments(id),
+    commune_id UUID REFERENCES communes(id),
+    operator_id UUID REFERENCES operators(id),
+    target_tonnage NUMERIC DEFAULT 0,
+    status TEXT CHECK (status IN ('OPEN', 'IN_PROGRESS', 'CLOSED', 'OVER_DELIVERED')) DEFAULT 'OPEN',
+    responsible_name TEXT,
+    responsible_phone_raw TEXT,
+    responsible_phone_normalized TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. Deliveries (Logistics Execution)
+CREATE TABLE deliveries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    allocation_id UUID REFERENCES allocations(id) ON DELETE CASCADE,
+    bl_number TEXT NOT NULL UNIQUE,
+    truck_id UUID REFERENCES trucks(id),
+    driver_id UUID REFERENCES drivers(id),
+    tonnage_loaded NUMERIC NOT NULL,
+    tonnage_delivered NUMERIC, -- Can be updated upon arrival
+    delivery_date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 7. Views for Reporting
+
+-- View: Bon de Livraison (Detailed Shipments)
+CREATE OR REPLACE VIEW view_bon_livraison AS
+SELECT 
+    d.bl_number,
+    d.tonnage_loaded,
+    d.delivery_date,
+    d.created_at,
+    a.allocation_key,
+    a.target_tonnage,
+    o.name AS operator_name,
+    o.coop_name AS operator_coop_name,
+    o.contact_info AS operator_contact_info,
+    c.name AS commune,
+    dept.name AS department,
+    r.name AS region,
+    p.numero_phase,
+    p.numero_bon_disposition AS project_num_bon,
+    t.plate_number AS truck_plate_number,
+    t.trailer_number AS truck_trailer_number,
+    dr.name AS driver_name
+FROM deliveries d
+JOIN allocations a ON d.allocation_id = a.id
+JOIN operators o ON a.operator_id = o.id
+JOIN communes c ON a.commune_id = c.id
+JOIN departments dept ON a.department_id = dept.id
+JOIN regions r ON a.region_id = r.id
+JOIN project p ON a.project_id = p.id
+LEFT JOIN trucks t ON d.truck_id = t.id
+LEFT JOIN drivers dr ON d.driver_id = dr.id;
+
+-- View: Fin de Cession (Aggregated Protocol)
+CREATE OR REPLACE VIEW view_fin_de_cession AS
+SELECT 
+    r.name AS region,
+    dept.name AS department,
+    c.name AS commune,
+    o.name AS operator_name,
+    o.coop_name AS operator_coop_name,
+    o.contact_info AS operator_contact_info,
+    p.numero_phase AS project_phase,
+    COUNT(d.id) AS deliveries_count,
+    SUM(d.tonnage_loaded) AS total_tonnage
+FROM allocations a
+JOIN operators o ON a.operator_id = o.id
+JOIN communes c ON a.commune_id = c.id
+JOIN departments dept ON a.department_id = dept.id
+JOIN regions r ON a.region_id = r.id
+JOIN project p ON a.project_id = p.id
+LEFT JOIN deliveries d ON d.allocation_id = a.id
+GROUP BY 
+    r.name, dept.name, c.name, 
+    o.name, o.coop_name, o.contact_info, 
+    p.numero_phase;
+
+-- Row Level Security (Simple Policy for Demo)
+-- In production, replace using 'anon' role with proper authenticated roles.
+ALTER TABLE project ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Read" ON project FOR SELECT USING (true);
+CREATE POLICY "Public Write" ON project FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Update" ON project FOR UPDATE USING (true);
+CREATE POLICY "Public Delete" ON project FOR DELETE USING (true);
+
+-- (Repeat RLS policies for all tables as needed for the development env)

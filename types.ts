@@ -193,3 +193,48 @@ export interface NetworkRegion {
 }
 
 export type NetworkHierarchy = NetworkRegion[];
+
+// Global Tree View Hierarchy Interfaces
+export interface GV_Delivery {
+  id: string;
+  bl_number: string;
+  tonnage: number;
+  truck_plate: string;
+  driver_name: string;
+  date: string;
+}
+
+export interface GV_Allocation {
+  id: string;
+  allocation_key: string;
+  target: number;
+  delivered: number;
+  deliveries: GV_Delivery[];
+}
+
+export interface GV_Operator {
+  id: string;
+  name: string;
+  is_coop: boolean;
+  allocations: GV_Allocation[];
+}
+
+export interface GV_Commune {
+  id: string;
+  name: string;
+  operators: GV_Operator[];
+}
+
+export interface GV_Department {
+  id: string;
+  name: string;
+  communes: GV_Commune[];
+}
+
+export interface GV_Region {
+  id: string;
+  name: string;
+  departments: GV_Department[];
+}
+
+export type GlobalHierarchy = GV_Region[];

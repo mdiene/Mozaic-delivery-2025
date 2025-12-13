@@ -1,7 +1,6 @@
 
-
 import { supabase } from '../lib/supabaseClient';
-import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion, NetworkDeliveryNode } from '../types';
+import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion, NetworkDeliveryNode, GlobalHierarchy } from '../types';
 
 // Helper to stringify errors safely
 const safeLog = (prefix: string, error: any) => {
@@ -434,6 +433,114 @@ export const db = {
           target: c.target,
           delivered: c.delivered,
           deliveries: c.deliveries
+        }))
+      }))
+    }));
+
+    return hierarchy;
+  },
+
+  getGlobalHierarchy: async (projectId?: string): Promise<GlobalHierarchy> => {
+    // This function builds the Region -> Dept -> Commune -> Operator -> Allocation -> Delivery tree
+    
+    // 1. Fetch Allocations (with nested relations)
+    let allocQuery = supabase.from('allocations')
+      .select(`
+        id,
+        allocation_key,
+        target_tonnage,
+        region:regions(id, name),
+        department:departments(id, name),
+        commune:communes(id, name),
+        operator:operators(id, name, operateur_coop_gie),
+        project_id
+      `);
+
+    if (projectId && projectId !== 'all') {
+      allocQuery = allocQuery.eq('project_id', projectId);
+    }
+    const { data: allocations, error: allocError } = await allocQuery;
+    
+    if (allocError) {
+      safeLog('Error fetching allocations for global view:', allocError);
+      return [];
+    }
+
+    // 2. Fetch Deliveries (with truck/driver)
+    let delQuery = supabase.from('deliveries')
+      .select(`
+        id,
+        bl_number,
+        tonnage_loaded,
+        delivery_date,
+        trucks(plate_number),
+        drivers(name),
+        allocation_id
+      `);
+    
+    // Filter deliveries by allocations we already fetched to match project scope
+    const allocIds = allocations?.map((a: any) => a.id) || [];
+    if (allocIds.length > 0) {
+      delQuery = delQuery.in('allocation_id', allocIds);
+    } else {
+      return []; // No allocations, no tree
+    }
+
+    const { data: deliveries, error: delError } = await delQuery;
+    
+    // 3. Process into Hierarchy
+    const tree: any = {};
+
+    // Group Deliveries by Allocation ID for O(1) access
+    const deliveryMap: any = {};
+    deliveries?.forEach((d: any) => {
+      if (!deliveryMap[d.allocation_id]) deliveryMap[d.allocation_id] = [];
+      deliveryMap[d.allocation_id].push({
+        id: d.id,
+        bl_number: d.bl_number,
+        tonnage: Number(d.tonnage_loaded),
+        truck_plate: d.trucks?.plate_number || '?',
+        driver_name: d.drivers?.name || '?',
+        date: d.delivery_date
+      });
+    });
+
+    // Build the tree
+    allocations?.forEach((a: any) => {
+      const rId = a.region?.id; const rName = a.region?.name;
+      const dId = a.department?.id; const dName = a.department?.name;
+      const cId = a.commune?.id; const cName = a.commune?.name;
+      const oId = a.operator?.id; const oName = a.operator?.name; const oCoop = a.operator?.operateur_coop_gie;
+
+      if (!rId || !dId || !cId || !oId) return;
+
+      // Ensure path exists
+      if (!tree[rId]) tree[rId] = { id: rId, name: rName, departments: {} };
+      if (!tree[rId].departments[dId]) tree[rId].departments[dId] = { id: dId, name: dName, communes: {} };
+      if (!tree[rId].departments[dId].communes[cId]) tree[rId].departments[dId].communes[cId] = { id: cId, name: cName, operators: {} };
+      if (!tree[rId].departments[dId].communes[cId].operators[oId]) tree[rId].departments[dId].communes[cId].operators[oId] = { id: oId, name: oName, is_coop: oCoop, allocations: [] };
+
+      // Add Allocation
+      const allocDeliveries = deliveryMap[a.id] || [];
+      const deliveredTotal = allocDeliveries.reduce((sum: number, del: any) => sum + del.tonnage, 0);
+
+      tree[rId].departments[dId].communes[cId].operators[oId].allocations.push({
+        id: a.id,
+        allocation_key: a.allocation_key,
+        target: Number(a.target_tonnage),
+        delivered: deliveredTotal,
+        deliveries: allocDeliveries
+      });
+    });
+
+    // Flatten to Arrays
+    const hierarchy: GlobalHierarchy = Object.values(tree).map((r: any) => ({
+      ...r,
+      departments: Object.values(r.departments).map((d: any) => ({
+        ...d,
+        communes: Object.values(d.communes).map((c: any) => ({
+          ...c,
+          operators: Object.values(c.operators) // Operators leaf contains allocations array
         }))
       }))
     }));
