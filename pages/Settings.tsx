@@ -1,7 +1,7 @@
 
 import { useState, useEffect, Fragment, FormEvent } from 'react';
 import { db } from '../services/db';
-import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers, Save } from 'lucide-react';
+import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers, Save, Ruler } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
 
 type Tab = 'geographic' | 'projects' | 'operators';
@@ -109,6 +109,11 @@ export const Settings = () => {
         payload.tonnage_total = Number(payload.tonnage_total);
       }
       
+      // Commune specific types
+      if (modalType === 'commune') {
+        payload.distance_mine = payload.distance_mine ? Number(payload.distance_mine) : null;
+      }
+
       // Operator specific mapping
       if (modalType === 'operator') {
         payload.operateur_coop_gie = payload.is_coop; // Map frontend bool to DB column
@@ -535,6 +540,7 @@ export const Settings = () => {
                     {geoTab === 'regions' && <th></th>}
                     {geoTab === 'departments' && <th>Région</th>}
                     {geoTab === 'communes' && <th>Département</th>}
+                    {geoTab === 'communes' && <th>Distance Mine</th>}
                     <th className="text-right">Actions</th>
                   </tr>
                 </thead>
@@ -549,7 +555,7 @@ export const Settings = () => {
                       <td className="font-mono text-muted-foreground text-xs">{item.code}</td>
                       <td></td>
                       <td className="text-right">
-                        <button onClick={() => handleEdit('regions', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                        <button onClick={() => handleEdit('region', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete('regions', item.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                       </td>
                     </tr>
@@ -578,7 +584,7 @@ export const Settings = () => {
                               <td className="font-mono text-muted-foreground text-xs">{item.code}</td>
                               <td className="text-sm text-muted-foreground">{region.name}</td>
                               <td className="text-right">
-                                <button onClick={() => handleEdit('departments', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                <button onClick={() => handleEdit('department', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
                                 <button onClick={() => handleDelete('departments', item.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                               </td>
                             </tr>
@@ -602,7 +608,7 @@ export const Settings = () => {
                        return (
                          <Fragment key={dept.id}>
                            <tr className="bg-muted/50 border-y border-border">
-                             <td colSpan={4} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
+                             <td colSpan={5} className="px-4 py-2 text-xs font-bold uppercase text-muted-foreground tracking-wider">
                                Département: {dept.name}
                              </td>
                            </tr>
@@ -611,8 +617,9 @@ export const Settings = () => {
                                <td className="font-medium text-foreground pl-8">{item.name}</td>
                                <td className="font-mono text-muted-foreground text-xs">{item.code}</td>
                                <td className="text-sm text-muted-foreground">{dept.name}</td>
+                               <td className="text-sm text-foreground">{item.distance_mine ? `${item.distance_mine} km` : '-'}</td>
                                <td className="text-right">
-                                  <button onClick={() => handleEdit('communes', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                  <button onClick={() => handleEdit('commune', item)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
                                  <button onClick={() => handleDelete('communes', item.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
                                </td>
                              </tr>
@@ -729,6 +736,19 @@ export const Settings = () => {
                       className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground uppercase"
                       value={formData.code || ''}
                       onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1 flex items-center gap-2">
+                       <Ruler size={14} /> Distance Mine (km)
+                    </label>
+                    <input 
+                      type="number"
+                      step="0.1"
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                      value={formData.distance_mine || ''}
+                      onChange={e => setFormData({...formData, distance_mine: e.target.value})}
+                      placeholder="ex: 120.5"
                     />
                   </div>
                 </>

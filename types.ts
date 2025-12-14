@@ -19,6 +19,7 @@ export interface Commune {
   department_id: string;
   name: string;
   code: string;
+  distance_mine?: number; // Added new field
 }
 
 export interface Operator {
