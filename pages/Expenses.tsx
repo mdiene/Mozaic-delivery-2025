@@ -17,7 +17,6 @@ export const Expenses = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPhase, setFilterPhase] = useState<string>('all');
-  const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
   const [filterWagueOnly, setFilterWagueOnly] = useState(false);
   const [dateRange, setDateRange] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
   const [minFeeFilter, setMinFeeFilter] = useState(0);
@@ -28,7 +27,7 @@ export const Expenses = () => {
   const [activeGroups, setActiveGroups] = useState<Set<string>>(new Set());
 
   // Local State for Fuel Calc in Modal
-  const [fuelUnitPrice, setFuelUnitPrice] = useState(0); // This would ideally be fetched or configured
+  const [fuelUnitPrice, setFuelUnitPrice] = useState(680); // Default to 680
   
   const dateRangeInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,13 +78,13 @@ export const Expenses = () => {
         if (payment.fuel_quantity > 0) {
            setFuelUnitPrice(Math.round(payment.fuel_cost / payment.fuel_quantity));
         } else {
-           setFuelUnitPrice(0);
+           setFuelUnitPrice(680);
         }
      } else {
         // Find a delivery without payment or create new
         // Ideally we select a delivery first
         setFormData({});
-        setFuelUnitPrice(0);
+        setFuelUnitPrice(680);
      }
      setIsModalOpen(true);
   };
@@ -100,7 +99,7 @@ export const Expenses = () => {
         delivery_id: deliveryId,
         truck_id: selectedDelivery.truck_id,
         // If external (not internal), auto-fill label
-        other_fees_label: !isInternal ? 'Coûts transport' : (prev.other_fees_label || ''),
+        other_fees_label: !isInternal ? 'Forfait transporteur' : (prev.other_fees_label || ''),
         // Reset other fields if external to avoid confusion, though UI disables them
         fuel_quantity: !isInternal ? 0 : prev.fuel_quantity,
         fuel_cost: !isInternal ? 0 : prev.fuel_cost,
@@ -173,13 +172,12 @@ export const Expenses = () => {
 
   const deliveryOptions = useMemo(() => {
     return deliveries
-      .filter(d => modalPhaseFilter === 'all' || d.project_id === modalPhaseFilter)
       .map(d => ({
         value: d.id,
         label: d.bl_number,
         subLabel: `${d.truck_plate} • ${new Date(d.delivery_date).toLocaleDateString()}`
       }));
-  }, [deliveries, modalPhaseFilter]);
+  }, [deliveries]);
 
   // Determine current context for the modal
   const selectedDeliveryForModal = deliveries.find(d => d.id === formData.delivery_id);
@@ -549,31 +547,12 @@ export const Expenses = () => {
                   <div className="flex items-center justify-between">
                      <label className="block text-sm font-medium text-foreground">Livraison (BL)</label>
                      
-                     {/* Phase Filter UI */}
-                     <div className="flex items-center gap-1 overflow-x-auto max-w-[60%] no-scrollbar">
-                        <span className="text-[10px] uppercase text-muted-foreground font-bold whitespace-nowrap mr-1 flex items-center gap-1">
-                           <Layers size={10} /> Phase:
+                     {/* Phase Label Display */}
+                     {selectedDeliveryForModal && (
+                        <span className="badge badge-soft badge-secondary text-xs">
+                           {selectedDeliveryForModal.project_phase}
                         </span>
-                        <div className="flex gap-1">
-                           <button
-                              type="button"
-                              onClick={() => setModalPhaseFilter('all')}
-                              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border ${modalPhaseFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-muted'}`}
-                           >
-                              Tous
-                           </button>
-                           {projects.map(p => (
-                              <button
-                                 key={p.id}
-                                 type="button"
-                                 onClick={() => setModalPhaseFilter(p.id)}
-                                 className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border whitespace-nowrap ${modalPhaseFilter === p.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-muted'}`}
-                              >
-                                 Ph {p.numero_phase}
-                              </button>
-                           ))}
-                        </div>
-                     </div>
+                     )}
                   </div>
 
                   <div>
