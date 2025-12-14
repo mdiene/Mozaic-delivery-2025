@@ -1,6 +1,6 @@
 
 import { supabase } from '../lib/supabaseClient';
-import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion, NetworkDeliveryNode, GlobalHierarchy } from '../types';
+import { AllocationView, DeliveryView, Truck, Driver, Region, Department, Commune, Project, Operator, BonLivraisonView, FinDeCessionView, RegionPerformance, NetworkHierarchy, NetworkRegion, NetworkDeliveryNode, GlobalHierarchy, Payment } from '../types';
 
 // Helper to stringify errors safely
 const safeLog = (prefix: string, error: any) => {
@@ -627,6 +627,30 @@ export const db = {
       phone: d.phone_normalized,
       truck_plate: d.trucks?.plate_number
     })) as Driver[];
+  },
+
+  getPayments: async (): Promise<Payment[]> => {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        deliveries:deliveries!payments_delivery_id_fkey(bl_number, driver_id, drivers(name)),
+        trucks(plate_number, owner_type)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      safeLog('Error fetching payments:', error);
+      return [];
+    }
+
+    return data.map((p: any) => ({
+      ...p,
+      bl_number: p.deliveries?.bl_number,
+      truck_plate: p.trucks?.plate_number,
+      truck_owner_type: p.trucks?.owner_type,
+      driver_name: p.deliveries?.drivers?.name
+    }));
   },
 
   // Settings / Geographic

@@ -315,8 +315,8 @@ export const GlobalView = () => {
   const [flatDeliveries, setFlatDeliveries] = useState<DeliveryView[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Layout State: 'split' (both), 'geo' (maximized), 'drivers' (maximized)
-  const [layoutMode, setLayoutMode] = useState<'split' | 'geo' | 'drivers'>('split');
+  // Layout State: 'split' (both), 'geo' (maximized), 'drivers' (maximized), 'collapsed' (both hidden)
+  const [layoutMode, setLayoutMode] = useState<'split' | 'geo' | 'drivers' | 'collapsed'>('collapsed');
 
   // New Column Selection State (Horizontal Flow)
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
@@ -469,10 +469,8 @@ export const GlobalView = () => {
 
   // Actions
   const toggleLayout = (target: 'geo' | 'drivers') => {
-    if (layoutMode === 'split') {
-      setLayoutMode(target);
-    } else if (layoutMode === target) {
-      setLayoutMode('split');
+    if (layoutMode === target) {
+      setLayoutMode('collapsed');
     } else {
       setLayoutMode(target);
     }
@@ -533,8 +531,8 @@ export const GlobalView = () => {
   }
 
   // Determine modes for sections
-  const geoMode = layoutMode === 'geo' ? 'maximized' : (layoutMode === 'drivers' ? 'hidden' : 'split');
-  const driverMode = layoutMode === 'drivers' ? 'maximized' : (layoutMode === 'geo' ? 'hidden' : 'split');
+  const geoMode = layoutMode === 'geo' ? 'maximized' : (layoutMode === 'drivers' || layoutMode === 'collapsed' ? 'hidden' : 'split');
+  const driverMode = layoutMode === 'drivers' ? 'maximized' : (layoutMode === 'geo' || layoutMode === 'collapsed' ? 'hidden' : 'split');
 
   return (
     <div className={`flex flex-col space-y-4 ${layoutMode === 'split' ? 'h-[calc(100vh-8rem)]' : 'min-h-[calc(100vh-8rem)]'}`}>

@@ -21,7 +21,8 @@ import {
   FileText,
   Gift,
   Navigation,
-  Globe
+  Globe,
+  Receipt
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -122,16 +123,34 @@ const Sidebar = ({
             </NavLink>
           </li>
 
+          {/* Logistics with Submenu - Non-clickable Parent */}
           <li>
-            <NavLink 
-              to="/logistics"
-              className={({ isActive }) => 
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
-              }
+            <div 
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group cursor-default ${location.pathname.startsWith('/logistics') ? 'text-white' : 'text-sidebar-foreground'}`}
             >
               <Package size={20} className="shrink-0" />
               <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Logistique</span>
-            </NavLink>
+            </div>
+            <ul className="menu gap-1 pl-4 mt-1 border-l border-sidebar-border/30 ml-3">
+              <li>
+                <NavLink 
+                  to="/logistics/dispatch"
+                  className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}
+                >
+                  <Package size={16} className="shrink-0" />
+                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Expéditions</span>
+                </NavLink>
+              </li>
+              <li>
+                <NavLink 
+                  to="/logistics/expenses"
+                  className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}
+                >
+                  <Receipt size={16} className="shrink-0" />
+                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Note de frais</span>
+                </NavLink>
+              </li>
+            </ul>
           </li>
 
           <li>
@@ -329,7 +348,7 @@ const Header = ({
           <div className="flex items-center">
              <h2 className="text-xl font-bold text-foreground tracking-tight">
               {location.pathname === '/allocations' && 'Allocations'}
-              {location.pathname === '/logistics' && 'Logistique'}
+              {location.pathname.startsWith('/logistics') && 'Logistique'}
               {location.pathname === '/fleet' && 'Parc Auto'}
               {location.pathname.startsWith('/views') && 'Rapports'}
               {location.pathname.startsWith('/network') && 'Réseau'}

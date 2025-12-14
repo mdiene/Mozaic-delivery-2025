@@ -158,7 +158,7 @@ export const Allocations = () => {
 
   // Handlers
   const handleCreateDelivery = (alloc: AllocationView) => {
-    navigate(`/logistics?action=new&allocationId=${alloc.id}`);
+    navigate(`/logistics/dispatch?action=new&allocationId=${alloc.id}`);
   };
 
   const handleCloseAllocation = async (id: string) => {

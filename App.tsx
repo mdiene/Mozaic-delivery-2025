@@ -10,6 +10,7 @@ import { Views } from './pages/Views';
 import { NetworkPage } from './pages/Network';
 import { Itinerary } from './pages/Itinerary';
 import { GlobalView } from './pages/GlobalView';
+import { Expenses } from './pages/Expenses';
 
 function App() {
   return (
@@ -18,7 +19,12 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/allocations" element={<Allocations />} />
-          <Route path="/logistics" element={<Logistics />} />
+          
+          {/* Logistics Routes */}
+          <Route path="/logistics" element={<Navigate to="/logistics/dispatch" replace />} />
+          <Route path="/logistics/dispatch" element={<Logistics />} />
+          <Route path="/logistics/expenses" element={<Expenses />} />
+          
           <Route path="/fleet" element={<Fleet />} />
           <Route path="/views" element={<Views />} />
           

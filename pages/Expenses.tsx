@@ -1,0 +1,773 @@
+
+import { useEffect, useState, FormEvent, useMemo, useRef, Fragment } from 'react';
+import { db } from '../services/db';
+import { Payment, DeliveryView, Project } from '../types';
+import { 
+  Search, Receipt, X, Save, Edit2, RotateCcw, 
+  Fuel, Truck, FileText, Layers, RefreshCw, Calendar, MapPin, Filter, ChevronRight,
+  Minimize2, ShieldCheck
+} from 'lucide-react';
+import { AdvancedSelect } from '../components/AdvancedSelect';
+import { useSearchParams } from 'react-router-dom';
+
+// Type for enriched payment to include delivery info for filtering
+interface EnrichedPayment extends Payment {
+  region_name?: string;
+  commune_name?: string;
+  project_id?: string;
+  project_phase?: string;
+  delivery_date?: string;
+}
+
+type GroupBy = 'none' | 'truck_plate' | 'commune_name' | 'region_name';
+
+export const Expenses = () => {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+
+  const [payments, setPayments] = useState<EnrichedPayment[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState<Partial<Payment>>({});
+  const [fuelUnitPrice, setFuelUnitPrice] = useState<number>(680); // Default price
+  const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
+
+  // Filter State
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [filterPhase, setFilterPhase] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
+  const dateRangeInputRef = useRef<HTMLInputElement>(null);
+  const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  
+  // New Filters
+  const [filterWagueOnly, setFilterWagueOnly] = useState(false);
+  
+  // Range Filter State
+  const [minFeeFilter, setMinFeeFilter] = useState<number>(0);
+  const [maxTotalFee, setMaxTotalFee] = useState<number>(100000); // Default fallback
+
+  // Accordion State
+  const [activeGroups, setActiveGroups] = useState<Set<string>>(new Set());
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [pay, del, proj] = await Promise.all([
+        db.getPayments(),
+        db.getDeliveriesView(),
+        db.getProjects()
+      ]);
+      
+      setDeliveries(del);
+      setProjects(proj);
+
+      // Enrich payments with delivery info & Calculate Max Fee
+      let maxFeeFound = 0;
+      const enriched = pay.map(p => {
+         const d = del.find(d => d.id === p.delivery_id);
+         const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0);
+         if (total > maxFeeFound) maxFeeFound = total;
+         
+         return {
+            ...p,
+            region_name: d?.region_name,
+            commune_name: d?.commune_name,
+            project_id: d?.project_id,
+            project_phase: d?.project_phase,
+            delivery_date: d?.delivery_date
+         };
+      });
+      setPayments(enriched);
+      // Round up max fee to nearest 10000 for cleaner slider
+      setMaxTotalFee(Math.ceil(maxFeeFound / 10000) * 10000 || 100000);
+
+      // Auto-select latest phase in filters if not set
+      if (filterPhase === 'all' && proj.length > 0) {
+         // Sort by phase number descending
+         // const sorted = [...proj].sort((a,b) => b.numero_phase - a.numero_phase);
+         // setFilterPhase(sorted[0].id); 
+      }
+
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Initialize Flatpickr
+  useEffect(() => {
+    if (dateRangeInputRef.current && (window as any).flatpickr) {
+      const fp = (window as any).flatpickr(dateRangeInputRef.current, {
+        mode: 'range',
+        dateFormat: "Y-m-d",
+        locale: {
+          rangeSeparator: " au "
+        },
+        onChange: (selectedDates: Date[]) => {
+          if (selectedDates.length === 2) {
+            setDateRange({ start: selectedDates[0], end: selectedDates[1] });
+          } else {
+            setDateRange({ start: null, end: null });
+          }
+        }
+      });
+      return () => fp.destroy();
+    }
+  }, []);
+
+  // Group toggling logic
+  const toggleGroup = (key: string) => {
+    const newSet = new Set(activeGroups);
+    if (newSet.has(key)) newSet.delete(key);
+    else newSet.add(key);
+    setActiveGroups(newSet);
+  };
+  
+  const collapseAllGroups = () => {
+    setActiveGroups(new Set());
+  };
+
+  // Auto-expand groups when data or grouping changes (only if not manually collapsed)
+  useEffect(() => {
+     if (payments.length > 0 && groupBy !== 'none') {
+        // By default we can leave them closed or open. Let's start closed or check logic.
+        // Previously we expanded all. Let's keep it manual or expanded.
+        // For now, let's not force expand on every render to allow collapse.
+        // Only on initial group change we might want to expand all.
+     }
+  }, [groupBy]);
+
+  const handleOpenModal = (payment?: EnrichedPayment) => {
+    if (payment) {
+      setFormData({ ...payment });
+      if (payment.fuel_quantity && payment.fuel_quantity > 0 && payment.fuel_cost) {
+         setFuelUnitPrice(Math.round(payment.fuel_cost / payment.fuel_quantity));
+      } else {
+         setFuelUnitPrice(680);
+      }
+    } else {
+      setFormData({
+        road_fees: 0,
+        personal_fees: 0,
+        other_fees: 0,
+        overweigh_fees: 0,
+        fuel_quantity: 0,
+        fuel_cost: 0
+      });
+      setFuelUnitPrice(680);
+    }
+    // Set modal phase based on payment or default to 'all'
+    setModalPhaseFilter(payment?.project_id || 'all');
+    setIsModalOpen(true);
+  };
+
+  const handleDeliverySelect = (deliveryId: string) => {
+    const selectedDelivery = deliveries.find(d => d.id === deliveryId);
+    if (selectedDelivery) {
+      setFormData(prev => ({
+        ...prev,
+        delivery_id: deliveryId,
+        truck_id: selectedDelivery.truck_id
+      }));
+    }
+  };
+
+  const handleFuelChange = (quantity: number, price: number) => {
+     setFormData(prev => ({
+        ...prev,
+        fuel_quantity: quantity,
+        fuel_cost: quantity * price
+     }));
+  };
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!formData.delivery_id || !formData.truck_id) {
+      alert("Veuillez sélectionner une livraison valide.");
+      return;
+    }
+
+    try {
+      const payload = {
+        delivery_id: formData.delivery_id,
+        truck_id: formData.truck_id,
+        road_fees: Number(formData.road_fees) || 0,
+        personal_fees: Number(formData.personal_fees) || 0,
+        other_fees: Number(formData.other_fees) || 0,
+        other_fees_label: formData.other_fees_label,
+        overweigh_fees: Number(formData.overweigh_fees) || 0,
+        fuel_quantity: Number(formData.fuel_quantity) || 0,
+        fuel_cost: Number(formData.fuel_cost) || 0,
+        date_updated: new Date().toISOString()
+      };
+
+      if (formData.id) {
+        await db.updateItem('payments', formData.id, payload);
+      } else {
+        await db.createItem('payments', payload);
+      }
+      setIsModalOpen(false);
+      fetchData();
+    } catch (e: any) {
+      alert("Erreur lors de l'enregistrement: " + e.message);
+    }
+  };
+
+  const handleReset = async (id: string) => {
+    if (!confirm('Voulez-vous vraiment réinitialiser les montants de cette note à zéro ?')) return;
+    try {
+      await db.updateItem('payments', id, {
+        road_fees: 0,
+        personal_fees: 0,
+        other_fees: 0,
+        other_fees_label: null,
+        overweigh_fees: 0,
+        fuel_quantity: 0,
+        fuel_cost: 0,
+        date_updated: new Date().toISOString()
+      });
+      fetchData();
+    } catch (e) {
+      alert("Erreur lors de la réinitialisation.");
+    }
+  };
+
+  const deliveryOptions = useMemo(() => {
+    return deliveries
+      .filter(d => modalPhaseFilter === 'all' || d.project_id === modalPhaseFilter)
+      .map(d => ({
+        value: d.id,
+        label: d.bl_number,
+        subLabel: `${d.truck_plate} • ${new Date(d.delivery_date).toLocaleDateString()}`
+      }));
+  }, [deliveries, modalPhaseFilter]);
+
+  // --- Filtering & Grouping Logic ---
+  
+  const filteredPayments = useMemo(() => {
+    return payments.filter(p => {
+      // Phase Filter
+      if (filterPhase !== 'all' && p.project_id !== filterPhase) return false;
+
+      // Ownership Filter
+      if (filterWagueOnly && !p.truck_owner_type) return false;
+
+      // Date Range Filter
+      if (dateRange.start && dateRange.end && p.delivery_date) {
+         const d = new Date(p.delivery_date);
+         d.setHours(0,0,0,0);
+         const start = new Date(dateRange.start); start.setHours(0,0,0,0);
+         const end = new Date(dateRange.end); end.setHours(23,59,59,999);
+         if (d < start || d > end) return false;
+      }
+
+      // Search Filter
+      if (searchTerm) {
+         const lower = searchTerm.toLowerCase();
+         return (
+            (p.bl_number && p.bl_number.toLowerCase().includes(lower)) ||
+            (p.truck_plate && p.truck_plate.toLowerCase().includes(lower)) ||
+            (p.driver_name && p.driver_name.toLowerCase().includes(lower))
+         );
+      }
+
+      // Range Filter (Min Amount)
+      const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0);
+      if (total < minFeeFilter) return false;
+      
+      return true;
+    });
+  }, [payments, filterPhase, dateRange, searchTerm, minFeeFilter, filterWagueOnly]);
+
+  const groupedPayments = useMemo(() => {
+     if (groupBy === 'none') {
+        return [{ 
+           key: 'All', 
+           title: 'Toutes les Notes', 
+           items: filteredPayments,
+           total: filteredPayments.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0), 0)
+        }];
+     }
+
+     const groups: Record<string, EnrichedPayment[]> = {};
+     filteredPayments.forEach(p => {
+        let key = (p as any)[groupBy] || 'Inconnu';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+     });
+
+     return Object.keys(groups).sort().map(key => {
+        const items = groups[key];
+        const total = items.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0), 0);
+        return { key, title: key, items, total };
+     });
+  }, [filteredPayments, groupBy]);
+
+  // Auto-expand groups when grouping changes
+  useEffect(() => {
+     if (groupBy !== 'none') {
+        setActiveGroups(new Set(groupedPayments.map(g => g.key)));
+     }
+  }, [groupedPayments.length, groupBy]);
+
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Notes de Frais</h1>
+          <p className="text-muted-foreground text-sm">Gestion des dépenses liées aux livraisons (Carburant, Frais de route...)</p>
+        </div>
+        {/* Removed 'Nouvelle Note' Button as requested */}
+      </div>
+
+      {/* FILTER & GROUPING TOOLBAR */}
+      <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col gap-4">
+         {/* Top Row: Search + Phase Filter */}
+         <div className="flex flex-col md:flex-row gap-4 items-center border-b border-border/50 pb-4">
+            <div className="relative flex-1 w-full">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+               <input 
+                  type="text" 
+                  placeholder="Rechercher par BL, Camion, Chauffeur..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:ring-1 focus:ring-primary outline-none"
+               />
+            </div>
+            
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
+               <button
+                  onClick={() => setFilterWagueOnly(!filterWagueOnly)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${filterWagueOnly ? 'bg-blue-600 text-white border-blue-600' : 'bg-card text-muted-foreground border-border hover:bg-muted'}`}
+               >
+                  <ShieldCheck size={16} />
+                  <span className="text-xs font-bold uppercase whitespace-nowrap">Wague Agro Business</span>
+               </button>
+
+               <div className="w-px h-6 bg-border mx-1"></div>
+
+               <span className="text-xs font-semibold uppercase text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                  <Filter size={14} /> Phase:
+               </span>
+               <form className="filter shrink-0">
+                  <input 
+                     className="btn btn-square" 
+                     type="reset" 
+                     value="×" 
+                     onClick={() => setFilterPhase('all')}
+                     title="Réinitialiser"
+                  />
+                  <input 
+                     className="btn" 
+                     type="radio" 
+                     name="expense-phase" 
+                     aria-label="Toutes"
+                     checked={filterPhase === 'all'}
+                     onChange={() => setFilterPhase('all')}
+                  />
+                  {projects.map(p => (
+                     <input
+                        key={p.id}
+                        className="btn" 
+                        type="radio" 
+                        name="expense-phase" 
+                        aria-label={`Phase ${p.numero_phase}`}
+                        checked={filterPhase === p.id}
+                        onChange={() => setFilterPhase(p.id)}
+                     />
+                  ))}
+               </form>
+            </div>
+         </div>
+
+         {/* Middle Row: Grouping + Collapse */}
+         <div className="flex flex-col md:flex-row gap-4 justify-between items-center border-b border-border/50 pb-4">
+            {/* Grouping */}
+            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
+               <span className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1 whitespace-nowrap">
+                  <Layers size={14} /> Grouper par:
+               </span>
+               <button onClick={() => setGroupBy('truck_plate')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors ${groupBy === 'truck_plate' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted border-border'}`}>Camion</button>
+               <button onClick={() => setGroupBy('commune_name')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors ${groupBy === 'commune_name' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted border-border'}`}>Commune</button>
+               <button onClick={() => setGroupBy('region_name')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors ${groupBy === 'region_name' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted border-border'}`}>Région</button>
+               {groupBy !== 'none' && (
+                  <>
+                    <button onClick={() => setGroupBy('none')} className="p-1.5 text-muted-foreground hover:text-foreground" title="Dégrouper"><X size={14} /></button>
+                    <div className="w-px h-6 bg-border mx-1"></div>
+                    <button 
+                      onClick={collapseAllGroups} 
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-card hover:bg-muted text-muted-foreground transition-colors"
+                      title="Fermer tous les groupes"
+                    >
+                      <Minimize2 size={12} /> Tout réduire
+                    </button>
+                  </>
+               )}
+            </div>
+         </div>
+
+         {/* Bottom Row: Date + Range Slider */}
+         <div className="flex flex-col md:flex-row gap-6 items-end md:items-center">
+            {/* Date Picker */}
+            <div className="relative w-full md:w-auto shrink-0">
+               <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                  <Calendar size={16} className="text-muted-foreground" />
+               </div>
+               <input 
+                  ref={dateRangeInputRef}
+                  type="text" 
+                  className="input w-full md:w-64 ps-10 cursor-pointer text-sm" 
+                  placeholder="Période (Début à Fin)" 
+               />
+               {dateRange.start && (
+                  <button 
+                     onClick={() => {
+                        if (dateRangeInputRef.current && (window as any).flatpickr) {
+                           (dateRangeInputRef.current as any)._flatpickr.clear();
+                        }
+                     }}
+                     className="absolute inset-y-0 end-0 flex items-center pe-3 text-muted-foreground hover:text-foreground"
+                  >
+                     <X size={14} />
+                  </button>
+               )}
+            </div>
+
+            {/* FlyonUI Range Slider */}
+            <div className="flex-1 w-full min-w-[200px]">
+               <div className="flex justify-between mb-1">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Montant Minimum</label>
+                  <span className="text-xs font-mono font-bold text-primary">{minFeeFilter.toLocaleString()} FCFA</span>
+               </div>
+               <input 
+                  type="range" 
+                  min="0" 
+                  max={maxTotalFee} 
+                  value={minFeeFilter} 
+                  onChange={(e) => setMinFeeFilter(Number(e.target.value))}
+                  className="range range-primary range-xs w-full" 
+                  step={Math.ceil(maxTotalFee / 20)} // Dynamic step
+                  aria-label="Filtre montant minimum" 
+               />
+               <div className="w-full flex justify-between text-[10px] text-muted-foreground px-1 mt-1 font-mono">
+                  <span>0</span>
+                  <span>|</span>
+                  <span>{Math.round(maxTotalFee / 2).toLocaleString()}</span>
+                  <span>|</span>
+                  <span>{maxTotalFee.toLocaleString()}</span>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      {/* Grouped Content */}
+      <div className="flex flex-col gap-4">
+         {groupedPayments.length === 0 && (
+            <div className="p-12 text-center text-muted-foreground bg-card rounded-xl border border-border">
+               Aucune note de frais trouvée.
+            </div>
+         )}
+
+         {groupedPayments.map((group) => {
+            const isOpen = groupBy === 'none' ? true : activeGroups.has(group.key);
+            
+            return (
+               <div key={group.key} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                  {/* Group Header (Only if grouped) */}
+                  {groupBy !== 'none' && (
+                     <button 
+                        onClick={() => toggleGroup(group.key)}
+                        className="w-full flex items-center justify-between p-4 bg-muted/20 hover:bg-muted/40 transition-colors border-b border-border"
+                     >
+                        <div className="flex items-center gap-3">
+                           <ChevronRight size={18} className={`text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
+                           <span className="font-bold text-foreground flex items-center gap-2">
+                              {groupBy === 'truck_plate' && <Truck size={16} />}
+                              {groupBy === 'commune_name' && <MapPin size={16} />}
+                              {groupBy === 'region_name' && <MapPin size={16} />}
+                              {group.title}
+                           </span>
+                           <span className="text-xs bg-muted px-2 py-0.5 rounded text-muted-foreground">{group.items.length}</span>
+                        </div>
+                        <div className="font-mono font-bold text-primary">
+                           {group.total.toLocaleString()} FCFA
+                        </div>
+                     </button>
+                  )}
+
+                  {/* List Content */}
+                  <div className={`${!isOpen ? 'hidden' : 'block'}`}>
+                     <div className="w-full overflow-x-auto">
+                        <table className="table table-striped">
+                           <thead className="bg-primary/5 border-b border-primary/10">
+                              <tr>
+                                 <th className="px-4 py-3 text-left w-48">BL & Date</th>
+                                 <th className="px-4 py-3 text-left">Camion / Chauffeur</th>
+                                 <th className="px-4 py-3 text-left">Destination</th>
+                                 <th className="px-4 py-3 text-right">Carburant</th>
+                                 <th className="px-4 py-3 text-right">Frais Route</th>
+                                 <th className="px-4 py-3 text-right">Autres</th>
+                                 <th className="px-4 py-3 text-right font-bold">Total</th>
+                                 <th className="px-4 py-3 text-right w-24">Actions</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                              {group.items.map(p => {
+                                 const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0);
+                                 return (
+                                    <tr key={p.id} className="hover:bg-muted/30">
+                                       <td className="px-4 py-3">
+                                          <div className="flex items-center gap-2">
+                                             <FileText size={16} className="text-primary/70" />
+                                             <span className="font-mono font-bold text-sm text-foreground">{p.bl_number}</span>
+                                          </div>
+                                          <div className="text-xs text-muted-foreground mt-1 ml-6">
+                                             {p.delivery_date ? new Date(p.delivery_date).toLocaleDateString() : '-'}
+                                          </div>
+                                       </td>
+                                       <td className="px-4 py-3">
+                                          <div className="font-semibold text-sm text-foreground flex items-center gap-2">
+                                             {p.truck_plate}
+                                             {p.truck_owner_type && <span className="text-[9px] bg-blue-100 text-blue-700 px-1 rounded border border-blue-200">WAB</span>}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">{p.driver_name || 'Chauffeur inconnu'}</div>
+                                       </td>
+                                       <td className="px-4 py-3">
+                                          <div className="text-sm text-foreground">{p.commune_name}</div>
+                                          <div className="text-xs text-muted-foreground">{p.region_name}</div>
+                                       </td>
+                                       <td className="px-4 py-3 text-right font-mono text-sm">
+                                          <div className="text-foreground font-medium">{p.fuel_cost.toLocaleString()}</div>
+                                          {p.fuel_quantity > 0 && <div className="text-[10px] text-muted-foreground">{p.fuel_quantity} L</div>}
+                                       </td>
+                                       <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
+                                          {(p.road_fees + p.overweigh_fees).toLocaleString()}
+                                       </td>
+                                       <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
+                                          {(p.personal_fees + p.other_fees).toLocaleString()}
+                                       </td>
+                                       <td className="px-4 py-3 text-right font-bold font-mono text-primary">
+                                          {total.toLocaleString()} F
+                                       </td>
+                                       <td className="px-4 py-3 text-right">
+                                          <div className="flex justify-end gap-1">
+                                             <button 
+                                                onClick={() => handleOpenModal(p)} 
+                                                className="btn btn-circle btn-text btn-sm text-blue-600"
+                                                title="Modifier"
+                                             >
+                                                <Edit2 size={16} />
+                                             </button>
+                                             <button 
+                                                onClick={() => handleReset(p.id)} 
+                                                className="btn btn-circle btn-text btn-sm text-amber-500 hover:bg-amber-50" 
+                                                title="Réinitialiser"
+                                             >
+                                                <RotateCcw size={16} />
+                                             </button>
+                                          </div>
+                                       </td>
+                                    </tr>
+                                 );
+                              })}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               </div>
+            );
+         })}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
+            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="font-semibold text-foreground">{formData.id ? 'Modifier Note de Frais' : 'Nouvelle Note de Frais'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
+            </div>
+            
+            <form onSubmit={handleSave} className="p-6 space-y-6">
+               
+               {/* Phase Filter for Selection */}
+               <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                     <label className="block text-sm font-medium text-foreground">Livraison (BL)</label>
+                     
+                     {/* Phase Filter UI */}
+                     <div className="flex items-center gap-1 overflow-x-auto max-w-[60%] no-scrollbar">
+                        <span className="text-[10px] uppercase text-muted-foreground font-bold whitespace-nowrap mr-1 flex items-center gap-1">
+                           <Layers size={10} /> Phase:
+                        </span>
+                        <div className="flex gap-1">
+                           <button
+                              type="button"
+                              onClick={() => setModalPhaseFilter('all')}
+                              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border ${modalPhaseFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-muted'}`}
+                           >
+                              Tous
+                           </button>
+                           {projects.map(p => (
+                              <button
+                                 key={p.id}
+                                 type="button"
+                                 onClick={() => setModalPhaseFilter(p.id)}
+                                 className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors border whitespace-nowrap ${modalPhaseFilter === p.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-muted'}`}
+                              >
+                                 Ph {p.numero_phase}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+                  </div>
+
+                  <div>
+                     <AdvancedSelect 
+                        options={deliveryOptions}
+                        value={formData.delivery_id || ''}
+                        onChange={handleDeliverySelect}
+                        placeholder="Rechercher par N° BL..."
+                        required
+                        disabled={!!formData.id} // Lock delivery on edit
+                     />
+                     {formData.truck_id && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                           <Truck size={16} /> Camion associé : <span className="font-bold text-foreground">{deliveries.find(d => d.truck_id === formData.truck_id)?.truck_plate}</span>
+                        </div>
+                     )}
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Fuel Section */}
+                  <div className="space-y-4 p-4 rounded-lg border border-border bg-muted/10">
+                     <div className="flex justify-between items-center">
+                        <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
+                           <Fuel size={16} /> Carburant
+                        </h4>
+                        <div className="flex items-center gap-1">
+                           <span className="text-[10px] uppercase text-muted-foreground">Prix/L:</span>
+                           <input 
+                              type="number"
+                              className="w-16 h-6 text-xs text-right border border-input rounded px-1 bg-background"
+                              value={fuelUnitPrice}
+                              onChange={(e) => {
+                                 const newPrice = Number(e.target.value);
+                                 setFuelUnitPrice(newPrice);
+                                 handleFuelChange(formData.fuel_quantity || 0, newPrice);
+                              }}
+                           />
+                        </div>
+                     </div>
+                     <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase">Quantité (Litres)</label>
+                        <input 
+                           type="number" 
+                           className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                           value={formData.fuel_quantity || ''}
+                           onChange={(e) => {
+                              const qty = Number(e.target.value);
+                              handleFuelChange(qty, fuelUnitPrice);
+                           }}
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase">Coût Total (FCFA)</label>
+                        <div className="relative">
+                           <input 
+                              type="number" 
+                              readOnly
+                              className="w-full border border-input rounded-lg p-2 text-sm bg-muted/50 font-mono font-bold text-foreground cursor-not-allowed"
+                              value={formData.fuel_cost || 0}
+                           />
+                           <RefreshCw size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1 text-right italic">
+                           Calculé : {formData.fuel_quantity || 0} L x {fuelUnitPrice} F
+                        </p>
+                     </div>
+                  </div>
+
+                  {/* Fees Section */}
+                  <div className="space-y-4 p-4 rounded-lg border border-border bg-muted/10">
+                     <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
+                        <Receipt size={16} /> Frais de Route
+                     </h4>
+                     <div className="grid grid-cols-2 gap-3">
+                        <div>
+                           <label className="block text-xs font-medium text-muted-foreground mb-1">Route / Péage</label>
+                           <input 
+                              type="number" 
+                              className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                              value={formData.road_fees || ''}
+                              onChange={e => setFormData({...formData, road_fees: Number(e.target.value)})}
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-xs font-medium text-muted-foreground mb-1">Surpoids</label>
+                           <input 
+                              type="number" 
+                              className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                              value={formData.overweigh_fees || ''}
+                              onChange={e => setFormData({...formData, overweigh_fees: Number(e.target.value)})}
+                           />
+                        </div>
+                     </div>
+                     <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">Frais Personnels (Chauffeur)</label>
+                        <input 
+                           type="number" 
+                           className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                           value={formData.personal_fees || ''}
+                           onChange={e => setFormData({...formData, personal_fees: Number(e.target.value)})}
+                        />
+                     </div>
+                  </div>
+               </div>
+
+               {/* Other Fees */}
+               <div className="grid grid-cols-3 gap-4 pt-2 border-t border-border">
+                  <div className="col-span-2">
+                     <label className="block text-xs font-medium text-muted-foreground mb-1">Autre Frais (Libellé)</label>
+                     <input 
+                        type="text" 
+                        placeholder="Ex: Réparation pneu..."
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                        value={formData.other_fees_label || ''}
+                        onChange={e => setFormData({...formData, other_fees_label: e.target.value})}
+                     />
+                  </div>
+                  <div>
+                     <label className="block text-xs font-medium text-muted-foreground mb-1">Montant</label>
+                     <input 
+                        type="number" 
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                        value={formData.other_fees || ''}
+                        onChange={e => setFormData({...formData, other_fees: Number(e.target.value)})}
+                     />
+                  </div>
+               </div>
+
+               <div className="pt-4 flex justify-end gap-2 border-t border-border mt-2">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
+                  <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
+                     <Save size={16} /> Enregistrer
+                  </button>
+               </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

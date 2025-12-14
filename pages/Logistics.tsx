@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo, Fragment, FormEvent } from 'react';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
-import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight, Receipt } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 
@@ -87,7 +87,7 @@ export const Logistics = () => {
           setIsModalOpen(true);
           
           // Clear URL params to prevent re-opening on reload
-          navigate('/logistics', { replace: true });
+          navigate('/logistics/dispatch', { replace: true });
         }
       }
     };
@@ -148,6 +148,10 @@ export const Logistics = () => {
     }
   };
 
+  const goToExpenses = (blNumber: string) => {
+    navigate(`/logistics/expenses?search=${blNumber}`);
+  };
+
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     
@@ -175,7 +179,22 @@ export const Logistics = () => {
       if (formData.id) {
         await db.updateItem('deliveries', formData.id, dbPayload);
       } else {
-        await db.createItem('deliveries', dbPayload);
+        const result = await db.createItem('deliveries', dbPayload);
+        
+        // Auto-create Payment Record if new delivery
+        if (result && result.length > 0 && dbPayload.truck_id) {
+           const newDelivery = result[0];
+           await db.createItem('payments', {
+              delivery_id: newDelivery.id,
+              truck_id: dbPayload.truck_id,
+              road_fees: 0,
+              personal_fees: 0,
+              other_fees: 0,
+              overweigh_fees: 0,
+              fuel_quantity: 0,
+              fuel_cost: 0
+           });
+        }
       }
       setIsModalOpen(false);
       fetchData();
@@ -466,7 +485,7 @@ export const Logistics = () => {
                           <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Transport</th>
                           <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Charge</th>
                           <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Date</th>
-                          <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider w-24">Actions</th>
+                          <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider w-32">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -527,6 +546,13 @@ export const Logistics = () => {
                                   </td>
                                   <td className="px-4 py-3 text-right">
                                      <div className="flex justify-end gap-1">
+                                        <button 
+                                          onClick={() => goToExpenses(del.bl_number)}
+                                          className="btn btn-circle btn-text btn-sm text-amber-600 hover:bg-amber-50"
+                                          title="Voir Note de Frais"
+                                        >
+                                          <Receipt size={16} />
+                                        </button>
                                         <button 
                                           onClick={() => handleOpenModal(del)}
                                           className="btn btn-circle btn-text btn-sm text-blue-600"

@@ -42,6 +42,7 @@ export interface Truck {
   driver_id?: string;
   driver_name?: string;
   trailer_number?: string;
+  owner_type?: boolean; // true = Wague agro business
 }
 
 export interface Driver {
@@ -93,6 +94,26 @@ export interface Delivery {
   delivery_date: string;
   // Status removed as per schema update
   created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  truck_id: string;
+  delivery_id: string;
+  road_fees: number;
+  personal_fees: number;
+  other_fees: number;
+  other_fees_label?: string;
+  overweigh_fees: number;
+  fuel_quantity: number;
+  fuel_cost: number;
+  date_updated: string;
+  created_at: string;
+  // Joins for UI
+  bl_number?: string;
+  truck_plate?: string;
+  driver_name?: string;
+  truck_owner_type?: boolean;
 }
 
 // Joined types for UI display

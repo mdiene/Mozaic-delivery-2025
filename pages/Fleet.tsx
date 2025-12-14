@@ -201,6 +201,7 @@ export const Fleet = () => {
                         <div>
                           <p className="font-mono font-medium text-foreground">{truck.plate_number}</p>
                           {truck.trailer_number && <p className="text-xs text-muted-foreground">Remorque: {truck.trailer_number}</p>}
+                          {truck.owner_type && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100">Wague AB</span>}
                         </div>
                       </div>
                     </td>
@@ -449,6 +450,34 @@ export const Fleet = () => {
                         <option key={d.id} value={d.id}>{d.name} ({d.license_number})</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Ownership Switch */}
+                  <div className="p-3 bg-muted/30 rounded-lg border border-border mt-2">
+                     <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-foreground" htmlFor="ownerSwitch">
+                           Propriété
+                        </label>
+                        <div className="flex items-center gap-2">
+                           <span className="text-xs text-muted-foreground">Externe</span>
+                           <input 
+                              type="checkbox" 
+                              className="switch switch-primary" 
+                              id="ownerSwitch"
+                              checked={formData.owner_type || false}
+                              onChange={(e) => setFormData({...formData, owner_type: e.target.checked})}
+                           />
+                           <span className="text-xs font-bold text-primary">Interne</span>
+                        </div>
+                     </div>
+                     
+                     <div className="mt-2 min-h-[1.5rem]">
+                        {formData.owner_type && (
+                           <div className="flex items-center justify-center p-1.5 bg-blue-50 text-blue-700 rounded border border-blue-100 animate-in fade-in">
+                              <span className="text-xs font-bold uppercase tracking-wider">Wague agro business</span>
+                           </div>
+                        )}
+                     </div>
                   </div>
                 </>
               ) : (
