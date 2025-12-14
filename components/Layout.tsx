@@ -56,6 +56,56 @@ const THEMES = [
   { id: 'theme-violet', name: 'Pollux', color: '#844FC1' },   // Violet
 ];
 
+// Helper Component for Submenus with Hover/Click Toggle
+const SidebarSubmenu = ({ 
+  label, 
+  icon: Icon, 
+  basePath, 
+  children, 
+  expanded 
+}: { 
+  label: string, 
+  icon: any, 
+  basePath: string, 
+  children?: ReactNode, 
+  expanded: boolean 
+}) => {
+  const location = useLocation();
+  const isActive = location.pathname.startsWith(basePath);
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <li 
+       className="flex flex-col"
+       onMouseEnter={() => setIsOpen(true)}
+       onMouseLeave={() => setIsOpen(false)}
+    >
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer group ${isActive ? 'text-white' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`}
+      >
+        <div className="flex items-center gap-3 overflow-hidden">
+          <Icon size={20} className="shrink-0" />
+          <span className={`${expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'} whitespace-nowrap`}>
+            {label}
+          </span>
+        </div>
+        {expanded && (
+           <ChevronRight size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-90' : ''} shrink-0 text-muted-foreground group-hover:text-white`} />
+        )}
+      </div>
+      
+      <div className={`grid transition-all duration-300 ease-in-out ${isOpen && expanded ? 'grid-rows-[1fr] opacity-100 mb-1' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+             <ul className="menu gap-1 pl-4 mt-1 border-l border-sidebar-border/30 ml-3">
+                {children}
+             </ul>
+        </div>
+      </div>
+    </li>
+  );
+};
+
 const Sidebar = ({ 
   expanded, 
   setExpanded
@@ -123,22 +173,20 @@ const Sidebar = ({
             </NavLink>
           </li>
 
-          {/* Logistics with Submenu - Non-clickable Parent */}
-          <li>
-            <div 
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group cursor-default ${location.pathname.startsWith('/logistics') ? 'text-white' : 'text-sidebar-foreground'}`}
-            >
-              <Package size={20} className="shrink-0" />
-              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Logistique</span>
-            </div>
-            <ul className="menu gap-1 pl-4 mt-1 border-l border-sidebar-border/30 ml-3">
-              <li>
+          {/* Logistics with Submenu */}
+          <SidebarSubmenu 
+            label="Logistique" 
+            icon={Package} 
+            basePath="/logistics" 
+            expanded={expanded}
+          >
+             <li>
                 <NavLink 
                   to="/logistics/dispatch"
                   className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}
                 >
                   <Package size={16} className="shrink-0" />
-                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Expéditions</span>
+                  <span className="truncate">Expéditions</span>
                 </NavLink>
               </li>
               <li>
@@ -147,11 +195,10 @@ const Sidebar = ({
                   className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}
                 >
                   <Receipt size={16} className="shrink-0" />
-                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Note de frais</span>
+                  <span className="truncate">Note de frais</span>
                 </NavLink>
               </li>
-            </ul>
-          </li>
+          </SidebarSubmenu>
 
           <li>
             <NavLink 
@@ -165,26 +212,23 @@ const Sidebar = ({
             </NavLink>
           </li>
 
-          {/* Vues & Rapports with Submenu - Non-clickable Parent */}
-          <li>
-            <div 
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group cursor-default ${location.pathname.startsWith('/views') ? 'text-white' : 'text-sidebar-foreground'}`}
-            >
-              <Eye size={20} className="shrink-0" />
-              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Vues & Rapports</span>
-            </div>
-            <ul className="menu gap-1 pl-4 mt-1 border-l border-sidebar-border/30 ml-3">
+          {/* Vues & Rapports with Submenu */}
+          <SidebarSubmenu
+            label="Vues & Rapports"
+            icon={Eye}
+            basePath="/views"
+            expanded={expanded}
+          >
               <li>
                 <NavLink 
                   to="/views?tab=bon_livraison"
                   className={({ isActive }) => {
-                    // Check active if path is /views and (tab is bon_livraison OR no tab present/default)
                     const isTabActive = location.pathname === '/views' && (location.search.includes('bon_livraison') || !location.search.includes('tab='));
                     return `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isTabActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`;
                   }}
                 >
                   <FileText size={16} className="shrink-0" />
-                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Bon de Livraison</span>
+                  <span className="truncate">Bon de Livraison</span>
                 </NavLink>
               </li>
               <li>
@@ -196,28 +240,25 @@ const Sidebar = ({
                   }}
                 >
                   <Gift size={16} className="shrink-0" />
-                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Fin de Cession</span>
+                  <span className="truncate">Fin de Cession</span>
                 </NavLink>
               </li>
-            </ul>
-          </li>
+          </SidebarSubmenu>
 
-          {/* Réseau with Submenu - Non-clickable Parent */}
-          <li>
-            <div 
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group cursor-default ${location.pathname.startsWith('/network') ? 'text-white' : 'text-sidebar-foreground'}`}
-            >
-              <Network size={20} className="shrink-0" />
-              <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Réseau</span>
-            </div>
-            <ul className="menu gap-1 pl-4 mt-1 border-l border-sidebar-border/30 ml-3">
+          {/* Réseau with Submenu */}
+          <SidebarSubmenu
+            label="Réseau"
+            icon={Network}
+            basePath="/network"
+            expanded={expanded}
+          >
               <li>
                 <NavLink 
                   to="/network/map"
                   className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}
                 >
                   <Map size={16} className="shrink-0" />
-                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Carte</span>
+                  <span className="truncate">Carte</span>
                 </NavLink>
               </li>
               <li>
@@ -226,7 +267,7 @@ const Sidebar = ({
                   className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}
                 >
                   <Navigation size={16} className="shrink-0" />
-                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Itinéraire</span>
+                  <span className="truncate">Itinéraire</span>
                 </NavLink>
               </li>
               <li>
@@ -235,11 +276,10 @@ const Sidebar = ({
                   className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}
                 >
                   <Globe size={16} className="shrink-0" />
-                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Vue Globale</span>
+                  <span className="truncate">Vue Globale</span>
                 </NavLink>
               </li>
-            </ul>
-          </li>
+          </SidebarSubmenu>
 
           <div className="my-2 px-2">
             <div className="h-px bg-sidebar-border/50 w-full"></div>

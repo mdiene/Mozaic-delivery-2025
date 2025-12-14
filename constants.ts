@@ -1,3 +1,4 @@
+
 import { Region, Department, Commune, Operator, Truck, Driver, Allocation, Delivery } from './types';
 
 export const APP_NAME = "MASAE Tracker";
@@ -48,6 +49,7 @@ export const MOCK_ALLOCATIONS: Allocation[] = [
   {
     id: 'all_1',
     allocation_key: 'PH1-TH-001',
+    project_id: 'proj_mock_1',
     region_id: 'reg_2',
     department_id: 'dept_2',
     commune_id: 'com_1',
@@ -57,11 +59,13 @@ export const MOCK_ALLOCATIONS: Allocation[] = [
     phase: 'Phase 1',
     created_at: '2023-10-01T10:00:00Z',
     responsible_name: 'Moussa Diop',
-    responsible_phone_raw: '77 123 45 67'
+    responsible_phone_raw: '77 123 45 67',
+    delivered_tonnage: 40
   },
   {
     id: 'all_2',
     allocation_key: 'PH1-KL-002',
+    project_id: 'proj_mock_1',
     region_id: 'reg_3',
     department_id: 'dept_4',
     commune_id: 'com_4',
@@ -71,7 +75,8 @@ export const MOCK_ALLOCATIONS: Allocation[] = [
     phase: 'Phase 1',
     created_at: '2023-10-02T14:30:00Z',
     responsible_name: 'Fatou Ndiaye',
-    responsible_phone_raw: '76 987 65 43'
+    responsible_phone_raw: '76 987 65 43',
+    delivered_tonnage: 0
   }
 ];
 

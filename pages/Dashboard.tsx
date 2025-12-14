@@ -205,8 +205,8 @@ export const Dashboard = () => {
 
           <div className="p-6 flex-1 min-h-[380px]">
             {isMounted && (
-              <div className="h-[350px] w-full min-w-0">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <div style={{ width: '100%', height: 350 }}>
+                <ResponsiveContainer>
                   {chartType === 'pie' ? (
                     <PieChart>
                       <Pie

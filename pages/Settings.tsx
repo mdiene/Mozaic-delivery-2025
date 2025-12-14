@@ -81,7 +81,8 @@ export const Settings = () => {
     
     // Setup for edit specific fields
     if (type === 'operator') {
-      setCommuneSearch(item.commune_name || '');
+      const commune = communes.find(c => c.id === item.commune_id);
+      setCommuneSearch(commune?.name || '');
       // Ensure specific fields are present for form state
       if (item.phone) data.phone = item.phone;
     }
@@ -199,7 +200,9 @@ export const Settings = () => {
           </div>
         )}
       </td>
-      <td className="text-sm text-foreground">{op.commune_name}</td>
+      <td className="text-sm text-foreground">
+        {communes.find(c => c.id === op.commune_id)?.name || '-'}
+      </td>
       <td className="text-sm text-muted-foreground font-mono">
         {op.phone ? (
           <a href={`tel:${op.phone}`} className="hover:text-primary transition-colors flex items-center gap-1">

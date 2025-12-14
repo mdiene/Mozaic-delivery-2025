@@ -1,101 +1,52 @@
 
-import { useEffect, useState, FormEvent, useMemo, useRef, Fragment } from 'react';
+import { useState, useEffect, useMemo, FormEvent, useRef } from 'react';
 import { db } from '../services/db';
-import { Payment, DeliveryView, Project } from '../types';
-import { 
-  Search, Receipt, X, Save, Edit2, RotateCcw, 
-  Fuel, Truck, FileText, Layers, RefreshCw, Calendar, MapPin, Filter, ChevronRight,
-  Minimize2, ShieldCheck
-} from 'lucide-react';
+import { EnrichedPayment, DeliveryView, Project } from '../types';
+import { Search, Filter, Layers, X, Edit2, RotateCcw, Save, Truck, User, Fuel, Receipt, ShieldCheck, RefreshCw, Calendar, Minimize2, ChevronRight, MapPin } from 'lucide-react';
 import { AdvancedSelect } from '../components/AdvancedSelect';
-import { useSearchParams } from 'react-router-dom';
-
-// Type for enriched payment to include delivery info for filtering
-interface EnrichedPayment extends Payment {
-  region_name?: string;
-  commune_name?: string;
-  project_id?: string;
-  project_phase?: string;
-  delivery_date?: string;
-}
-
-type GroupBy = 'none' | 'truck_plate' | 'commune_name' | 'region_name';
 
 export const Expenses = () => {
-  const [searchParams] = useSearchParams();
-  const initialSearch = searchParams.get('search') || '';
-
   const [payments, setPayments] = useState<EnrichedPayment[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  
   const [loading, setLoading] = useState(true);
-  
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<Payment>>({});
-  const [fuelUnitPrice, setFuelUnitPrice] = useState<number>(680); // Default price
-  const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
-
-  // Filter State
-  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [formData, setFormData] = useState<Partial<EnrichedPayment>>({});
+  
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
   const [filterPhase, setFilterPhase] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
-  const dateRangeInputRef = useRef<HTMLInputElement>(null);
-  const [groupBy, setGroupBy] = useState<GroupBy>('none');
-  
-  // New Filters
+  const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
   const [filterWagueOnly, setFilterWagueOnly] = useState(false);
-  
-  // Range Filter State
-  const [minFeeFilter, setMinFeeFilter] = useState<number>(0);
-  const [maxTotalFee, setMaxTotalFee] = useState<number>(100000); // Default fallback
+  const [dateRange, setDateRange] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
+  const [minFeeFilter, setMinFeeFilter] = useState(0);
+  const maxTotalFee = 500000; // Mock Max
 
-  // Accordion State
+  // Grouping
+  const [groupBy, setGroupBy] = useState<'none' | 'truck_plate' | 'commune_name' | 'region_name'>('none');
   const [activeGroups, setActiveGroups] = useState<Set<string>>(new Set());
+
+  // Local State for Fuel Calc in Modal
+  const [fuelUnitPrice, setFuelUnitPrice] = useState(0); // This would ideally be fetched or configured
+  
+  const dateRangeInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pay, del, proj] = await Promise.all([
-        db.getPayments(),
-        db.getDeliveriesView(),
-        db.getProjects()
-      ]);
-      
-      setDeliveries(del);
-      setProjects(proj);
-
-      // Enrich payments with delivery info & Calculate Max Fee
-      let maxFeeFound = 0;
-      const enriched = pay.map(p => {
-         const d = del.find(d => d.id === p.delivery_id);
-         const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0);
-         if (total > maxFeeFound) maxFeeFound = total;
-         
-         return {
-            ...p,
-            region_name: d?.region_name,
-            commune_name: d?.commune_name,
-            project_id: d?.project_id,
-            project_phase: d?.project_phase,
-            delivery_date: d?.delivery_date
-         };
-      });
-      setPayments(enriched);
-      // Round up max fee to nearest 10000 for cleaner slider
-      setMaxTotalFee(Math.ceil(maxFeeFound / 10000) * 10000 || 100000);
-
-      // Auto-select latest phase in filters if not set
-      if (filterPhase === 'all' && proj.length > 0) {
-         // Sort by phase number descending
-         // const sorted = [...proj].sort((a,b) => b.numero_phase - a.numero_phase);
-         // setFilterPhase(sorted[0].id); 
-      }
-
+       const [pay, del, proj] = await Promise.all([
+          db.getPayments(),
+          db.getDeliveriesView(),
+          db.getProjects()
+       ]);
+       setPayments(pay);
+       setDeliveries(del);
+       setProjects(proj);
     } catch (e) {
-      console.error(e);
+       console.error(e);
     } finally {
-      setLoading(false);
+       setLoading(false);
     }
   };
 
@@ -109,9 +60,6 @@ export const Expenses = () => {
       const fp = (window as any).flatpickr(dateRangeInputRef.current, {
         mode: 'range',
         dateFormat: "Y-m-d",
-        locale: {
-          rangeSeparator: " au "
-        },
         onChange: (selectedDates: Date[]) => {
           if (selectedDates.length === 2) {
             setDateRange({ start: selectedDates[0], end: selectedDates[1] });
@@ -124,59 +72,41 @@ export const Expenses = () => {
     }
   }, []);
 
-  // Group toggling logic
-  const toggleGroup = (key: string) => {
-    const newSet = new Set(activeGroups);
-    if (newSet.has(key)) newSet.delete(key);
-    else newSet.add(key);
-    setActiveGroups(newSet);
-  };
-  
-  const collapseAllGroups = () => {
-    setActiveGroups(new Set());
-  };
-
-  // Auto-expand groups when data or grouping changes (only if not manually collapsed)
-  useEffect(() => {
-     if (payments.length > 0 && groupBy !== 'none') {
-        // By default we can leave them closed or open. Let's start closed or check logic.
-        // Previously we expanded all. Let's keep it manual or expanded.
-        // For now, let's not force expand on every render to allow collapse.
-        // Only on initial group change we might want to expand all.
-     }
-  }, [groupBy]);
-
   const handleOpenModal = (payment?: EnrichedPayment) => {
-    if (payment) {
-      setFormData({ ...payment });
-      if (payment.fuel_quantity && payment.fuel_quantity > 0 && payment.fuel_cost) {
-         setFuelUnitPrice(Math.round(payment.fuel_cost / payment.fuel_quantity));
-      } else {
-         setFuelUnitPrice(680);
-      }
-    } else {
-      setFormData({
-        road_fees: 0,
-        personal_fees: 0,
-        other_fees: 0,
-        overweigh_fees: 0,
-        fuel_quantity: 0,
-        fuel_cost: 0
-      });
-      setFuelUnitPrice(680);
-    }
-    // Set modal phase based on payment or default to 'all'
-    setModalPhaseFilter(payment?.project_id || 'all');
-    setIsModalOpen(true);
+     if (payment) {
+        setFormData({ ...payment });
+        // Try to infer unit price if quantity > 0
+        if (payment.fuel_quantity > 0) {
+           setFuelUnitPrice(Math.round(payment.fuel_cost / payment.fuel_quantity));
+        } else {
+           setFuelUnitPrice(0);
+        }
+     } else {
+        // Find a delivery without payment or create new
+        // Ideally we select a delivery first
+        setFormData({});
+        setFuelUnitPrice(0);
+     }
+     setIsModalOpen(true);
   };
 
   const handleDeliverySelect = (deliveryId: string) => {
     const selectedDelivery = deliveries.find(d => d.id === deliveryId);
     if (selectedDelivery) {
+      const isInternal = selectedDelivery.truck_owner_type;
+      
       setFormData(prev => ({
         ...prev,
         delivery_id: deliveryId,
-        truck_id: selectedDelivery.truck_id
+        truck_id: selectedDelivery.truck_id,
+        // If external (not internal), auto-fill label
+        other_fees_label: !isInternal ? 'Coûts transport' : (prev.other_fees_label || ''),
+        // Reset other fields if external to avoid confusion, though UI disables them
+        fuel_quantity: !isInternal ? 0 : prev.fuel_quantity,
+        fuel_cost: !isInternal ? 0 : prev.fuel_cost,
+        road_fees: !isInternal ? 0 : prev.road_fees,
+        personal_fees: !isInternal ? 0 : prev.personal_fees,
+        overweigh_fees: !isInternal ? 0 : prev.overweigh_fees,
       }));
     }
   };
@@ -251,6 +181,11 @@ export const Expenses = () => {
       }));
   }, [deliveries, modalPhaseFilter]);
 
+  // Determine current context for the modal
+  const selectedDeliveryForModal = deliveries.find(d => d.id === formData.delivery_id);
+  // Default to internal if no delivery selected yet to allow editing, otherwise use actual type
+  const isInternalTruck = selectedDeliveryForModal ? (selectedDeliveryForModal.truck_owner_type !== false) : true; 
+
   // --- Filtering & Grouping Logic ---
   
   const filteredPayments = useMemo(() => {
@@ -319,6 +254,17 @@ export const Expenses = () => {
      }
   }, [groupedPayments.length, groupBy]);
 
+  const toggleGroup = (key: string) => {
+     const newSet = new Set(activeGroups);
+     if (newSet.has(key)) newSet.delete(key);
+     else newSet.add(key);
+     setActiveGroups(newSet);
+  };
+  
+  const collapseAllGroups = () => {
+    setActiveGroups(new Set());
+  };
+
 
   return (
     <div className="space-y-6">
@@ -327,7 +273,6 @@ export const Expenses = () => {
           <h1 className="text-2xl font-bold text-foreground">Notes de Frais</h1>
           <p className="text-muted-foreground text-sm">Gestion des dépenses liées aux livraisons (Carburant, Frais de route...)</p>
         </div>
-        {/* Removed 'Nouvelle Note' Button as requested */}
       </div>
 
       {/* FILTER & GROUPING TOOLBAR */}
@@ -456,7 +401,7 @@ export const Expenses = () => {
                   value={minFeeFilter} 
                   onChange={(e) => setMinFeeFilter(Number(e.target.value))}
                   className="range range-primary range-xs w-full" 
-                  step={Math.ceil(maxTotalFee / 20)} // Dynamic step
+                  step={Math.ceil(maxTotalFee / 20)} 
                   aria-label="Filtre montant minimum" 
                />
                <div className="w-full flex justify-between text-[10px] text-muted-foreground px-1 mt-1 font-mono">
@@ -528,7 +473,7 @@ export const Expenses = () => {
                                     <tr key={p.id} className="hover:bg-muted/30">
                                        <td className="px-4 py-3">
                                           <div className="flex items-center gap-2">
-                                             <FileText size={16} className="text-primary/70" />
+                                             <Receipt size={16} className="text-primary/70" />
                                              <span className="font-mono font-bold text-sm text-foreground">{p.bl_number}</span>
                                           </div>
                                           <div className="text-xs text-muted-foreground mt-1 ml-6">
@@ -640,17 +585,45 @@ export const Expenses = () => {
                         required
                         disabled={!!formData.id} // Lock delivery on edit
                      />
-                     {formData.truck_id && (
+                     {formData.truck_id && selectedDeliveryForModal && (
                         <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                           <Truck size={16} /> Camion associé : <span className="font-bold text-foreground">{deliveries.find(d => d.truck_id === formData.truck_id)?.truck_plate}</span>
+                           <Truck size={16} /> Camion associé : <span className="font-bold text-foreground">{selectedDeliveryForModal.truck_plate}</span>
+                           {selectedDeliveryForModal.driver_name && (
+                             <>
+                               <span className="mx-2">|</span>
+                               <User size={16} /> <span className="font-bold text-foreground">{selectedDeliveryForModal.driver_name}</span>
+                             </>
+                           )}
                         </div>
                      )}
                   </div>
                </div>
 
+                {/* Ownership Display */}
+                {selectedDeliveryForModal && (
+                  <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                     <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-foreground">
+                           Propriété
+                        </label>
+                        {isInternalTruck ? (
+                           <div className="flex items-center justify-center p-1.5 bg-blue-50 text-blue-700 rounded border border-blue-100 animate-in fade-in">
+                              <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                                 <ShieldCheck size={12} /> Wague agro business
+                              </span>
+                           </div>
+                        ) : (
+                           <div className="flex items-center justify-center p-1.5 bg-gray-50 text-gray-600 rounded border border-gray-200 animate-in fade-in">
+                              <span className="text-xs font-bold uppercase tracking-wider">Externe (Prestataire)</span>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+                )}
+
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Fuel Section */}
-                  <div className="space-y-4 p-4 rounded-lg border border-border bg-muted/10">
+                  <div className={`space-y-4 p-4 rounded-lg border border-border bg-muted/10 ${!isInternalTruck ? 'opacity-50 pointer-events-none' : ''}`}>
                      <div className="flex justify-between items-center">
                         <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
                            <Fuel size={16} /> Carburant
@@ -661,6 +634,7 @@ export const Expenses = () => {
                               type="number"
                               className="w-16 h-6 text-xs text-right border border-input rounded px-1 bg-background"
                               value={fuelUnitPrice}
+                              disabled={!isInternalTruck}
                               onChange={(e) => {
                                  const newPrice = Number(e.target.value);
                                  setFuelUnitPrice(newPrice);
@@ -675,6 +649,7 @@ export const Expenses = () => {
                            type="number" 
                            className="w-full border border-input rounded-lg p-2 text-sm bg-background"
                            value={formData.fuel_quantity || ''}
+                           disabled={!isInternalTruck}
                            onChange={(e) => {
                               const qty = Number(e.target.value);
                               handleFuelChange(qty, fuelUnitPrice);
@@ -699,7 +674,7 @@ export const Expenses = () => {
                   </div>
 
                   {/* Fees Section */}
-                  <div className="space-y-4 p-4 rounded-lg border border-border bg-muted/10">
+                  <div className={`space-y-4 p-4 rounded-lg border border-border bg-muted/10 ${!isInternalTruck ? 'opacity-50 pointer-events-none' : ''}`}>
                      <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
                         <Receipt size={16} /> Frais de Route
                      </h4>
@@ -710,6 +685,7 @@ export const Expenses = () => {
                               type="number" 
                               className="w-full border border-input rounded-lg p-2 text-sm bg-background"
                               value={formData.road_fees || ''}
+                              disabled={!isInternalTruck}
                               onChange={e => setFormData({...formData, road_fees: Number(e.target.value)})}
                            />
                         </div>
@@ -719,6 +695,7 @@ export const Expenses = () => {
                               type="number" 
                               className="w-full border border-input rounded-lg p-2 text-sm bg-background"
                               value={formData.overweigh_fees || ''}
+                              disabled={!isInternalTruck}
                               onChange={e => setFormData({...formData, overweigh_fees: Number(e.target.value)})}
                            />
                         </div>
@@ -729,6 +706,7 @@ export const Expenses = () => {
                            type="number" 
                            className="w-full border border-input rounded-lg p-2 text-sm bg-background"
                            value={formData.personal_fees || ''}
+                           disabled={!isInternalTruck}
                            onChange={e => setFormData({...formData, personal_fees: Number(e.target.value)})}
                         />
                      </div>
