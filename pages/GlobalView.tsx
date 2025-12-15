@@ -886,7 +886,7 @@ export const GlobalView = () => {
                              <Calendar size={14} /> Historique des Livraisons ({selectedDriver.deliveries.length})
                           </h5>
                           <div className="space-y-2">
-                             {selectedDriver.deliveries.sort((a,b) => new Date(b.date || b.delivery_date).getTime() - new Date(a.date || a.delivery_date).getTime()).map((del) => (
+                             {selectedDriver.deliveries.sort((a,b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime()).map((del) => (
                                 <div key={del.id} className="bg-card border border-border rounded-lg p-3 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
                                    <div className="flex items-center gap-3">
                                       <div className="p-2 bg-blue-50/50 dark:bg-blue-900/10 rounded text-blue-600 dark:text-blue-400">
@@ -896,7 +896,7 @@ export const GlobalView = () => {
                                          <div className="flex items-center gap-2">
                                             <span className="font-bold text-sm text-foreground">{del.bl_number}</span>
                                             <span className="text-xs text-muted-foreground">
-                                               {del.date ? new Date(del.date).toLocaleDateString() : (del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-')}
+                                               {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}
                                             </span>
                                          </div>
                                          <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
@@ -910,7 +910,7 @@ export const GlobalView = () => {
                                          <span className="text-[10px] text-muted-foreground">Opérateur</span>
                                       </div>
                                       <div className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold font-mono min-w-[3rem] text-center">
-                                         {del.tonnage || del.tonnage_loaded} T
+                                         {del.tonnage_loaded} T
                                       </div>
                                    </div>
                                 </div>
