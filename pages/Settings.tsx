@@ -127,6 +127,10 @@ export const Settings = () => {
         delete payload.phone;
         delete payload.commune_name;
         delete payload.project_name;
+        
+        // Fix for PGRST204: Remove relationship objects and UI aliases that are not DB columns
+        delete payload.project;
+        delete payload.project_id;
       }
       
       // Remove ID if it's empty or null to allow DB to generate it

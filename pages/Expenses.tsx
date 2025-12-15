@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, FormEvent, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { db } from '../services/db';
 import { EnrichedPayment, DeliveryView, Project } from '../types';
-import { Search, Filter, Layers, X, Edit2, RotateCcw, Save, Truck, User, Fuel, Receipt, ShieldCheck, RefreshCw, Calendar, Minimize2, ChevronRight, MapPin } from 'lucide-react';
+import { Search, Filter, Layers, X, Edit2, RotateCcw, Save, Truck, User, Fuel, Receipt, ShieldCheck, RefreshCw, Calendar, Minimize2, ChevronRight, MapPin, PackageOpen } from 'lucide-react';
 import { AdvancedSelect } from '../components/AdvancedSelect';
 
 export const Expenses = () => {
@@ -116,6 +116,9 @@ export const Expenses = () => {
         road_fees: !isInternal ? 0 : prev.road_fees,
         personal_fees: !isInternal ? 0 : prev.personal_fees,
         overweigh_fees: !isInternal ? 0 : prev.overweigh_fees,
+        // Loading costs are KEPT/Enabled for external
+        loading_cost: prev.loading_cost || 0,
+        unloading_cost: prev.unloading_cost || 0
       }));
     }
   };
@@ -146,6 +149,8 @@ export const Expenses = () => {
         overweigh_fees: Number(formData.overweigh_fees) || 0,
         fuel_quantity: Number(formData.fuel_quantity) || 0,
         fuel_cost: Number(formData.fuel_cost) || 0,
+        loading_cost: Number(formData.loading_cost) || 0,
+        unloading_cost: Number(formData.unloading_cost) || 0,
         date_updated: new Date().toISOString()
       };
 
@@ -161,10 +166,11 @@ export const Expenses = () => {
     }
   };
 
-  const handleReset = async (id: string) => {
-    if (!confirm('Voulez-vous vraiment réinitialiser les montants de cette note à zéro ?')) return;
+  const handleReset = async () => {
+    if (!formData.id) return;
+    if (!confirm('Voulez-vous vraiment réinitialiser TOUS les montants de cette note à zéro ?')) return;
     try {
-      await db.updateItem('payments', id, {
+      await db.updateItem('payments', formData.id, {
         road_fees: 0,
         personal_fees: 0,
         other_fees: 0,
@@ -172,8 +178,11 @@ export const Expenses = () => {
         overweigh_fees: 0,
         fuel_quantity: 0,
         fuel_cost: 0,
+        loading_cost: 0,
+        unloading_cost: 0,
         date_updated: new Date().toISOString()
       });
+      setIsModalOpen(false);
       fetchData();
     } catch (e) {
       alert("Erreur lors de la réinitialisation.");
@@ -224,7 +233,7 @@ export const Expenses = () => {
       }
 
       // Range Filter (Min Amount)
-      const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0);
+      const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0);
       if (total < minFeeFilter) return false;
       
       return true;
@@ -237,7 +246,7 @@ export const Expenses = () => {
            key: 'All', 
            title: 'Toutes les Notes', 
            items: filteredPayments,
-           total: filteredPayments.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0), 0)
+           total: filteredPayments.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0), 0)
         }];
      }
 
@@ -250,7 +259,7 @@ export const Expenses = () => {
 
      return Object.keys(groups).sort().map(key => {
         const items = groups[key];
-        const total = items.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0), 0);
+        const total = items.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0), 0);
         return { key, title: key, items, total };
      });
   }, [filteredPayments, groupBy]);
@@ -279,7 +288,7 @@ export const Expenses = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Notes de Frais</h1>
-          <p className="text-muted-foreground text-sm">Gestion des dépenses liées aux livraisons (Carburant, Frais de route...)</p>
+          <p className="text-muted-foreground text-sm">Gestion des dépenses liées aux livraisons (Carburant, Frais de route, Manutention...)</p>
         </div>
       </div>
 
@@ -469,6 +478,7 @@ export const Expenses = () => {
                                  <th className="px-4 py-3 text-left">Destination</th>
                                  <th className="px-4 py-3 text-right">Carburant</th>
                                  <th className="px-4 py-3 text-right">Frais Route</th>
+                                 <th className="px-4 py-3 text-right">Manutention</th>
                                  <th className="px-4 py-3 text-right">Autres</th>
                                  <th className="px-4 py-3 text-right font-bold">Total</th>
                                  <th className="px-4 py-3 text-right w-24">Actions</th>
@@ -476,7 +486,8 @@ export const Expenses = () => {
                            </thead>
                            <tbody>
                               {group.items.map(p => {
-                                 const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0);
+                                 const manutention = (p.loading_cost || 0) + (p.unloading_cost || 0);
+                                 const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + manutention;
                                  return (
                                     <tr key={p.id} className="hover:bg-muted/30">
                                        <td className="px-4 py-3">
@@ -504,10 +515,13 @@ export const Expenses = () => {
                                           {p.fuel_quantity > 0 && <div className="text-[10px] text-muted-foreground">{p.fuel_quantity} L</div>}
                                        </td>
                                        <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
-                                          {(p.road_fees + p.overweigh_fees).toLocaleString()}
+                                          {(p.road_fees + p.overweigh_fees + p.personal_fees).toLocaleString()}
+                                       </td>
+                                       <td className="px-4 py-3 text-right font-mono text-sm text-purple-600 font-medium">
+                                          {manutention.toLocaleString()}
                                        </td>
                                        <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
-                                          {(p.personal_fees + p.other_fees).toLocaleString()}
+                                          {p.other_fees.toLocaleString()}
                                        </td>
                                        <td className="px-4 py-3 text-right font-bold font-mono text-primary">
                                           {total.toLocaleString()} F
@@ -520,13 +534,6 @@ export const Expenses = () => {
                                                 title="Modifier"
                                              >
                                                 <Edit2 size={16} />
-                                             </button>
-                                             <button 
-                                                onClick={() => handleReset(p.id)} 
-                                                className="btn btn-circle btn-text btn-sm text-amber-500 hover:bg-amber-50" 
-                                                title="Réinitialiser"
-                                             >
-                                                <RotateCcw size={16} />
                                              </button>
                                           </div>
                                        </td>
@@ -544,7 +551,7 @@ export const Expenses = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden border border-border">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
               <h3 className="font-semibold text-foreground">{formData.id ? 'Modifier Note de Frais' : 'Nouvelle Note de Frais'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
@@ -552,12 +559,10 @@ export const Expenses = () => {
             
             <form onSubmit={handleSave} className="p-6 space-y-6">
                
-               {/* Phase Filter for Selection */}
+               {/* Header Selection Info */}
                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                      <label className="block text-sm font-medium text-foreground">Livraison (BL)</label>
-                     
-                     {/* Phase Label Display */}
                      {selectedDeliveryForModal && (
                         <span className="badge badge-soft badge-secondary text-xs">
                            {selectedDeliveryForModal.project_phase}
@@ -572,7 +577,7 @@ export const Expenses = () => {
                         onChange={handleDeliverySelect}
                         placeholder="Rechercher par N° BL..."
                         required
-                        disabled={!!formData.id} // Lock delivery on edit
+                        disabled={!!formData.id} 
                      />
                      {formData.truck_id && selectedDeliveryForModal && (
                         <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
@@ -611,10 +616,11 @@ export const Expenses = () => {
                 )}
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Fuel Section */}
-                  <div className={`space-y-4 p-4 rounded-lg border border-border bg-muted/10 ${!isInternalTruck ? 'opacity-50 pointer-events-none' : ''}`}>
-                     <div className="flex justify-between items-center">
-                        <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
+                  
+                  {/* SECTION 1: CARBURANT (Fuel) - Amber */}
+                  <div className={`space-y-4 p-4 rounded-xl border border-amber-100 bg-amber-50/50 dark:bg-amber-900/10 ${!isInternalTruck ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                     <div className="flex justify-between items-center border-b border-amber-200/50 pb-2 mb-2">
+                        <h4 className="font-bold text-sm flex items-center gap-2 text-amber-700 dark:text-amber-500">
                            <Fuel size={16} /> Carburant
                         </h4>
                         <div className="flex items-center gap-1">
@@ -633,7 +639,7 @@ export const Expenses = () => {
                         </div>
                      </div>
                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase">Quantité (Litres)</label>
+                        <label className="block text-xs font-medium text-amber-900/70 dark:text-amber-100/70 mb-1 uppercase">Quantité (Litres)</label>
                         <input 
                            type="number" 
                            className="w-full border border-input rounded-lg p-2 text-sm bg-background"
@@ -646,30 +652,29 @@ export const Expenses = () => {
                         />
                      </div>
                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1 uppercase">Coût Total (FCFA)</label>
+                        <label className="block text-xs font-medium text-amber-900/70 dark:text-amber-100/70 mb-1 uppercase">Coût Total (FCFA)</label>
                         <div className="relative">
                            <input 
                               type="number" 
                               readOnly
-                              className="w-full border border-input rounded-lg p-2 text-sm bg-muted/50 font-mono font-bold text-foreground cursor-not-allowed"
+                              className="w-full border border-input rounded-lg p-2 text-sm bg-amber-100/50 font-mono font-bold text-foreground cursor-not-allowed"
                               value={formData.fuel_cost || 0}
                            />
                            <RefreshCw size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-1 text-right italic">
-                           Calculé : {formData.fuel_quantity || 0} L x {fuelUnitPrice} F
-                        </p>
                      </div>
                   </div>
 
-                  {/* Fees Section */}
-                  <div className={`space-y-4 p-4 rounded-lg border border-border bg-muted/10 ${!isInternalTruck ? 'opacity-50 pointer-events-none' : ''}`}>
-                     <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
-                        <Receipt size={16} /> Frais de Route
-                     </h4>
+                  {/* SECTION 2: FRAIS DE ROUTE (Road) - Blue */}
+                  <div className={`space-y-4 p-4 rounded-xl border border-blue-100 bg-blue-50/50 dark:bg-blue-900/10 ${!isInternalTruck ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                     <div className="flex justify-between items-center border-b border-blue-200/50 pb-2 mb-2">
+                        <h4 className="font-bold text-sm flex items-center gap-2 text-blue-700 dark:text-blue-500">
+                           <Receipt size={16} /> Frais de Route
+                        </h4>
+                     </div>
                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                           <label className="block text-xs font-medium text-muted-foreground mb-1">Route / Péage</label>
+                           <label className="block text-xs font-medium text-blue-900/70 dark:text-blue-100/70 mb-1">Route / Péage</label>
                            <input 
                               type="number" 
                               className="w-full border border-input rounded-lg p-2 text-sm bg-background"
@@ -679,7 +684,7 @@ export const Expenses = () => {
                            />
                         </div>
                         <div>
-                           <label className="block text-xs font-medium text-muted-foreground mb-1">Surpoids</label>
+                           <label className="block text-xs font-medium text-blue-900/70 dark:text-blue-100/70 mb-1">Surpoids</label>
                            <input 
                               type="number" 
                               className="w-full border border-input rounded-lg p-2 text-sm bg-background"
@@ -690,7 +695,7 @@ export const Expenses = () => {
                         </div>
                      </div>
                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1">Frais Personnels (Chauffeur)</label>
+                        <label className="block text-xs font-medium text-blue-900/70 dark:text-blue-100/70 mb-1">Frais Personnels (Chauffeur)</label>
                         <input 
                            type="number" 
                            className="w-full border border-input rounded-lg p-2 text-sm bg-background"
@@ -700,36 +705,91 @@ export const Expenses = () => {
                         />
                      </div>
                   </div>
+
+                  {/* SECTION 3: MANUTENTION (Handling) - Purple - ENABLED FOR ALL */}
+                  <div className="space-y-4 p-4 rounded-xl border border-purple-100 bg-purple-50/50 dark:bg-purple-900/10">
+                     <div className="flex justify-between items-center border-b border-purple-200/50 pb-2 mb-2">
+                        <h4 className="font-bold text-sm flex items-center gap-2 text-purple-700 dark:text-purple-500">
+                           <PackageOpen size={16} /> Manutention
+                        </h4>
+                     </div>
+                     <div className="grid grid-cols-2 gap-3">
+                        <div>
+                           <label className="block text-xs font-medium text-purple-900/70 dark:text-purple-100/70 mb-1">Chargement</label>
+                           <input 
+                              type="number" 
+                              className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                              value={formData.loading_cost || ''}
+                              onChange={e => setFormData({...formData, loading_cost: Number(e.target.value)})}
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-xs font-medium text-purple-900/70 dark:text-purple-100/70 mb-1">Déchargement</label>
+                           <input 
+                              type="number" 
+                              className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                              value={formData.unloading_cost || ''}
+                              onChange={e => setFormData({...formData, unloading_cost: Number(e.target.value)})}
+                           />
+                        </div>
+                     </div>
+                     <div className="pt-2 text-right">
+                        <span className="text-xs text-purple-700 dark:text-purple-300 font-medium">
+                           Total Manutention: <span className="font-mono font-bold">{((formData.loading_cost || 0) + (formData.unloading_cost || 0)).toLocaleString()} F</span>
+                        </span>
+                     </div>
+                  </div>
+
+                  {/* SECTION 4: AUTRES (Other) - Slate - Enabled for Internal */}
+                  <div className={`space-y-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/50 ${!isInternalTruck ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                     <div className="flex justify-between items-center border-b border-slate-200/50 pb-2 mb-2">
+                        <h4 className="font-bold text-sm flex items-center gap-2 text-slate-700 dark:text-slate-400">
+                           <Layers size={16} /> Autres Frais
+                        </h4>
+                     </div>
+                     <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">Libellé</label>
+                        <input 
+                           type="text" 
+                           placeholder="Ex: Réparation pneu..."
+                           className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                           value={formData.other_fees_label || ''}
+                           disabled={!isInternalTruck}
+                           onChange={e => setFormData({...formData, other_fees_label: e.target.value})}
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">Montant</label>
+                        <input 
+                           type="number" 
+                           className="w-full border border-input rounded-lg p-2 text-sm bg-background"
+                           value={formData.other_fees || ''}
+                           disabled={!isInternalTruck}
+                           onChange={e => setFormData({...formData, other_fees: Number(e.target.value)})}
+                        />
+                     </div>
+                  </div>
                </div>
 
-               {/* Other Fees */}
-               <div className="grid grid-cols-3 gap-4 pt-2 border-t border-border">
-                  <div className="col-span-2">
-                     <label className="block text-xs font-medium text-muted-foreground mb-1">Autre Frais (Libellé)</label>
-                     <input 
-                        type="text" 
-                        placeholder="Ex: Réparation pneu..."
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background"
-                        value={formData.other_fees_label || ''}
-                        onChange={e => setFormData({...formData, other_fees_label: e.target.value})}
-                     />
-                  </div>
+               <div className="pt-4 flex justify-between gap-2 border-t border-border mt-2">
                   <div>
-                     <label className="block text-xs font-medium text-muted-foreground mb-1">Montant</label>
-                     <input 
-                        type="number" 
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background"
-                        value={formData.other_fees || ''}
-                        onChange={e => setFormData({...formData, other_fees: Number(e.target.value)})}
-                     />
+                     {formData.id && (
+                        <button 
+                           type="button"
+                           onClick={handleReset} 
+                           className="px-4 py-2 text-amber-600 hover:bg-amber-50 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                           title="Remettre tous les montants à zéro"
+                        >
+                           <RotateCcw size={16} /> Réinitialiser
+                        </button>
+                     )}
                   </div>
-               </div>
-
-               <div className="pt-4 flex justify-end gap-2 border-t border-border mt-2">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
-                  <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
-                     <Save size={16} /> Enregistrer
-                  </button>
+                  <div className="flex gap-2">
+                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>
+                     <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2">
+                        <Save size={16} /> Enregistrer
+                     </button>
+                  </div>
                </div>
             </form>
           </div>

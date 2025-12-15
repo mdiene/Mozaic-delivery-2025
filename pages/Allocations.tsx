@@ -211,6 +211,8 @@ export const Allocations = () => {
     window.print();
   };
 
+  // --- Modal Specific Logic ---
+
   // Helper for cascading selects in Modal
   const filteredDepartments = useMemo(() => {
     if (!formData.region_id) return [];
@@ -221,6 +223,46 @@ export const Allocations = () => {
     if (!formData.department_id) return [];
     return communes.filter(c => c.department_id === formData.department_id);
   }, [communes, formData.department_id]);
+
+  // Filter Operators by Selected Project (Phase)
+  const filteredOperators = useMemo(() => {
+    if (!formData.project_id) return [];
+    return operators.filter(op => op.project_id === formData.project_id);
+  }, [operators, formData.project_id]);
+
+  // Handle Operator Selection: Auto-fill Phone & Geo Data & Name
+  const handleOperatorSelect = (operatorId: string) => {
+    const op = operators.find(o => o.id === operatorId);
+    if (!op) return;
+
+    const updates: any = { operator_id: operatorId };
+
+    // Auto-fill Name
+    if (op.name) {
+      updates.responsible_name = op.name;
+    }
+
+    // Auto-fill Phone
+    if (op.phone) {
+      updates.responsible_phone_raw = op.phone;
+    }
+
+    // Auto-fill Geographic Data based on Operator's Commune
+    if (op.commune_id) {
+      const commune = communes.find(c => c.id === op.commune_id);
+      if (commune) {
+        updates.commune_id = commune.id;
+        updates.department_id = commune.department_id;
+        
+        const dept = departments.find(d => d.id === commune.department_id);
+        if (dept) {
+          updates.region_id = dept.region_id;
+        }
+      }
+    }
+
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
 
   // Derived View Data
   const viewUniqueTrucks = useMemo(() => {
@@ -561,7 +603,7 @@ export const Allocations = () => {
          })}
       </div>
 
-      {/* Edit/Create Modal (SAME AS BEFORE) */}
+      {/* Edit/Create Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
@@ -579,7 +621,14 @@ export const Allocations = () => {
                         required
                         className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
                         value={formData.project_id || ''}
-                        onChange={e => setFormData({...formData, project_id: e.target.value})}
+                        onChange={e => setFormData({
+                           ...formData, 
+                           project_id: e.target.value,
+                           operator_id: '', // Reset dependant fields
+                           region_id: '',
+                           department_id: '',
+                           commune_id: ''
+                        })}
                      >
                         <option value="">Sélectionner un Projet...</option>
                         {projects.map(p => (
@@ -592,7 +641,8 @@ export const Allocations = () => {
                      <label className="block text-sm font-medium text-foreground mb-1">Région</label>
                      <select 
                         required
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        disabled={!formData.project_id}
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                         value={formData.region_id || ''}
                         onChange={e => setFormData({...formData, region_id: e.target.value, department_id: '', commune_id: ''})}
                      >
@@ -604,10 +654,10 @@ export const Allocations = () => {
                      <label className="block text-sm font-medium text-foreground mb-1">Département</label>
                      <select 
                         required
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        disabled={!formData.region_id || !formData.project_id}
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                         value={formData.department_id || ''}
                         onChange={e => setFormData({...formData, department_id: e.target.value, commune_id: ''})}
-                        disabled={!formData.region_id}
                      >
                         <option value="">Sélectionner...</option>
                         {filteredDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -617,10 +667,10 @@ export const Allocations = () => {
                      <label className="block text-sm font-medium text-foreground mb-1">Commune</label>
                      <select 
                         required
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground"
+                        disabled={!formData.department_id || !formData.project_id}
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                         value={formData.commune_id || ''}
                         onChange={e => setFormData({...formData, commune_id: e.target.value})}
-                        disabled={!formData.department_id}
                      >
                         <option value="">Sélectionner...</option>
                         {filteredCommunes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -633,14 +683,15 @@ export const Allocations = () => {
                   <div>
                      <label className="block text-sm font-medium text-foreground mb-1">Opérateur</label>
                      <AdvancedSelect 
-                        options={operators.map(op => ({
+                        options={filteredOperators.map(op => ({
                            value: op.id, 
                            label: op.name, 
                            subLabel: op.is_coop ? op.coop_name : 'Individuel'
                         }))}
                         value={formData.operator_id || ''}
-                        onChange={(val) => setFormData({...formData, operator_id: val})}
-                        placeholder="Rechercher Opérateur..."
+                        onChange={handleOperatorSelect}
+                        placeholder={formData.project_id ? "Rechercher Opérateur..." : "Sélectionner un projet d'abord"}
+                        disabled={!formData.project_id}
                      />
                   </div>
 

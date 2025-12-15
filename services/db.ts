@@ -44,6 +44,7 @@ export const db = {
       return {
         ...del,
         operator_name: alloc?.operators?.name || 'Unknown',
+        operator_id: alloc?.operator_id,
         region_name: alloc?.regions?.name || 'Unknown',
         commune_name: alloc?.communes?.name || 'Unknown',
         project_phase: phaseStr,
@@ -177,7 +178,10 @@ export const db = {
     return (data || []).map((op: any) => ({
        ...op,
        project_id: op.projet_id,
-       project_name: op.project ? `Phase ${op.project.numero_phase}` : '-'
+       project_name: op.project ? `Phase ${op.project.numero_phase}` : '-',
+       // Map DB columns to Frontend Types
+       is_coop: op.operateur_coop_gie,
+       phone: op.contact_info
     }));
   },
 
@@ -464,8 +468,6 @@ export const db = {
   getBonLivraisonViews: async (): Promise<BonLivraisonView[]> => {
     const dels = await db.getDeliveriesView();
     // Need more details like project bon number, operator contact info, etc.
-    // Assuming these are available in fetched objects or can be derived.
-    // For this mock implementation, we map what we have.
     const { data: projects } = await supabase.from('project').select('*');
     const projectMap: Record<string, any> = {};
     projects?.forEach((p: any) => projectMap[p.id] = p);
@@ -481,7 +483,7 @@ export const db = {
 
     return dels.map(d => {
        const proj = d.project_id ? projectMap[d.project_id] : null;
-       // Find operator ID from allocation (not direct on delivery view, but view has operator name, we need full obj)
+       const op = d.operator_id ? opMap[d.operator_id] : null;
        
        return {
           ...d,
@@ -490,7 +492,8 @@ export const db = {
           commune: d.commune_name,
           project_num_bon: proj?.numero_bon_disposition || 'N/A',
           numero_phase: proj?.numero_phase || 0,
-          operator_contact_info: '77 000 00 00', // Mock
+          operator_contact_info: op?.contact_info || '', // Correctly fetched from DB
+          operator_coop_name: op?.coop_name,
           truck_plate_number: d.truck_plate,
           truck_trailer_number: d.truck_id ? truckMap[d.truck_id]?.trailer_number : ''
        } as BonLivraisonView;

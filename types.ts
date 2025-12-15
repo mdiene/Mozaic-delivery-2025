@@ -112,6 +112,7 @@ export interface DeliveryView extends Delivery {
   driver_name: string;
   project_id?: string;
   truck_owner_type?: boolean;
+  operator_id?: string;
 }
 
 export interface Payment {
@@ -125,6 +126,8 @@ export interface Payment {
   overweigh_fees: number;
   fuel_quantity: number;
   fuel_cost: number;
+  loading_cost?: number;
+  unloading_cost?: number;
   date_updated: string;
 }
 

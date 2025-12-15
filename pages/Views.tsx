@@ -274,7 +274,7 @@ export const Views = () => {
       // Recipient Box
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.1);
-      doc.rect(120, 70, 75, 25);
+      doc.rect(120, 70, 75, 28); // Increased height for contact info
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
@@ -290,10 +290,18 @@ export const Views = () => {
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "normal");
       doc.text(`${item.commune}, ${item.department}`, 122, 90);
+      
+      let extraY = 94;
       if (item.operator_coop_name) {
          doc.setFontSize(8);
          doc.setTextColor(80, 80, 80);
-         doc.text(item.operator_coop_name, 122, 94);
+         doc.text(item.operator_coop_name, 122, extraY);
+         extraY += 4;
+      }
+      if (item.operator_contact_info) {
+         doc.setFontSize(8);
+         doc.setTextColor(80, 80, 80);
+         doc.text(item.operator_contact_info, 122, extraY);
       }
 
       // Modalites
@@ -467,6 +475,7 @@ export const Views = () => {
                 <div style="text-align: left; margin-top: 15px; border: 1px solid #ccc; padding: 8px;">
                    <div class="info-label">DESTINATAIRE</div><div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${item.operator_name}</div>
                    <div class="info-label" style="margin-top:8px;">EXPÉDIEZ À</div><div>${item.region} / ${item.department}</div><div style="font-weight:bold;">${item.commune}</div><div style="font-size:10px; color:#666;">${item.operator_coop_name || ''}</div>
+                   <div style="font-size:10px; color:#666; margin-top:2px;">${item.operator_contact_info || ''}</div>
                 </div>
              </div>
           </div>
