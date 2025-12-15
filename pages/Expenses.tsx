@@ -1,11 +1,13 @@
 
 import { useState, useEffect, useMemo, FormEvent, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { db } from '../services/db';
 import { EnrichedPayment, DeliveryView, Project } from '../types';
 import { Search, Filter, Layers, X, Edit2, RotateCcw, Save, Truck, User, Fuel, Receipt, ShieldCheck, RefreshCw, Calendar, Minimize2, ChevronRight, MapPin } from 'lucide-react';
 import { AdvancedSelect } from '../components/AdvancedSelect';
 
 export const Expenses = () => {
+  const [searchParams] = useSearchParams();
   const [payments, setPayments] = useState<EnrichedPayment[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -52,6 +54,14 @@ export const Expenses = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Sync Search Term from URL
+  useEffect(() => {
+    const querySearch = searchParams.get('search');
+    if (querySearch) {
+      setSearchTerm(querySearch);
+    }
+  }, [searchParams]);
 
   // Initialize Flatpickr
   useEffect(() => {
