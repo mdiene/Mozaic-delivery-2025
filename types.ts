@@ -46,12 +46,13 @@ export interface Truck {
   id: string;
   plate_number: string;
   capacity_tonnes: number;
-  status: 'AVAILABLE' | 'IN_TRANSIT' | 'MAINTENANCE';
+  status: 'AVAILABLE' | 'IN_TRANSIT' | 'MAINTENANCE' | 'ON_SITE';
   trailer_number?: string;
   owner_type?: boolean; // true = internal, false/null = external
   driver_id?: string;
   driver_name?: string;
   qrcode_content?: string | null;
+  updated_at?: string; // Used for FIFO ordering
 }
 
 export interface Driver {

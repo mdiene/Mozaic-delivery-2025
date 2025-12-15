@@ -52,10 +52,10 @@ export const Logistics = () => {
       // Only show open or in-progress allocations for new dispatches
       setAllocations(al); 
       setProjects(proj);
-      return { allocations: al, projects: proj };
+      return { allocations: al, projects: proj, trucks: tr };
     } catch (e) {
       console.error(e);
-      return { allocations: [], projects: [] };
+      return { allocations: [], projects: [], trucks: [] };
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ export const Logistics = () => {
 
   useEffect(() => {
     const init = async () => {
-      const { allocations: loadedAllocations, projects: loadedProjects } = await fetchData();
+      const { allocations: loadedAllocations, projects: loadedProjects, trucks: loadedTrucks } = await fetchData();
       
       // Auto-select Phase 3 if available
       const phase3 = loadedProjects.find(p => p.numero_phase === 3);
@@ -73,22 +73,34 @@ export const Logistics = () => {
 
       // Check URL params for auto-open action
       const params = new URLSearchParams(location.search);
-      if (params.get('action') === 'new' && params.get('allocationId')) {
+      if (params.get('action') === 'new') {
+        const initialData: any = {
+           bl_number: generateBL(),
+           delivery_date: new Date().toISOString().split('T')[0],
+           tonnage_loaded: 0
+        };
+
+        // Handle Allocation Pre-fill
         const allocId = params.get('allocationId');
-        const targetAlloc = loadedAllocations.find(a => a.id === allocId);
-        
-        if (targetAlloc) {
-          setFormData({
-            allocation_id: targetAlloc.id,
-            bl_number: generateBL(),
-            delivery_date: new Date().toISOString().split('T')[0],
-            tonnage_loaded: 0
-          });
-          setIsModalOpen(true);
-          
-          // Clear URL params to prevent re-opening on reload
-          navigate('/logistics/dispatch', { replace: true });
+        if (allocId) {
+           const targetAlloc = loadedAllocations.find(a => a.id === allocId);
+           if (targetAlloc) initialData.allocation_id = targetAlloc.id;
         }
+
+        // Handle Truck Pre-fill (From FIFO)
+        const truckId = params.get('truckId');
+        if (truckId) {
+           initialData.truck_id = truckId;
+           // Auto-find driver logic from handleTruckChange
+           const t = loadedTrucks.find(truck => truck.id === truckId);
+           if (t && t.driver_id) initialData.driver_id = t.driver_id;
+        }
+
+        setFormData(initialData);
+        setIsModalOpen(true);
+        
+        // Clear URL params to prevent re-opening on reload
+        navigate('/logistics/dispatch', { replace: true });
       }
     };
     init();
@@ -194,6 +206,12 @@ export const Logistics = () => {
               fuel_quantity: 0,
               fuel_cost: 0
            });
+           
+           // IMPORTANT: If truck was ON_SITE, update it to IN_TRANSIT
+           const currentTruck = trucks.find(t => t.id === dbPayload.truck_id);
+           if (currentTruck && currentTruck.status === 'ON_SITE') {
+              await db.updateItem('trucks', currentTruck.id, { status: 'IN_TRANSIT' });
+           }
         }
       }
       setIsModalOpen(false);

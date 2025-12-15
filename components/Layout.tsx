@@ -24,7 +24,8 @@ import {
   Globe,
   Receipt,
   Pin,
-  Circle
+  Circle,
+  ScanBarcode
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -195,6 +196,15 @@ const Sidebar = ({
             basePath="/logistics" 
             expanded={expanded}
           >
+             <li>
+                <NavLink 
+                  to="/logistics/fifo"
+                  className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}
+                >
+                  <ScanBarcode size={16} className="shrink-0" />
+                  <span className="truncate">File d'attente (FIFO)</span>
+                </NavLink>
+              </li>
              <li>
                 <NavLink 
                   to="/logistics/dispatch"

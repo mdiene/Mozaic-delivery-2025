@@ -11,6 +11,7 @@ import { NetworkPage } from './pages/Network';
 import { Itinerary } from './pages/Itinerary';
 import { GlobalView } from './pages/GlobalView';
 import { Expenses } from './pages/Expenses';
+import { TruckFIFO } from './pages/TruckFIFO';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           
           {/* Logistics Routes */}
           <Route path="/logistics" element={<Navigate to="/logistics/dispatch" replace />} />
+          <Route path="/logistics/fifo" element={<TruckFIFO />} />
           <Route path="/logistics/dispatch" element={<Logistics />} />
           <Route path="/logistics/expenses" element={<Expenses />} />
           
