@@ -182,33 +182,41 @@ export const db = {
   },
 
   getTrucks: async (): Promise<Truck[]> => {
-    // join driver
-    // Note: truck-driver relation might be on trucks(driver_id) or drivers(truck_id). 
-    // Fleet.tsx logic suggests: "Assign Truck" -> updates truck.driver_id ??
-    // Let's assume Truck has driver_id.
-    const { data } = await supabase.from('trucks').select(`*, drivers:driver_id(name)`);
-    return (data || []).map((t: any) => ({
+    // Fetch trucks
+    const { data: trucks, error } = await supabase.from('trucks').select('*');
+    
+    if (error) {
+      safeLog('Error fetching trucks:', error);
+      return [];
+    }
+
+    // Fetch drivers who have a truck assigned to map them to trucks
+    const { data: drivers } = await supabase.from('drivers').select('id, name, truck_id').not('truck_id', 'is', null);
+    
+    const truckDriverMap: Record<string, {id: string, name: string}> = {};
+    drivers?.forEach((d: any) => {
+        if (d.truck_id) truckDriverMap[d.truck_id] = { id: d.id, name: d.name };
+    });
+
+    return trucks.map((t: any) => ({
        ...t,
-       driver_name: t.drivers?.name
+       driver_id: truckDriverMap[t.id]?.id,
+       driver_name: truckDriverMap[t.id]?.name
     }));
   },
 
   getDrivers: async (): Promise<Driver[]> => {
-     // Drivers usually don't have truck_id if relation is 1-1 on truck.
-     // But we want to know if they are assigned.
-     // We can query trucks and map back.
-     const { data: drivers } = await supabase.from('drivers').select('*');
-     const { data: trucks } = await supabase.from('trucks').select('id, plate_number, driver_id');
+     // Fetch drivers and join their assigned truck info
+     const { data, error } = await supabase.from('drivers').select('*, trucks:truck_id(plate_number)');
      
-     const driverMap: Record<string, {id: string, plate: string}> = {};
-     trucks?.forEach((t: any) => {
-        if (t.driver_id) driverMap[t.driver_id] = { id: t.id, plate: t.plate_number };
-     });
+     if (error) {
+       safeLog('Error fetching drivers:', error);
+       return [];
+     }
 
-     return (drivers || []).map((d: any) => ({
+     return data.map((d: any) => ({
         ...d,
-        truck_id: driverMap[d.id]?.id,
-        truck_plate: driverMap[d.id]?.plate
+        truck_plate: d.trucks?.plate_number
      }));
   },
 
@@ -290,12 +298,13 @@ export const db = {
   },
 
   updateTruckDriverAssignment: async (truckId: string, driverId: string | null) => {
-    // 1. Remove driver from other trucks if necessary (1-1 constraint)
+    // 1. Unassign this truck from any driver currently having it (to enforce 1-1 active assignment)
+    await supabase.from('drivers').update({ truck_id: null }).eq('truck_id', truckId);
+    
+    // 2. Assign to new driver if provided
     if (driverId) {
-       await supabase.from('trucks').update({ driver_id: null }).eq('driver_id', driverId);
+       await supabase.from('drivers').update({ truck_id: truckId }).eq('id', driverId);
     }
-    // 2. Assign to this truck
-    await supabase.from('trucks').update({ driver_id: driverId }).eq('id', truckId);
   },
 
   getNetworkHierarchy: async (projectId: string): Promise<NetworkHierarchy> => {
@@ -347,16 +356,9 @@ export const db = {
 
     // Attach active deliveries
     filteredDeliveries.forEach(del => {
-       // We need to find where it belongs. DeliveryView has region/commune names but maybe not IDs directly exposed in easy way
-       // We assume names match or rely on IDs if we added them to DeliveryView.
-       // Actually DeliveryView doesn't explicitly have region_id/commune_id in the interface, but we can find it via Allocations.
-       // For simplicity, let's iterate hierarchy to match names or assume IDs are present in raw data.
-       // In getDeliveriesView we didn't explicitly return region_id, let's assume names match.
-       
        Object.values(regionsMap).forEach((r: any) => {
           if (r.name === del.region_name) {
              Object.values(r.departments).forEach((d: any) => {
-                // Dept name not strictly in DeliveryView but usually consistent
                 Object.values(d.communes).forEach((c: any) => {
                    if (c.name === del.commune_name) {
                       c.deliveries.push({
@@ -480,8 +482,6 @@ export const db = {
     return dels.map(d => {
        const proj = d.project_id ? projectMap[d.project_id] : null;
        // Find operator ID from allocation (not direct on delivery view, but view has operator name, we need full obj)
-       // Let's rely on finding by name or assume allocation_id allows finding operator.
-       // This is a simplification.
        
        return {
           ...d,
@@ -522,16 +522,6 @@ export const db = {
         // Ideally we sum from deliveries. 
         // For 'Fin de cession' we usually sum up actual delivered tonnage.
         map[key].total_tonnage += a.delivered_tonnage;
-        // Count deliveries? Need to fetch deliveries and count.
-     });
-
-     // To get accurate delivery count, we need to iterate deliveries
-     const dels = await db.getDeliveriesView();
-     dels.forEach(d => {
-        // find matching key
-        const phaseNum = Number(d.project_phase.replace('Phase ', '')); // rough parsing
-        // We need operator ID. DeliveryView doesn't have it explicitly.
-        // We can match by name or fix types to include operator_id
      });
 
      // Returning aggregated map
