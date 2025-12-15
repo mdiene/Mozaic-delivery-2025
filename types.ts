@@ -51,6 +51,7 @@ export interface Truck {
   owner_type?: boolean; // true = internal, false/null = external
   driver_id?: string;
   driver_name?: string;
+  qrcode_content?: string | null;
 }
 
 export interface Driver {

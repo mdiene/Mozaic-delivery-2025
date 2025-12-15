@@ -119,15 +119,55 @@ export const db = {
            .reduce((sum: number, a: any) => sum + Number(a.target_tonnage), 0);
      }
      
-     // Active trucks: unique trucks in deliveries from last 24h or just 'IN_TRANSIT' status
-     // Let's use IN_TRANSIT from trucks table
-     const { count } = await supabase.from('trucks').select('*', { count: 'exact', head: true }).eq('status', 'IN_TRANSIT');
+     // Active trucks: Now counting AVAILABLE trucks as requested
+     const { count: truckCount } = await supabase
+        .from('trucks')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'AVAILABLE');
      
+     // Calculate Fees
+     // We join deliveries -> allocations to filter by project_id
+     let feesQuery = supabase.from('payments').select(`
+        road_fees, 
+        personal_fees, 
+        other_fees, 
+        overweigh_fees, 
+        fuel_cost, 
+        loading_cost, 
+        unloading_cost,
+        deliveries!inner (
+            allocation_id,
+            allocations!inner (
+                project_id
+            )
+        )
+     `);
+
+     if (projectId !== 'all') {
+        feesQuery = feesQuery.eq('deliveries.allocations.project_id', projectId);
+     }
+
+     const { data: paymentsData } = await feesQuery;
+     let totalFees = 0;
+     
+     if (paymentsData) {
+        totalFees = paymentsData.reduce((sum: number, p: any) => {
+           return sum + 
+              (Number(p.road_fees) || 0) + 
+              (Number(p.personal_fees) || 0) + 
+              (Number(p.other_fees) || 0) + 
+              (Number(p.overweigh_fees) || 0) + 
+              (Number(p.fuel_cost) || 0) + 
+              (Number(p.loading_cost) || 0) + 
+              (Number(p.unloading_cost) || 0);
+        }, 0);
+     }
+
      return {
         totalDelivered,
         totalTarget,
-        activeTrucks: count || 0,
-        alerts: 0 // Mock for now
+        activeTrucks: truckCount || 0,
+        totalFees: totalFees
      };
   },
 

@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo, Fragment, useRef } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView, Project } from '../types';
-import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download } from 'lucide-react';
+import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download, FileSpreadsheet } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSearchParams } from 'react-router-dom';
@@ -195,6 +195,65 @@ export const Views = () => {
       total: groups[key].reduce((sum, item) => sum + Number(item.total_tonnage), 0)
     }));
   }, [filteredFcData, fcGroupBy]);
+
+  // Handle CSV Export
+  const handleExportCSV = () => {
+    const data = activeTab === 'bon_livraison' ? filteredBlData : filteredFcData;
+    if (!data.length) return alert('Aucune donnée à exporter');
+
+    const headers = activeTab === 'bon_livraison' 
+      ? ['N° BL', 'Date', 'Opérateur', 'Coopérative', 'Région', 'Département', 'Commune', 'Camion', 'Chauffeur', 'Tonnage', 'Phase']
+      : ['Opérateur', 'Coopérative', 'Région', 'Département', 'Commune', 'Phase', 'Nbr Livraisons', 'Tonnage Total'];
+
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => {
+        if (activeTab === 'bon_livraison') {
+          const item = row as BonLivraisonView;
+          // Escape quotes for CSV
+          const escape = (str?: string) => `"${(str || '').replace(/"/g, '""')}"`;
+          return [
+            item.bl_number,
+            item.delivery_date ? new Date(item.delivery_date).toLocaleDateString('fr-FR') : '',
+            escape(item.operator_name),
+            escape(item.operator_coop_name),
+            escape(item.region),
+            escape(item.department),
+            escape(item.commune),
+            escape(item.truck_plate_number),
+            escape(item.driver_name),
+            item.tonnage_loaded,
+            item.numero_phase
+          ].join(',');
+        } else {
+          const item = row as FinDeCessionView;
+          const escape = (str?: string) => `"${(str || '').replace(/"/g, '""')}"`;
+          return [
+            escape(item.operator_name),
+            escape(item.operator_coop_name),
+            escape(item.region),
+            escape(item.department),
+            escape(item.commune),
+            item.project_phase,
+            item.deliveries_count,
+            item.total_tonnage
+          ].join(',');
+        }
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${activeTab}_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
 
   // PDF Download Handler (using jsPDF)
   const downloadBLPdf = (item: BonLivraisonView) => {
@@ -634,6 +693,16 @@ export const Views = () => {
                  <X size={14} />
                </button>
             )}
+         </div>
+
+         <div className="ml-auto pl-4 border-l border-border">
+            <button 
+               onClick={handleExportCSV}
+               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+            >
+               <FileSpreadsheet size={16} />
+               <span className="hidden sm:inline">Exporter CSV</span>
+            </button>
          </div>
       </div>
 

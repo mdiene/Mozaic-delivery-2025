@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, FormEvent, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { db } from '../services/db';
 import { EnrichedPayment, DeliveryView, Project } from '../types';
-import { Search, Filter, Layers, X, Edit2, RotateCcw, Save, Truck, User, Fuel, Receipt, ShieldCheck, RefreshCw, Calendar, Minimize2, ChevronRight, MapPin, PackageOpen } from 'lucide-react';
+import { Search, Filter, Layers, X, Edit2, RotateCcw, Save, Truck, User, Fuel, Receipt, ShieldCheck, RefreshCw, Calendar, Minimize2, ChevronRight, MapPin, PackageOpen, Coins } from 'lucide-react';
 import { AdvancedSelect } from '../components/AdvancedSelect';
 
 export const Expenses = () => {
@@ -240,6 +240,15 @@ export const Expenses = () => {
     });
   }, [payments, filterPhase, dateRange, searchTerm, minFeeFilter, filterWagueOnly]);
 
+  // Calculate Total Amount from Filtered Payments
+  const totalFilteredAmount = useMemo(() => {
+    return filteredPayments.reduce((acc, p) => {
+       const manutention = (p.loading_cost || 0) + (p.unloading_cost || 0);
+       const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + manutention;
+       return acc + total;
+    }, 0);
+  }, [filteredPayments]);
+
   const groupedPayments = useMemo(() => {
      if (groupBy === 'none') {
         return [{ 
@@ -289,6 +298,17 @@ export const Expenses = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Notes de Frais</h1>
           <p className="text-muted-foreground text-sm">Gestion des dépenses liées aux livraisons (Carburant, Frais de route, Manutention...)</p>
+        </div>
+
+        {/* Total Display Widget */}
+        <div className="bg-primary/5 px-5 py-2 rounded-xl border border-primary/20 flex items-center gap-4 shadow-sm animate-in fade-in">
+           <div className="text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Filtré</p>
+              <p className="text-xl font-bold font-mono text-primary">{totalFilteredAmount.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">FCFA</span></p>
+           </div>
+           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+              <Coins size={20} />
+           </div>
         </div>
       </div>
 

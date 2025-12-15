@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
@@ -6,9 +5,10 @@ import {
 } from 'recharts';
 import { db } from '../services/db';
 import { 
-  TrendingUp, Truck, AlertTriangle, CheckCircle, Users, 
+  TrendingUp, Truck, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
-  Activity, ChevronDown, ChevronUp, Network, MoreHorizontal, Maximize2, Minimize2
+  Activity, ChevronDown, ChevronUp, Network, MoreHorizontal, Maximize2, Minimize2,
+  Coins
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -73,7 +73,7 @@ const CustomTooltip = ({ active, payload, label, chartType }: any) => {
 
 export const Dashboard = () => {
   const { selectedProject, projects } = useProject();
-  const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, alerts: 0 });
+  const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, totalFees: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
   const [graphData, setGraphData] = useState<NetworkHierarchy>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +96,7 @@ export const Dashboard = () => {
           db.getChartData(selectedProject),
           db.getNetworkHierarchy(selectedProject)
         ]);
-        setStats(s);
+        setStats(s as any); // Type assertion needed until db type updated fully
         setChartData(c);
         setGraphData(g);
       } catch (e: any) {
@@ -120,6 +120,11 @@ export const Dashboard = () => {
       </div>
     );
   }
+
+  // Determine current project label for Fee card
+  const feeLabel = selectedProject === 'all' 
+    ? 'Total Dépensé (Global)' 
+    : `Total Dépensé (Phase ${projects.find(p => p.id === selectedProject)?.numero_phase || '-'})`;
 
   return (
     <div className="space-y-6">
@@ -155,15 +160,15 @@ export const Dashboard = () => {
         <KpiCard 
           title="Camions Actifs" 
           value={stats.activeTrucks} 
-          subValue="Sur la route"
+          subValue="Disponibles"
           icon={Truck} 
           color="amber" 
         />
         <KpiCard 
-          title="Alertes" 
-          value={stats.alerts} 
-          subValue="Nécessite Attention"
-          icon={AlertTriangle} 
+          title="Frais & Charges" 
+          value={`${stats.totalFees.toLocaleString()} F`} 
+          subValue={feeLabel}
+          icon={Coins} 
           color="red" 
         />
       </div>

@@ -1,8 +1,9 @@
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import { db } from '../services/db';
 import { Truck as TruckType, Driver as DriverType } from '../types';
-import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon, Search, ChevronDown } from 'lucide-react';
+import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon, Search, ChevronDown, QrCode, Printer, CheckCircle2 } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 export const Fleet = () => {
   const [activeTab, setActiveTab] = useState<'trucks' | 'drivers'>('trucks');
@@ -13,6 +14,13 @@ export const Fleet = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  
+  // QR Code Modal State
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [selectedQRTruck, setSelectedQRTruck] = useState<TruckType | null>(null);
+  const [generatedQRValue, setGeneratedQRValue] = useState<string>('');
+  const [qrSuccessMessage, setQrSuccessMessage] = useState('');
+  const qrRef = useRef<HTMLDivElement>(null);
   
   // Search State for Truck (Searchable Select)
   const [truckSearch, setTruckSearch] = useState('');
@@ -84,6 +92,8 @@ export const Fleet = () => {
         // Clean up payload for trucks table
         delete payload.driver_id;
         delete payload.driver_name;
+        // Don't save QR content in the main form save
+        delete payload.qrcode_content;
       }
 
       // Handle Driver specific fields
@@ -138,6 +148,108 @@ export const Fleet = () => {
     });
     setTruckSearch(truck.plate_number);
     setIsTruckDropdownOpen(false);
+  };
+
+  // --- QR Code Logic ---
+  
+  const handleOpenQRModal = (truck: TruckType) => {
+    setSelectedQRTruck(truck);
+    setGeneratedQRValue(truck.qrcode_content || '');
+    setQrSuccessMessage('');
+    setIsQRModalOpen(true);
+  };
+
+  const handleGenerateQR = () => {
+    if (!selectedQRTruck) return;
+    const content = JSON.stringify({
+      id: selectedQRTruck.id,
+      plate: selectedQRTruck.plate_number,
+      trailer: selectedQRTruck.trailer_number || ''
+    });
+    setGeneratedQRValue(content);
+    setQrSuccessMessage('');
+  };
+
+  const handleSaveQR = async () => {
+    if (!selectedQRTruck || !generatedQRValue) return;
+    try {
+      await db.updateItem('trucks', selectedQRTruck.id, { qrcode_content: generatedQRValue });
+      // Update local state to reflect change without full reload if possible, or reload
+      const updatedTrucks = trucks.map(t => t.id === selectedQRTruck.id ? { ...t, qrcode_content: generatedQRValue } : t);
+      setTrucks(updatedTrucks);
+      setQrSuccessMessage('QR Code enregistré avec succès !');
+    } catch (e) {
+      alert('Erreur lors de la sauvegarde du QR Code');
+    }
+  };
+
+  const handlePrintQR = () => {
+    if (!selectedQRTruck || !generatedQRValue) return;
+    
+    // Find driver details
+    const driver = drivers.find(d => d.id === selectedQRTruck.driver_id);
+    
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=400,height=550');
+    if (printWindow) {
+      // Get the canvas data URL
+      const canvas = qrRef.current?.querySelector('canvas');
+      const dataUrl = canvas ? canvas.toDataURL() : '';
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>QR Code - ${selectedQRTruck.plate_number}</title>
+            <style>
+              body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                text-align: center; 
+                padding: 40px 20px; 
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+                box-sizing: border-box;
+              }
+              .header { margin-bottom: 20px; width: 100%; }
+              .driver-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+              .driver-phone { font-size: 18px; color: #333; }
+              
+              img { 
+                border: 4px solid #000; 
+                padding: 10px; 
+                border-radius: 10px;
+                margin: 10px 0;
+              }
+              
+              .footer { margin-top: 20px; width: 100%; }
+              .plate { font-size: 28px; font-weight: 900; margin-bottom: 5px; border: 2px solid #000; padding: 5px 15px; display: inline-block; border-radius: 5px; }
+              .trailer { font-size: 16px; color: #555; margin-top: 5px; font-weight: 600; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+                <div class="driver-name">${driver ? driver.name : 'Chauffeur Non Assigné'}</div>
+                <div class="driver-phone">${driver ? (driver.phone || driver.phone_normalized || '') : ''}</div>
+            </div>
+
+            ${dataUrl ? `<img src="${dataUrl}" width="250" height="250" />` : '<p>Erreur QR</p>'}
+            
+            <div class="footer">
+                <div class="plate">${selectedQRTruck.plate_number}</div>
+                ${selectedQRTruck.trailer_number ? `<div class="trailer">Remorque: ${selectedQRTruck.trailer_number}</div>` : ''}
+            </div>
+
+            <script>
+              window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   };
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Chargement du Parc...</div>;
@@ -226,8 +338,17 @@ export const Fleet = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => handleEdit(truck)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(truck.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
+                      <div className="flex justify-end gap-1">
+                        <button 
+                          onClick={() => handleOpenQRModal(truck)} 
+                          className={`btn btn-circle btn-text btn-sm ${truck.qrcode_content ? 'text-primary' : 'text-muted-foreground'}`}
+                          title="Générer / Voir QR Code"
+                        >
+                          <QrCode size={16} />
+                        </button>
+                        <button onClick={() => handleEdit(truck)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete(truck.id)} className="btn btn-circle btn-text btn-sm btn-text-error"><Trash2 size={16} /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -338,7 +459,7 @@ export const Fleet = () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Main Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-card rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-border">
@@ -531,6 +652,76 @@ export const Fleet = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {isQRModalOpen && selectedQRTruck && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-border">
+            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="font-semibold text-foreground">Gestion QR Code</h3>
+              <button onClick={() => setIsQRModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
+            </div>
+            
+            <div className="p-6 flex flex-col items-center gap-4">
+               <div className="text-center">
+                  <h4 className="text-xl font-bold font-mono text-foreground">{selectedQRTruck.plate_number}</h4>
+                  {selectedQRTruck.trailer_number && <p className="text-sm text-muted-foreground">{selectedQRTruck.trailer_number}</p>}
+               </div>
+
+               <div className="p-4 bg-white rounded-lg border border-border shadow-inner" ref={qrRef}>
+                  {generatedQRValue ? (
+                     <QRCodeCanvas value={generatedQRValue} size={200} level="H" />
+                  ) : (
+                     <div className="w-[200px] h-[200px] flex items-center justify-center bg-muted/20 text-muted-foreground text-sm">
+                        Aucun QR Code généré
+                     </div>
+                  )}
+               </div>
+
+               {qrSuccessMessage && (
+                  <div className="w-full flex items-center justify-center gap-2 p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium rounded-lg animate-in fade-in slide-in-from-top-1">
+                     <CheckCircle2 size={16} /> {qrSuccessMessage}
+                  </div>
+               )}
+
+               <div className="w-full space-y-2">
+                  {!generatedQRValue && (
+                     <button 
+                       onClick={handleGenerateQR}
+                       className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                     >
+                       <QrCode size={18} /> Générer QR Code
+                     </button>
+                  )}
+                  
+                  {generatedQRValue && (
+                     <>
+                        <button 
+                          onClick={handleSaveQR}
+                          className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          <Save size={18} /> Enregistrer
+                        </button>
+                        <button 
+                          onClick={handlePrintQR}
+                          className="w-full flex items-center justify-center gap-2 bg-card border border-border hover:bg-muted text-foreground px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          <Printer size={18} /> Imprimer
+                        </button>
+                     </>
+                  )}
+                  
+                  <button 
+                    onClick={() => setIsQRModalOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground px-4 py-2 rounded-lg font-medium transition-colors mt-2"
+                  >
+                    Fermer
+                  </button>
+               </div>
+            </div>
           </div>
         </div>
       )}
