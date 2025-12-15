@@ -97,7 +97,17 @@ CREATE TABLE deliveries (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 7. Views for Reporting
+-- 7. User Preferences (New)
+CREATE TABLE user_preferences (
+    user_email TEXT PRIMARY KEY,
+    theme_mode TEXT DEFAULT 'light', -- 'light' or 'dark'
+    theme_color TEXT DEFAULT 'default',
+    sidebar_pinned BOOLEAN DEFAULT false,
+    language TEXT DEFAULT 'fr',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 8. Views for Reporting
 
 -- View: Bon de Livraison (Detailed Shipments)
 CREATE OR REPLACE VIEW view_bon_livraison AS
@@ -162,3 +172,5 @@ CREATE POLICY "Public Update" ON project FOR UPDATE USING (true);
 CREATE POLICY "Public Delete" ON project FOR DELETE USING (true);
 
 -- (Repeat RLS policies for all tables as needed for the development env)
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public All Preferences" ON user_preferences FOR ALL USING (true);

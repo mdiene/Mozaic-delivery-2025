@@ -2,6 +2,7 @@
 import { Region, Department, Commune, Operator, Truck, Driver, Allocation, Delivery } from './types';
 
 export const APP_NAME = "MASAE Tracker";
+export const CURRENT_USER_EMAIL = "admin@masae.sn";
 
 // --- Mock Geographic Data ---
 export const MOCK_REGIONS: Region[] = [

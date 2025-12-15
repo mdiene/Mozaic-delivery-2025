@@ -22,10 +22,13 @@ import {
   Gift,
   Navigation,
   Globe,
-  Receipt
+  Receipt,
+  Pin,
+  Circle
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
+import { CURRENT_USER_EMAIL } from '../constants';
 
 interface LayoutProps {
   children: ReactNode;
@@ -108,30 +111,31 @@ const SidebarSubmenu = ({
 
 const Sidebar = ({ 
   expanded, 
-  setExpanded
+  setHovered,
+  pinned,
+  togglePin
 }: { 
   expanded: boolean, 
-  setExpanded: (v: boolean) => void
+  setHovered: (v: boolean) => void,
+  pinned: boolean,
+  togglePin: () => void
 }) => {
   const location = useLocation();
-
-  // Helper to check if a main route is active (or its children)
-  const isRouteActive = (path: string) => location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
 
   return (
     <aside 
       className={`fixed left-0 top-0 z-50 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border shadow-2xl ${expanded ? 'w-64' : 'w-20'}`}
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       {/* Logo Area */}
-      <div className="flex h-20 items-center justify-center border-b border-sidebar-border/50">
+      <div className="flex h-20 items-center justify-between px-4 border-b border-sidebar-border/50">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sidebar-primary to-white/20 flex items-center justify-center font-bold text-white shadow-glow transition-colors duration-300">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sidebar-primary to-white/20 flex items-center justify-center font-bold text-white shadow-glow transition-colors duration-300 shrink-0">
             M
           </div>
           {expanded && (
-            <div className="flex flex-col animate-fade-in">
+            <div className="flex flex-col animate-fade-in whitespace-nowrap overflow-hidden">
                 <span className="font-bold text-lg tracking-tight text-white leading-tight">
                 MASAE
                 </span>
@@ -139,6 +143,17 @@ const Sidebar = ({
             </div>
           )}
         </div>
+        
+        {/* Pin Button */}
+        {expanded && (
+           <button 
+             onClick={togglePin}
+             className={`p-1.5 rounded-full hover:bg-sidebar-accent transition-colors ${pinned ? 'text-primary' : 'text-sidebar-foreground/50'}`}
+             title={pinned ? "Détacher la barre latérale" : "Épingler la barre latérale"}
+           >
+              {pinned ? <Pin size={16} className="fill-current" /> : <Circle size={16} />}
+           </button>
+        )}
       </div>
 
       {/* Navigation - FlyonUI Menu Structure */}
@@ -306,7 +321,7 @@ const Sidebar = ({
       {/* Footer / User Profile */}
       <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border/50 bg-sidebar">
         <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${expanded ? 'bg-sidebar-accent' : ''}`}>
-          <div className="relative">
+          <div className="relative shrink-0">
              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-sidebar-primary to-white/20 text-white shadow-lg transition-colors duration-300">
                 <User size={18} />
              </div>
@@ -470,7 +485,10 @@ const Header = ({
 };
 
 export const Layout: FC<LayoutProps> = ({ children }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const expanded = pinned || hovered;
+
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('default');
   
@@ -478,9 +496,48 @@ export const Layout: FC<LayoutProps> = ({ children }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
 
+  // Load Preferences on Mount
   useEffect(() => {
-    db.getProjects().then(setProjects).catch(console.error);
+    const init = async () => {
+      // Load projects
+      db.getProjects().then(setProjects).catch(console.error);
+
+      // Load user preferences
+      try {
+        const prefs = await db.getUserPreferences(CURRENT_USER_EMAIL);
+        if (prefs) {
+          setPinned(prefs.sidebar_pinned);
+          setIsDarkMode(prefs.theme_mode === 'dark');
+          setCurrentTheme(prefs.theme_color);
+        }
+      } catch (e) {
+        console.error('Failed to load user preferences', e);
+      }
+    };
+    init();
   }, []);
+
+  // Save Preferences Helpers
+  const savePref = async (updates: any) => {
+    await db.saveUserPreferences(CURRENT_USER_EMAIL, updates);
+  };
+
+  const togglePin = () => {
+    const newVal = !pinned;
+    setPinned(newVal);
+    savePref({ sidebar_pinned: newVal });
+  };
+
+  const toggleDarkMode = () => {
+    const newVal = !isDarkMode;
+    setIsDarkMode(newVal);
+    savePref({ theme_mode: newVal ? 'dark' : 'light' });
+  };
+
+  const handleSetTheme = (theme: string) => {
+    setCurrentTheme(theme);
+    savePref({ theme_color: theme });
+  };
 
   // Apply Theme & Dark Mode
   useEffect(() => {
@@ -505,23 +562,21 @@ export const Layout: FC<LayoutProps> = ({ children }) => {
     }
   }, [isDarkMode, currentTheme]);
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
   return (
     <ProjectContext.Provider value={{ projects, selectedProject, setSelectedProject }}>
       <div className="min-h-screen bg-background text-foreground transition-colors duration-300 font-sans">
         <Sidebar 
           expanded={expanded} 
-          setExpanded={setExpanded} 
+          setHovered={setHovered}
+          pinned={pinned}
+          togglePin={togglePin}
         />
         <div className={`transition-all duration-300 ease-in-out ${expanded ? 'pl-64' : 'pl-20'}`}>
           <Header 
             isDarkMode={isDarkMode}
             toggleDarkMode={toggleDarkMode}
             currentTheme={currentTheme}
-            setCurrentTheme={setCurrentTheme}
+            setCurrentTheme={handleSetTheme}
           />
           <main className="px-6 pb-6 pt-2 animate-fade-in max-w-screen-2xl mx-auto">
             {children}

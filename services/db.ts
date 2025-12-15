@@ -2,7 +2,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { 
   DeliveryView, AllocationView, Truck, Driver, Region, Department, Commune, 
-  Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment 
+  Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference 
 } from '../types';
 
 const safeLog = (message: string, ...args: any[]) => {
@@ -536,5 +536,28 @@ export const db = {
 
      // Returning aggregated map
      return Object.values(map);
+  },
+
+  getUserPreferences: async (email: string): Promise<UserPreference | null> => {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_email', email)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 is 'Row not found'
+       safeLog('Error fetching preferences:', error);
+    }
+    return data;
+  },
+
+  saveUserPreferences: async (email: string, prefs: Partial<UserPreference>) => {
+    // Upsert needs all primary key columns.
+    const payload = { ...prefs, user_email: email, updated_at: new Date().toISOString() };
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert(payload, { onConflict: 'user_email' });
+    
+    if (error) safeLog('Error saving preferences:', error);
   }
 };

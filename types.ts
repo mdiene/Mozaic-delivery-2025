@@ -139,6 +139,15 @@ export interface EnrichedPayment extends Payment {
   delivery_date: string;
 }
 
+export interface UserPreference {
+  user_email: string;
+  theme_mode: 'light' | 'dark';
+  theme_color: string;
+  sidebar_pinned: boolean;
+  language: string;
+  updated_at?: string;
+}
+
 export type NetworkHierarchy = Array<{
   id: string;
   name: string;
