@@ -1,6 +1,6 @@
 
-// Fix: Added React to imports to resolve 'Cannot find name React' error on line 78
-import React, { useState, useEffect, createContext, useContext, ReactNode, FC } from 'react';
+// Fix: Added React to imports to resolve 'Cannot find name React' error and improved submenu hiding logic
+import React, { useState, useEffect, createContext, useContext, ReactNode, FC, isValidElement } from 'react';
 import { NavLink, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -75,9 +75,11 @@ const SidebarSubmenu = ({
   const isActive = location.pathname.startsWith(basePath);
   const [isOpen, setIsOpen] = useState(false);
 
+  // Filter out non-element children (like false, null, etc) to accurately count visible items
+  const validChildren = React.Children.toArray(children).filter(child => isValidElement(child));
+
   // If no visible children, don't render the submenu at all
-  // Fix: React.Children.count now works correctly with React explicitly imported
-  if (React.Children.count(children) === 0) return null;
+  if (validChildren.length === 0) return null;
 
   return (
     <li 

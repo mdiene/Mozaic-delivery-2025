@@ -549,11 +549,17 @@ export const db = {
     return data;
   },
 
-  authenticateUser: async (email: string, pswd: string): Promise<UserPreference | null> => {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('*')
-      .eq('user_email', email)
+  authenticateUser: async (email: string | null, pswd: string): Promise<UserPreference | null> => {
+    let query = supabase.from('user_preferences').select('*');
+    
+    if (email) {
+      query = query.eq('user_email', email);
+    } else {
+      // Password-only login for Manager role
+      query = query.eq('user_right_level', 2);
+    }
+    
+    const { data, error } = await query
       .eq('user_pswd', pswd)
       .maybeSingle();
 

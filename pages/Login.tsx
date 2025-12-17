@@ -14,11 +14,11 @@ export const Login = () => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { login, user: currentUser } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   // Role map for user_right_level
-  const roleToLevel: Record<UserRole & string, number> = {
+  const roleToLevel: Record<string, number> = {
     'ADMIN': 3,
     'MANAGER': 2,
     'DRIVER': 1
@@ -31,31 +31,46 @@ export const Login = () => {
 
     try {
       if (isLogin) {
-        // DRIVER logs in directly as per request
-        if (selectedRole === 'DRIVER') {
+        // DRIVER: Direct access without password (as per existing simplified logic)
+        if ((selectedRole as string) === 'DRIVER') {
           login(`driver-${Date.now()}@masae.sn`, 'DRIVER', 'Chauffeur');
           navigate('/logistics/fifo');
           return;
         }
 
-        // ADMIN/MANAGER verify credentials in user_preferences table
+        // MANAGER: Simplified access - Only password verification required (no status check)
+        if ((selectedRole as string) === 'MANAGER') {
+          const userPrefs = await db.authenticateUser('manager@site.sn', password);
+          if (userPrefs) {
+             // Success: Bypass user_statut check for Manager as requested ("remove connection control")
+             login(userPrefs.user_email || 'manager@site.sn', 'MANAGER', 'Manager Site');
+             navigate('/logistics/fifo');
+             return;
+          } else {
+             setError("Mot de passe incorrect.");
+             setIsSubmitting(false);
+             return;
+          }
+        }
+
+        // ADMIN: Full authentication with Email, Password and Status verification
         const userPrefs = await db.authenticateUser(email, password);
         
         if (userPrefs) {
-          // Check if account is active
+          // Check if account is active for Admin
           if (userPrefs.user_statut === false) {
             setError("Compte inactif. Votre accès doit être validé par un administrateur.");
             setIsSubmitting(false);
             return;
           }
 
-          // Check if right level matches or is sufficient
+          // Check if right level matches
           const requiredLevel = roleToLevel[selectedRole as string];
-          if (userPrefs.user_right_level < requiredLevel) {
-            setError("Niveau d'accès insuffisant pour ce rôle.");
+          if (userPrefs.user_right_level !== requiredLevel) {
+            setError("Rôle incorrect pour cet utilisateur.");
           } else {
             login(userPrefs.user_email, selectedRole, userPrefs.user_email.split('@')[0]);
-            navigate(selectedRole === 'DRIVER' ? '/logistics/fifo' : '/');
+            navigate('/');
           }
         } else {
           setError("Identifiants incorrects.");
@@ -90,12 +105,11 @@ export const Login = () => {
 
   const roles = [
     { id: 'ADMIN' as UserRole, label: 'Administrateur', icon: ShieldCheck, desc: 'Gestion complète du système' },
-    { id: 'MANAGER' as UserRole, label: 'Manager (Site)', icon: User, desc: 'Supervision des opérations de terrain' },
+    { id: 'MANAGER' as UserRole, label: 'Manager (Site)', icon: User, desc: 'FIFO, BL, Itinéraire, Frais' },
     { id: 'DRIVER' as UserRole, label: 'Utilisateur (Chauffeur)', icon: Truck, desc: 'Validation Entrée & QR Code' },
   ];
 
-  // Logic: "only administrateur can access 'Créer un compte'"
-  // We allow showing the toggle only if ADMIN is selected to represent the intent
+  // Only Admin can see the signup toggle
   const showSignupToggle = selectedRole === 'ADMIN';
 
   return (
@@ -149,7 +163,7 @@ export const Login = () => {
             {selectedRole === 'DRIVER' 
               ? 'Accédez directement à la file d\'attente.' 
               : isLogin 
-                ? 'Connectez-vous pour accéder à votre espace de travail.' 
+                ? (selectedRole === 'MANAGER' ? 'Saisissez votre mot de passe pour accéder au site.' : 'Connectez-vous pour accéder à votre espace de travail.') 
                 : 'Enregistrez un nouvel administrateur système.'}
           </p>
 
@@ -206,17 +220,20 @@ export const Login = () => {
                     />
                   </div>
                 )}
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                  <input 
-                    type="email" 
-                    placeholder="Adresse email" 
-                    className="w-full pl-10 pr-4 py-3 bg-muted/50 border border-border rounded-xl focus:ring-1 focus:ring-primary outline-none transition-all text-sm"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
+                {/* Email is hidden for Manager Login */}
+                {(selectedRole === 'ADMIN' || !isLogin) && (
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                    <input 
+                      type="email" 
+                      placeholder="Adresse email" 
+                      className="w-full pl-10 pr-4 py-3 bg-muted/50 border border-border rounded-xl focus:ring-1 focus:ring-primary outline-none transition-all text-sm"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                   <input 
