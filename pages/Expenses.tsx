@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo, FormEvent, useRef } from 'react';
+import { useState, useEffect, useMemo, FormEvent, useRef, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { db } from '../services/db';
 import { EnrichedPayment, DeliveryView, Project } from '../types';
@@ -24,9 +24,11 @@ export const Expenses = () => {
   const [minFeeFilter, setMinFeeFilter] = useState(0);
   const maxTotalFee = 500000; // Mock Max
 
-  // Grouping
+  // Accordion State - Closed by default
+  const [activeAccordionPhases, setActiveAccordionPhases] = useState<Set<string>>(new Set());
+
+  // Grouping (Sub-grouping within phase)
   const [groupBy, setGroupBy] = useState<'none' | 'truck_plate' | 'commune_name' | 'region_name'>('none');
-  const [activeGroups, setActiveGroups] = useState<Set<string>>(new Set());
 
   // Local State for Fuel Calc in Modal
   const [fuelUnitPrice, setFuelUnitPrice] = useState(680); // Default to 680
@@ -84,15 +86,12 @@ export const Expenses = () => {
   const handleOpenModal = (payment?: EnrichedPayment) => {
      if (payment) {
         setFormData({ ...payment });
-        // Try to infer unit price if quantity > 0
         if (payment.fuel_quantity > 0) {
            setFuelUnitPrice(Math.round(payment.fuel_cost / payment.fuel_quantity));
         } else {
            setFuelUnitPrice(680);
         }
      } else {
-        // Find a delivery without payment or create new
-        // Ideally we select a delivery first
         setFormData({});
         setFuelUnitPrice(680);
      }
@@ -108,15 +107,12 @@ export const Expenses = () => {
         ...prev,
         delivery_id: deliveryId,
         truck_id: selectedDelivery.truck_id,
-        // If external (not internal), auto-fill label
         other_fees_label: !isInternal ? 'Forfait transporteur' : (prev.other_fees_label || ''),
-        // Reset other fields if external to avoid confusion, though UI disables them
         fuel_quantity: !isInternal ? 0 : prev.fuel_quantity,
         fuel_cost: !isInternal ? 0 : prev.fuel_cost,
         road_fees: !isInternal ? 0 : prev.road_fees,
         personal_fees: !isInternal ? 0 : prev.personal_fees,
         overweigh_fees: !isInternal ? 0 : prev.overweigh_fees,
-        // Loading costs are KEPT/Enabled for external
         loading_cost: prev.loading_cost || 0,
         unloading_cost: prev.unloading_cost || 0
       }));
@@ -198,22 +194,13 @@ export const Expenses = () => {
       }));
   }, [deliveries]);
 
-  // Determine current context for the modal
   const selectedDeliveryForModal = deliveries.find(d => d.id === formData.delivery_id);
-  // Default to internal if no delivery selected yet to allow editing, otherwise use actual type
   const isInternalTruck = selectedDeliveryForModal ? (selectedDeliveryForModal.truck_owner_type !== false) : true; 
 
-  // --- Filtering & Grouping Logic ---
-  
   const filteredPayments = useMemo(() => {
     return payments.filter(p => {
-      // Phase Filter
       if (filterPhase !== 'all' && p.project_id !== filterPhase) return false;
-
-      // Ownership Filter
       if (filterWagueOnly && !p.truck_owner_type) return false;
-
-      // Date Range Filter
       if (dateRange.start && dateRange.end && p.delivery_date) {
          const d = new Date(p.delivery_date);
          d.setHours(0,0,0,0);
@@ -221,8 +208,6 @@ export const Expenses = () => {
          const end = new Date(dateRange.end); end.setHours(23,59,59,999);
          if (d < start || d > end) return false;
       }
-
-      // Search Filter
       if (searchTerm) {
          const lower = searchTerm.toLowerCase();
          return (
@@ -231,66 +216,76 @@ export const Expenses = () => {
             (p.driver_name && p.driver_name.toLowerCase().includes(lower))
          );
       }
-
-      // Range Filter (Min Amount)
       const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0);
       if (total < minFeeFilter) return false;
-      
       return true;
     });
   }, [payments, filterPhase, dateRange, searchTerm, minFeeFilter, filterWagueOnly]);
 
-  // Calculate Total Amount from Filtered Payments
   const totalFilteredAmount = useMemo(() => {
     return filteredPayments.reduce((acc, p) => {
        const manutention = (p.loading_cost || 0) + (p.unloading_cost || 0);
-       const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + manutention;
-       return acc + total;
+       return acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + manutention;
     }, 0);
   }, [filteredPayments]);
 
-  const groupedPayments = useMemo(() => {
-     if (groupBy === 'none') {
-        return [{ 
-           key: 'All', 
-           title: 'Toutes les Notes', 
-           items: filteredPayments,
-           total: filteredPayments.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0), 0)
-        }];
-     }
-
-     const groups: Record<string, EnrichedPayment[]> = {};
+  // Grouping Logic: Phase (Accordion) -> Optional Subgroup (Row)
+  const groupedByPhase = useMemo(() => {
+     const phaseGroups: Record<string, EnrichedPayment[]> = {};
+     
      filteredPayments.forEach(p => {
-        let key = (p as any)[groupBy] || 'Inconnu';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(p);
+        const proj = projects.find(proj => proj.id === p.project_id);
+        const phaseLabel = proj ? `Phase ${proj.numero_phase}` : 'Autres';
+        if (!phaseGroups[phaseLabel]) phaseGroups[phaseLabel] = [];
+        phaseGroups[phaseLabel].push(p);
      });
 
-     return Object.keys(groups).sort().map(key => {
-        const items = groups[key];
-        const total = items.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0), 0);
-        return { key, title: key, items, total };
+     return Object.keys(phaseGroups).sort((a,b) => b.localeCompare(a)).map(phase => {
+        const phaseItems = phaseGroups[phase];
+        
+        // Apply sub-grouping if requested
+        if (groupBy === 'none') {
+           return {
+              phase,
+              total: phaseItems.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0), 0),
+              subGroups: [{ key: 'All', title: 'Toutes les Notes', items: phaseItems, subTotal: phaseItems.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0), 0) }]
+           };
+        }
+
+        const subGroupsMap: Record<string, EnrichedPayment[]> = {};
+        phaseItems.forEach(p => {
+           const key = (p as any)[groupBy] || 'Inconnu';
+           if (!subGroupsMap[key]) subGroupsMap[key] = [];
+           subGroupsMap[key].push(p);
+        });
+
+        const subGroups = Object.keys(subGroupsMap).sort().map(key => {
+           const items = subGroupsMap[key];
+           const subTotal = items.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0), 0);
+           return { key, title: key, items, subTotal };
+        });
+
+        return {
+           phase,
+           total: phaseItems.reduce((acc, p) => acc + (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + (p.loading_cost || 0) + (p.unloading_cost || 0), 0),
+           subGroups
+        };
      });
-  }, [filteredPayments, groupBy]);
+  }, [filteredPayments, groupBy, projects]);
 
-  // Auto-expand groups when grouping changes
-  useEffect(() => {
-     if (groupBy !== 'none') {
-        setActiveGroups(new Set(groupedPayments.map(g => g.key)));
-     }
-  }, [groupedPayments.length, groupBy]);
-
-  const toggleGroup = (key: string) => {
-     const newSet = new Set(activeGroups);
-     if (newSet.has(key)) newSet.delete(key);
-     else newSet.add(key);
-     setActiveGroups(newSet);
-  };
-  
-  const collapseAllGroups = () => {
-    setActiveGroups(new Set());
+  const toggleAccordion = (phase: string) => {
+    const newSet = new Set(activeAccordionPhases);
+    if (newSet.has(phase)) {
+      newSet.delete(phase);
+    } else {
+      newSet.add(phase);
+    }
+    setActiveAccordionPhases(newSet);
   };
 
+  const collapseAllAccordions = () => {
+    setActiveAccordionPhases(new Set());
+  };
 
   return (
     <div className="space-y-6">
@@ -300,7 +295,6 @@ export const Expenses = () => {
           <p className="text-muted-foreground text-sm">Gestion des dépenses liées aux livraisons (Carburant, Frais de route, Manutention...)</p>
         </div>
 
-        {/* Total Display Widget */}
         <div className="bg-primary/5 px-5 py-2 rounded-xl border border-primary/20 flex items-center gap-4 shadow-sm animate-in fade-in">
            <div className="text-right">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Filtré</p>
@@ -314,7 +308,6 @@ export const Expenses = () => {
 
       {/* FILTER & GROUPING TOOLBAR */}
       <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col gap-4">
-         {/* Top Row: Search + Phase Filter */}
          <div className="flex flex-col md:flex-row gap-4 items-center border-b border-border/50 pb-4">
             <div className="relative flex-1 w-full">
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
@@ -372,9 +365,7 @@ export const Expenses = () => {
             </div>
          </div>
 
-         {/* Middle Row: Grouping + Collapse */}
          <div className="flex flex-col md:flex-row gap-4 justify-between items-center border-b border-border/50 pb-4">
-            {/* Grouping */}
             <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
                <span className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1 whitespace-nowrap">
                   <Layers size={14} /> Grouper par:
@@ -382,12 +373,12 @@ export const Expenses = () => {
                <button onClick={() => setGroupBy('truck_plate')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors ${groupBy === 'truck_plate' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted border-border'}`}>Camion</button>
                <button onClick={() => setGroupBy('commune_name')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors ${groupBy === 'commune_name' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted border-border'}`}>Commune</button>
                <button onClick={() => setGroupBy('region_name')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors ${groupBy === 'region_name' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted border-border'}`}>Région</button>
-               {groupBy !== 'none' && (
+               {(groupBy !== 'none' || activeAccordionPhases.size > 0) && (
                   <>
-                    <button onClick={() => setGroupBy('none')} className="p-1.5 text-muted-foreground hover:text-foreground" title="Dégrouper"><X size={14} /></button>
+                    {groupBy !== 'none' && <button onClick={() => setGroupBy('none')} className="p-1.5 text-muted-foreground hover:text-foreground" title="Dégrouper"><X size={14} /></button>}
                     <div className="w-px h-6 bg-border mx-1"></div>
                     <button 
-                      onClick={collapseAllGroups} 
+                      onClick={collapseAllAccordions} 
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-card hover:bg-muted text-muted-foreground transition-colors"
                       title="Fermer tous les groupes"
                     >
@@ -398,9 +389,7 @@ export const Expenses = () => {
             </div>
          </div>
 
-         {/* Bottom Row: Date + Range Slider */}
          <div className="flex flex-col md:flex-row gap-6 items-end md:items-center">
-            {/* Date Picker */}
             <div className="relative w-full md:w-auto shrink-0">
                <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                   <Calendar size={16} className="text-muted-foreground" />
@@ -425,7 +414,6 @@ export const Expenses = () => {
                )}
             </div>
 
-            {/* FlyonUI Range Slider */}
             <div className="flex-1 w-full min-w-[200px]">
                <div className="flex justify-between mb-1">
                   <label className="text-xs font-semibold text-muted-foreground uppercase">Montant Minimum</label>
@@ -452,43 +440,44 @@ export const Expenses = () => {
          </div>
       </div>
 
-      {/* Grouped Content */}
-      <div className="flex flex-col gap-4">
-         {groupedPayments.length === 0 && (
+      {/* Grouped Content - Accordion Style */}
+      <div className="accordion flex flex-col gap-4 min-h-[400px]">
+         {groupedByPhase.length === 0 && (
             <div className="p-12 text-center text-muted-foreground bg-card rounded-xl border border-border">
                Aucune note de frais trouvée.
             </div>
          )}
 
-         {groupedPayments.map((group) => {
-            const isOpen = groupBy === 'none' ? true : activeGroups.has(group.key);
+         {groupedByPhase.map((projectGroup) => {
+            const isOpen = activeAccordionPhases.has(projectGroup.phase);
             
             return (
-               <div key={group.key} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                  {/* Group Header (Only if grouped) */}
-                  {groupBy !== 'none' && (
-                     <button 
-                        onClick={() => toggleGroup(group.key)}
-                        className="w-full flex items-center justify-between p-4 bg-muted/20 hover:bg-muted/40 transition-colors border-b border-border"
-                     >
-                        <div className="flex items-center gap-3">
-                           <ChevronRight size={18} className={`text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
-                           <span className="font-bold text-foreground flex items-center gap-2">
-                              {groupBy === 'truck_plate' && <Truck size={16} />}
-                              {groupBy === 'commune_name' && <MapPin size={16} />}
-                              {groupBy === 'region_name' && <MapPin size={16} />}
-                              {group.title}
-                           </span>
-                           <span className="text-xs bg-muted px-2 py-0.5 rounded text-muted-foreground">{group.items.length}</span>
-                        </div>
-                        <div className="font-mono font-bold text-primary">
-                           {group.total.toLocaleString()} FCFA
-                        </div>
-                     </button>
-                  )}
+               <div key={projectGroup.phase} className="accordion-item shadow-sm transition-all duration-200">
+                  <button 
+                    onClick={() => toggleAccordion(projectGroup.phase)}
+                    className="accordion-toggle bg-card hover:bg-muted/30 transition-colors"
+                    aria-expanded={isOpen}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90 text-primary' : 'text-muted-foreground'}`}>
+                        <ChevronRight size={20} />
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-lg font-bold text-foreground">{projectGroup.phase}</span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                           {projectGroup.subGroups.reduce((acc, sub) => acc + sub.items.length, 0)} Notes de Frais
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 mr-4">
+                       <div className="text-right hidden sm:block">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Total Phase</p>
+                          <p className="font-mono font-bold text-primary text-base">{projectGroup.total.toLocaleString()} FCFA</p>
+                       </div>
+                    </div>
+                  </button>
 
-                  {/* List Content */}
-                  <div className={`${!isOpen ? 'hidden' : 'block'}`}>
+                  <div className={`accordion-content ${!isOpen ? 'hidden' : ''}`}>
                      <div className="w-full overflow-x-auto">
                         <table className="table table-striped">
                            <thead className="bg-primary/5 border-b border-primary/10">
@@ -505,61 +494,83 @@ export const Expenses = () => {
                               </tr>
                            </thead>
                            <tbody>
-                              {group.items.map(p => {
-                                 const manutention = (p.loading_cost || 0) + (p.unloading_cost || 0);
-                                 const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + manutention;
-                                 return (
-                                    <tr key={p.id} className="hover:bg-muted/30">
-                                       <td className="px-4 py-3">
-                                          <div className="flex items-center gap-2">
-                                             <Receipt size={16} className="text-primary/70" />
-                                             <span className="font-mono font-bold text-sm text-foreground">{p.bl_number}</span>
-                                          </div>
-                                          <div className="text-xs text-muted-foreground mt-1 ml-6">
-                                             {p.delivery_date ? new Date(p.delivery_date).toLocaleDateString() : '-'}
-                                          </div>
-                                       </td>
-                                       <td className="px-4 py-3">
-                                          <div className="font-semibold text-sm text-foreground flex items-center gap-2">
-                                             {p.truck_plate}
-                                             {p.truck_owner_type && <span className="text-[9px] bg-blue-100 text-blue-700 px-1 rounded border border-blue-200">WAB</span>}
-                                          </div>
-                                          <div className="text-xs text-muted-foreground">{p.driver_name || 'Chauffeur inconnu'}</div>
-                                       </td>
-                                       <td className="px-4 py-3">
-                                          <div className="text-sm text-foreground">{p.commune_name}</div>
-                                          <div className="text-xs text-muted-foreground">{p.region_name}</div>
-                                       </td>
-                                       <td className="px-4 py-3 text-right font-mono text-sm">
-                                          <div className="text-foreground font-medium">{p.fuel_cost.toLocaleString()}</div>
-                                          {p.fuel_quantity > 0 && <div className="text-[10px] text-muted-foreground">{p.fuel_quantity} L</div>}
-                                       </td>
-                                       <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
-                                          {(p.road_fees + p.overweigh_fees + p.personal_fees).toLocaleString()}
-                                       </td>
-                                       <td className="px-4 py-3 text-right font-mono text-sm text-purple-600 font-medium">
-                                          {manutention.toLocaleString()}
-                                       </td>
-                                       <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
-                                          {p.other_fees.toLocaleString()}
-                                       </td>
-                                       <td className="px-4 py-3 text-right font-bold font-mono text-primary">
-                                          {total.toLocaleString()} F
-                                       </td>
-                                       <td className="px-4 py-3 text-right">
-                                          <div className="flex justify-end gap-1">
-                                             <button 
-                                                onClick={() => handleOpenModal(p)} 
-                                                className="btn btn-circle btn-text btn-sm text-blue-600"
-                                                title="Modifier"
-                                             >
-                                                <Edit2 size={16} />
-                                             </button>
-                                          </div>
-                                       </td>
-                                    </tr>
-                                 );
-                              })}
+                              {projectGroup.subGroups.map((subGroup) => (
+                                 <Fragment key={subGroup.key}>
+                                    {groupBy !== 'none' && (
+                                       <tr className="bg-muted/30">
+                                          <td colSpan={9} className="px-6 py-2 text-xs font-bold uppercase text-foreground border-b border-border/50">
+                                             <div className="flex justify-between items-center">
+                                                <span className="flex items-center gap-2">
+                                                   {groupBy === 'truck_plate' && <Truck size={14} />}
+                                                   {groupBy === 'commune_name' && <MapPin size={14} />}
+                                                   {groupBy === 'region_name' && <MapPin size={14} />}
+                                                   {subGroup.title}
+                                                </span>
+                                                <span className="font-mono text-primary bg-primary/10 px-2 py-0.5 rounded text-[10px]">
+                                                   Sous-Total: {subGroup.subTotal.toLocaleString()} F
+                                                </span>
+                                             </div>
+                                          </td>
+                                       </tr>
+                                    )}
+
+                                    {subGroup.items.map(p => {
+                                       const manutention = (p.loading_cost || 0) + (p.unloading_cost || 0);
+                                       const total = (p.fuel_cost || 0) + (p.road_fees || 0) + (p.personal_fees || 0) + (p.other_fees || 0) + (p.overweigh_fees || 0) + manutention;
+                                       return (
+                                          <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                                             <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                   <Receipt size={16} className="text-primary/70" />
+                                                   <span className="font-mono font-bold text-sm text-foreground">{p.bl_number}</span>
+                                                </div>
+                                                <div className="text-xs text-muted-foreground mt-1 ml-6">
+                                                   {p.delivery_date ? new Date(p.delivery_date).toLocaleDateString() : '-'}
+                                                </div>
+                                             </td>
+                                             <td className="px-4 py-3">
+                                                <div className="font-semibold text-sm text-foreground flex items-center gap-2">
+                                                   {p.truck_plate}
+                                                   {p.truck_owner_type && <span className="text-[9px] bg-blue-100 text-blue-700 px-1 rounded border border-blue-200">WAB</span>}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">{p.driver_name || 'Chauffeur inconnu'}</div>
+                                             </td>
+                                             <td className="px-4 py-3">
+                                                <div className="text-sm text-foreground">{p.commune_name}</div>
+                                                <div className="text-xs text-muted-foreground">{p.region_name}</div>
+                                             </td>
+                                             <td className="px-4 py-3 text-right font-mono text-sm">
+                                                <div className="text-foreground font-medium">{p.fuel_cost.toLocaleString()}</div>
+                                                {p.fuel_quantity > 0 && <div className="text-[10px] text-muted-foreground">{p.fuel_quantity} L</div>}
+                                             </td>
+                                             <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
+                                                {(p.road_fees + p.overweigh_fees + p.personal_fees).toLocaleString()}
+                                             </td>
+                                             <td className="px-4 py-3 text-right font-mono text-sm text-purple-600 font-medium">
+                                                {manutention.toLocaleString()}
+                                             </td>
+                                             <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
+                                                {p.other_fees.toLocaleString()}
+                                             </td>
+                                             <td className="px-4 py-3 text-right font-bold font-mono text-primary">
+                                                {total.toLocaleString()} F
+                                             </td>
+                                             <td className="px-4 py-3 text-right">
+                                                <div className="flex justify-end gap-1">
+                                                   <button 
+                                                      onClick={() => handleOpenModal(p)} 
+                                                      className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50"
+                                                      title="Modifier"
+                                                   >
+                                                      <Edit2 size={16} />
+                                                   </button>
+                                                </div>
+                                             </td>
+                                          </tr>
+                                       );
+                                    })}
+                                 </Fragment>
+                              ))}
                            </tbody>
                         </table>
                      </div>
@@ -578,8 +589,6 @@ export const Expenses = () => {
             </div>
             
             <form onSubmit={handleSave} className="p-6 space-y-6">
-               
-               {/* Header Selection Info */}
                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                      <label className="block text-sm font-medium text-foreground">Livraison (BL)</label>
@@ -613,7 +622,6 @@ export const Expenses = () => {
                   </div>
                </div>
 
-                {/* Ownership Display */}
                 {selectedDeliveryForModal && (
                   <div className="p-3 bg-muted/30 rounded-lg border border-border">
                      <div className="flex items-center justify-between">
@@ -636,8 +644,6 @@ export const Expenses = () => {
                 )}
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* SECTION 1: CARBURANT (Fuel) - Amber */}
                   <div className={`space-y-4 p-4 rounded-xl border border-amber-100 bg-amber-50/50 dark:bg-amber-900/10 ${!isInternalTruck ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                      <div className="flex justify-between items-center border-b border-amber-200/50 pb-2 mb-2">
                         <h4 className="font-bold text-sm flex items-center gap-2 text-amber-700 dark:text-amber-500">
@@ -685,7 +691,6 @@ export const Expenses = () => {
                      </div>
                   </div>
 
-                  {/* SECTION 2: FRAIS DE ROUTE (Road) - Blue */}
                   <div className={`space-y-4 p-4 rounded-xl border border-blue-100 bg-blue-50/50 dark:bg-blue-900/10 ${!isInternalTruck ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                      <div className="flex justify-between items-center border-b border-blue-200/50 pb-2 mb-2">
                         <h4 className="font-bold text-sm flex items-center gap-2 text-blue-700 dark:text-blue-500">
@@ -726,7 +731,6 @@ export const Expenses = () => {
                      </div>
                   </div>
 
-                  {/* SECTION 3: MANUTENTION (Handling) - Purple - ENABLED FOR ALL */}
                   <div className="space-y-4 p-4 rounded-xl border border-purple-100 bg-purple-50/50 dark:bg-purple-900/10">
                      <div className="flex justify-between items-center border-b border-purple-200/50 pb-2 mb-2">
                         <h4 className="font-bold text-sm flex items-center gap-2 text-purple-700 dark:text-purple-500">
@@ -760,7 +764,6 @@ export const Expenses = () => {
                      </div>
                   </div>
 
-                  {/* SECTION 4: AUTRES (Other) - Slate - Enabled for Internal */}
                   <div className={`space-y-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50 dark:bg-slate-800/50 ${!isInternalTruck ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                      <div className="flex justify-between items-center border-b border-slate-200/50 pb-2 mb-2">
                         <h4 className="font-bold text-sm flex items-center gap-2 text-slate-700 dark:text-slate-400">

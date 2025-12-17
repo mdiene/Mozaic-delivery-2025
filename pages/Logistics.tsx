@@ -26,7 +26,7 @@ export const Logistics = () => {
   // Grouping State
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   
-  // Accordion State
+  // Accordion State - Empty by default (closed)
   const [activeAccordionPhases, setActiveAccordionPhases] = useState<Set<string>>(new Set());
 
   // Modal State
@@ -65,11 +65,7 @@ export const Logistics = () => {
     const init = async () => {
       const { allocations: loadedAllocations, projects: loadedProjects, trucks: loadedTrucks } = await fetchData();
       
-      // Auto-select Phase 3 if available
-      const phase3 = loadedProjects.find(p => p.numero_phase === 3);
-      if (phase3) {
-        setMainPhaseFilter(phase3.id);
-      }
+      // Removed auto-selection of Phase 3 to start without filtering the phase
 
       // Check URL params for auto-open action
       const params = new URLSearchParams(location.search);
@@ -106,13 +102,7 @@ export const Logistics = () => {
     init();
   }, [location.search]);
 
-  // Expand all phases by default when data loads
-  useEffect(() => {
-     if (deliveries.length > 0) {
-        const phases = new Set(deliveries.map(d => d.project_phase || 'Phase Non Assignée'));
-        setActiveAccordionPhases(phases);
-     }
-  }, [deliveries]);
+  // Removed useEffect that expanded all phases by default to keep them closed
 
   const toggleAccordion = (phase: string) => {
     const newSet = new Set(activeAccordionPhases);

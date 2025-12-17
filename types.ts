@@ -146,12 +146,19 @@ export interface EnrichedPayment extends Payment {
 }
 
 export interface UserPreference {
+  id?: string;
+  user_id?: string;
   user_email: string;
   theme_mode: 'light' | 'dark';
   theme_color: string;
+  theme_name?: string;
   sidebar_pinned: boolean;
   language: string;
+  created_at?: string;
   updated_at?: string;
+  user_right_level: number; // 3: Admin, 2: Manager, 1: Driver
+  user_pswd?: string;
+  user_statut?: boolean;
 }
 
 export type NetworkHierarchy = Array<{

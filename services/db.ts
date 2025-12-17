@@ -60,13 +60,6 @@ export const db = {
   },
 
   getAllocationsView: async (): Promise<AllocationView[]> => {
-    // Note: 'allocations_view' in supabase logic usually aggregates delivered_tonnage
-    // Here we simulate it or fetch if view exists. Assuming table 'allocations' plus manual aggregation if needed or View.
-    // For simplicity, let's assume we fetch allocations and compute delivered from deliveries or it's a view.
-    // If using real backend, usually `create view allocations_view as ...`
-    // We will simulate the join logic here if we can't ensure the view exists.
-    
-    // Fetch raw allocations
     const { data: allocs, error: allocError } = await supabase.from('allocations').select(`
       *,
       project:project_id(numero_phase, numero_marche),
@@ -78,7 +71,6 @@ export const db = {
 
     if (allocError) return [];
 
-    // Fetch deliveries to aggregate
     const { data: dels } = await supabase.from('deliveries').select('allocation_id, tonnage_loaded');
     
     const deliveryMap: Record<string, number> = {};
@@ -90,7 +82,7 @@ export const db = {
 
     return allocs.map((a: any) => {
        const delivered = deliveryMap[a.id] || 0;
-       const target = a.target_tonnage || 1; // avoid div by 0
+       const target = a.target_tonnage || 1; 
        const progress = (delivered / target) * 100;
        const proj = a.project;
        const phaseStr = proj ? `Phase ${proj.numero_phase}` : 'N/A';
@@ -122,14 +114,11 @@ export const db = {
            .reduce((sum: number, a: any) => sum + Number(a.target_tonnage), 0);
      }
      
-     // Active trucks: Now counting AVAILABLE trucks as requested
      const { count: truckCount } = await supabase
         .from('trucks')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'AVAILABLE');
      
-     // Calculate Fees
-     // We join deliveries -> allocations to filter by project_id
      let feesQuery = supabase.from('payments').select(`
         road_fees, 
         personal_fees, 
@@ -175,11 +164,9 @@ export const db = {
   },
 
   getChartData: async (projectId: string) => {
-     // Return regions completion
      const allocsView = await db.getAllocationsView();
      const filtered = projectId === 'all' ? allocsView : allocsView.filter(a => a.project_id === projectId);
      
-     // Group by Region
      const groups: Record<string, { planned: number, delivered: number }> = {};
      filtered.forEach(a => {
         if (!groups[a.region_name]) groups[a.region_name] = { planned: 0, delivered: 0 };
@@ -210,9 +197,6 @@ export const db = {
   },
 
   getOperators: async (): Promise<Operator[]> => {
-    // Join with allocations -> project to deduce project name if needed, or if project_id is on operator
-    // Schema suggests operator might be linked to project, or just allocations are.
-    // Based on types.ts, operator has optional project_id.
     const { data } = await supabase.from('operators').select(`
        *,
        project:projet_id(numero_phase)
@@ -222,14 +206,12 @@ export const db = {
        ...op,
        project_id: op.projet_id,
        project_name: op.project ? `Phase ${op.project.numero_phase}` : '-',
-       // Map DB columns to Frontend Types
        is_coop: op.operateur_coop_gie,
        phone: op.contact_info
     }));
   },
 
   getTrucks: async (): Promise<Truck[]> => {
-    // Fetch trucks
     const { data: trucks, error } = await supabase.from('trucks').select('*');
     
     if (error) {
@@ -237,7 +219,6 @@ export const db = {
       return [];
     }
 
-    // Fetch drivers who have a truck assigned to map them to trucks
     const { data: drivers } = await supabase.from('drivers').select('id, name, truck_id').not('truck_id', 'is', null);
     
     const truckDriverMap: Record<string, {id: string, name: string}> = {};
@@ -253,7 +234,6 @@ export const db = {
   },
 
   getDrivers: async (): Promise<Driver[]> => {
-     // Fetch drivers and join their assigned truck info
      const { data, error } = await supabase.from('drivers').select('*, trucks:truck_id(plate_number)');
      
      if (error) {
@@ -268,7 +248,6 @@ export const db = {
   },
 
   getProjects: async (): Promise<Project[]> => {
-    // We also need total_delivered for the table in Settings
     const { data: projects } = await supabase.from('project').select('*');
     if (!projects) return [];
     
@@ -345,10 +324,7 @@ export const db = {
   },
 
   updateTruckDriverAssignment: async (truckId: string, driverId: string | null) => {
-    // 1. Unassign this truck from any driver currently having it (to enforce 1-1 active assignment)
     await supabase.from('drivers').update({ truck_id: null }).eq('truck_id', truckId);
-    
-    // 2. Assign to new driver if provided
     if (driverId) {
        await supabase.from('drivers').update({ truck_id: truckId }).eq('id', driverId);
     }
@@ -401,7 +377,6 @@ export const db = {
        c.delivered += a.delivered_tonnage;
     });
 
-    // Attach active deliveries
     filteredDeliveries.forEach(del => {
        Object.values(regionsMap).forEach((r: any) => {
           if (r.name === del.region_name) {
@@ -433,12 +408,10 @@ export const db = {
   },
 
   getGlobalHierarchy: async (projectId: string): Promise<GlobalHierarchy> => {
-     // Similar to NetworkHierarchy but with Operators and Allocations
      const allocs = await db.getAllocationsView();
      const filteredAllocs = projectId === 'all' ? allocs : allocs.filter(a => a.project_id === projectId);
      const deliveries = await db.getDeliveriesView();
      
-     // Build tree: Region -> Dept -> Commune -> Operator -> Allocation -> Delivery
      const tree: Record<string, any> = {};
 
      filteredAllocs.forEach(a => {
@@ -451,7 +424,7 @@ export const db = {
         if (!d.communes[a.commune_id]) d.communes[a.commune_id] = { id: a.commune_id, name: a.commune_name, operators: {} };
         const c = d.communes[a.commune_id];
 
-        if (!c.operators[a.operator_id]) c.operators[a.operator_id] = { id: a.operator_id, name: a.operator_name, is_coop: false, allocations: {} }; // We'd need to fetch is_coop properly
+        if (!c.operators[a.operator_id]) c.operators[a.operator_id] = { id: a.operator_id, name: a.operator_name, is_coop: false, allocations: {} }; 
         const o = c.operators[a.operator_id];
 
         if (!o.allocations[a.id]) {
@@ -465,7 +438,6 @@ export const db = {
         }
      });
 
-     // Populate Deliveries
      const allocMap: Record<string, any> = {};
      Object.values(tree).forEach((r: any) => 
         Object.values(r.departments).forEach((d: any) => 
@@ -492,7 +464,6 @@ export const db = {
         }
      });
 
-     // Convert to arrays
      return Object.values(tree).map((r: any) => ({
         ...r,
         departments: Object.values(r.departments).map((d: any) => ({
@@ -510,7 +481,6 @@ export const db = {
 
   getBonLivraisonViews: async (): Promise<BonLivraisonView[]> => {
     const dels = await db.getDeliveriesView();
-    // Need more details like project bon number, operator contact info, etc.
     const { data: projects } = await supabase.from('project').select('*');
     const projectMap: Record<string, any> = {};
     projects?.forEach((p: any) => projectMap[p.id] = p);
@@ -519,7 +489,6 @@ export const db = {
     const opMap: Record<string, any> = {};
     operators?.forEach((o: any) => opMap[o.id] = o);
     
-    // Also fetch trucks for trailer number
     const { data: trucks } = await supabase.from('trucks').select('*');
     const truckMap: Record<string, any> = {};
     trucks?.forEach((t: any) => truckMap[t.id] = t);
@@ -535,7 +504,7 @@ export const db = {
           commune: d.commune_name,
           project_num_bon: proj?.numero_bon_disposition || 'N/A',
           numero_phase: proj?.numero_phase || 0,
-          operator_contact_info: op?.contact_info || '', // Correctly fetched from DB
+          operator_contact_info: op?.contact_info || '', 
           operator_coop_name: op?.coop_name,
           truck_plate_number: d.truck_plate,
           truck_trailer_number: d.truck_id ? truckMap[d.truck_id]?.trailer_number : ''
@@ -545,9 +514,6 @@ export const db = {
 
   getFinDeCessionViews: async (): Promise<FinDeCessionView[]> => {
      const allocs = await db.getAllocationsView();
-     // Group by operator and project phase
-     // This view is usually per operator per phase
-     
      const map: Record<string, FinDeCessionView> = {};
      
      allocs.forEach(a => {
@@ -564,13 +530,9 @@ export const db = {
               total_tonnage: 0
            };
         }
-        // Allocations view aggregates tonnage already? 
-        // Ideally we sum from deliveries. 
-        // For 'Fin de cession' we usually sum up actual delivered tonnage.
         map[key].total_tonnage += a.delivered_tonnage;
      });
 
-     // Returning aggregated map
      return Object.values(map);
   },
 
@@ -579,20 +541,54 @@ export const db = {
       .from('user_preferences')
       .select('*')
       .eq('user_email', email)
-      .single();
+      .maybeSingle();
     
-    if (error && error.code !== 'PGRST116') { // PGRST116 is 'Row not found'
+    if (error) {
        safeLog('Error fetching preferences:', error);
     }
     return data;
   },
 
+  authenticateUser: async (email: string, pswd: string): Promise<UserPreference | null> => {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_email', email)
+      .eq('user_pswd', pswd)
+      .maybeSingle();
+
+    if (error) {
+      safeLog('Auth error:', error);
+      return null;
+    }
+    return data;
+  },
+
+  createUserAccount: async (payload: Partial<UserPreference>): Promise<UserPreference | null> => {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .insert([{
+        ...payload,
+        user_id: crypto.randomUUID(), // Mock user_id for the FK constraint in this sandbox env
+        user_statut: false, // Default status is false (pending validation)
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      safeLog('Create user error:', error);
+      throw error;
+    }
+    return data;
+  },
+
   saveUserPreferences: async (email: string, prefs: Partial<UserPreference>) => {
-    // Upsert needs all primary key columns.
-    const payload = { ...prefs, user_email: email, updated_at: new Date().toISOString() };
     const { error } = await supabase
       .from('user_preferences')
-      .upsert(payload, { onConflict: 'user_email' });
+      .update({ ...prefs, updated_at: new Date().toISOString() })
+      .eq('user_email', email);
     
     if (error) safeLog('Error saving preferences:', error);
   }

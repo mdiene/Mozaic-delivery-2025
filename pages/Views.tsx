@@ -6,13 +6,19 @@ import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Pac
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Views = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const isManager = user?.role === 'MANAGER';
+
   // Get active tab from URL or default to 'bon_livraison'
-  const activeTab = (searchParams.get('tab') as 'bon_livraison' | 'fin_cession') || 'bon_livraison';
+  // If Manager, strictly force 'bon_livraison'
+  const activeTab = isManager ? 'bon_livraison' : (searchParams.get('tab') as 'bon_livraison' | 'fin_cession') || 'bon_livraison';
   
   const setActiveTab = (tab: 'bon_livraison' | 'fin_cession') => {
+    if (isManager && tab === 'fin_cession') return;
     setSearchParams({ tab });
   };
 
@@ -84,14 +90,14 @@ export const Views = () => {
         // Default sort: Latest to Earliest
         data.sort((a, b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime());
         setBlData(data);
-      } else if (activeTab === 'fin_cession') {
+      } else if (activeTab === 'fin_cession' && !isManager) {
         const data = await db.getFinDeCessionViews();
         setFcData(data);
       }
       setLoading(false);
     };
     loadData();
-  }, [activeTab]);
+  }, [activeTab, isManager]);
 
   // Filter Logic
   const filteredBlData = useMemo(() => {
@@ -629,6 +635,22 @@ export const Views = () => {
           </h1>
           <p className="text-muted-foreground text-sm">Consulter les données consolidées des projets.</p>
         </div>
+        {!isManager && (
+           <div className="flex gap-2 bg-muted p-1 rounded-lg">
+              <button 
+                 onClick={() => setActiveTab('bon_livraison')}
+                 className={`px-4 py-2 text-xs font-bold rounded-md transition-all ${activeTab === 'bon_livraison' ? 'bg-white shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                 Bon de Livraison
+              </button>
+              <button 
+                 onClick={() => setActiveTab('fin_cession')}
+                 className={`px-4 py-2 text-xs font-bold rounded-md transition-all ${activeTab === 'fin_cession' ? 'bg-white shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                 Fin de Cession
+              </button>
+           </div>
+        )}
       </div>
 
       {/* Filter Bar */}
@@ -807,7 +829,7 @@ export const Views = () => {
             </>
           )}
 
-          {activeTab === 'fin_cession' && (
+          {activeTab === 'fin_cession' && !isManager && (
              <>
                {/* Toolbar FC */}
                <div className="p-4 border-b border-border flex justify-end">
