@@ -108,6 +108,7 @@ export interface Delivery {
 export interface DeliveryView extends Delivery {
   operator_name: string;
   region_name: string;
+  department_name?: string;
   commune_name: string;
   project_phase: string;
   truck_plate: string;

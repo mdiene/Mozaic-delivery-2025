@@ -20,9 +20,11 @@ export const db = {
         allocations:allocation_id (
           operator_id,
           region_id,
+          department_id,
           project_id,
           operators(name),
           regions(name),
+          departments(name),
           communes(name),
           project:project_id(numero_phase, numero_marche)
         )
@@ -46,6 +48,7 @@ export const db = {
         operator_name: alloc?.operators?.name || 'Unknown',
         operator_id: alloc?.operator_id,
         region_name: alloc?.regions?.name || 'Unknown',
+        department_name: alloc?.departments?.name || 'Unknown',
         commune_name: alloc?.communes?.name || 'Unknown',
         project_phase: phaseStr,
         truck_plate: del.trucks?.plate_number || 'Unknown',
@@ -528,7 +531,7 @@ export const db = {
        return {
           ...d,
           region: d.region_name,
-          department: 'Unknown', // DeliveryView only has region/commune? Update DeliveryView to have Dept.
+          department: d.department_name || 'Unknown',
           commune: d.commune_name,
           project_num_bon: proj?.numero_bon_disposition || 'N/A',
           numero_phase: proj?.numero_phase || 0,
