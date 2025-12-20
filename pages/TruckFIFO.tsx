@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/db';
 import { Truck, DeliveryView } from '../types';
-import { ScanBarcode, Truck as TruckIcon, Clock, ArrowRight, User, Search, RefreshCw, X, Camera, MapPin, Calendar, Printer, CheckCircle, Navigation, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ScanBarcode, Truck as TruckIcon, Clock, ArrowRight, User, RefreshCw, X, Camera, Calendar, ShieldAlert, ShieldCheck, AlertCircle } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '../contexts/AuthContext';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
@@ -26,14 +26,13 @@ export const TruckFIFO = () => {
   const navigate = useNavigate();
   
   const [trucks, setTrucks] = useState<Truck[]>([]);
-  const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
-  
   const [onSiteTrucks, setOnSiteTrucks] = useState<Truck[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [selectedTruckId, setSelectedTruckId] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [lastScannedTruck, setLastScannedTruck] = useState<Truck | null>(null);
+  const [scanError, setScanError] = useState('');
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   const isDriver = user?.role === 'DRIVER';
@@ -41,14 +40,8 @@ export const TruckFIFO = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [allTrucks, allDeliveries] = await Promise.all([
-         db.getTrucks(),
-         db.getDeliveriesView()
-      ]);
-      
+      const allTrucks = await db.getTrucks();
       setTrucks(allTrucks);
-      setDeliveries(allDeliveries);
-      
       processLists(allTrucks);
     } catch (e) {
       console.error(e);
@@ -91,8 +84,9 @@ export const TruckFIFO = () => {
     if (truck) {
       await enterTruckToQueue(truck);
       setSelectedTruckId('');
+      setScanError('');
     } else {
-      alert(`Camion non trouvé.`);
+      setScanError('Camion non trouvé.');
     }
   };
 
@@ -110,8 +104,9 @@ export const TruckFIFO = () => {
       setTrucks(newTrucksList);
       processLists(newTrucksList);
       setLastScannedTruck(updatedTruck);
+      setScanError('');
       
-      if (isScannerOpen) setIsScannerOpen(false);
+      if (isScannerOpen) stopScanner();
       
     } catch (e) {
       console.error(e);
@@ -120,10 +115,22 @@ export const TruckFIFO = () => {
   };
 
   const startScanner = () => {
+    setScanError('');
     setIsScannerOpen(true);
     setTimeout(() => {
       if (!scannerRef.current) {
-        const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
+        // We use facingMode: "environment" to force back camera
+        const scanner = new Html5QrcodeScanner(
+          "reader", 
+          { 
+            fps: 10, 
+            qrbox: 250,
+            videoConstraints: {
+              facingMode: { exact: "environment" }
+            }
+          }, 
+          /* verbose= */ false
+        );
         scanner.render(onScanSuccess, onScanFailure);
         scannerRef.current = scanner;
       }
@@ -139,11 +146,7 @@ export const TruckFIFO = () => {
   };
 
   const onScanSuccess = (decodedText: string) => {
-    if (scannerRef.current) {
-        scannerRef.current.clear();
-        scannerRef.current = null;
-    }
-    setIsScannerOpen(false);
+    setScanError('');
     
     let truckId = '';
     let plateNumber = '';
@@ -155,15 +158,22 @@ export const TruckFIFO = () => {
        plateNumber = decodedText.trim().toUpperCase();
     }
 
+    // Find truck in the AVAILABLE pool or general list
     const truck = trucks.find(t => t.id === truckId || t.plate_number === plateNumber);
+    
     if (truck) {
-        enterTruckToQueue(truck);
+        // Selection Logic: Update the dropdown and close scanner
+        setSelectedTruckId(truck.id);
+        stopScanner();
     } else {
-        alert("Camion non trouvé dans la base de données.");
+        // Error Logic: Keep scanner open but show error
+        setScanError(`Le camion "${plateNumber || 'scanné'}" n'est pas reconnu dans la base.`);
     }
   };
 
-  const onScanFailure = (error: any) => {};
+  const onScanFailure = (error: any) => {
+    // Usually we don't want to show constant failures (focus issues etc)
+  };
 
   const handleDispatch = (truck: Truck) => {
     navigate(`/logistics/dispatch?action=new&truckId=${truck.id}`);
@@ -184,7 +194,7 @@ export const TruckFIFO = () => {
   // Memoized options for searchable select
   const truckOptions: Option[] = useMemo(() => {
     return trucks
-      .filter(t => t.status === 'AVAILABLE') // Only show trucks that can actually enter the queue
+      .filter(t => t.status === 'AVAILABLE' || t.id === selectedTruckId) 
       .map(t => ({
         value: t.id,
         label: t.plate_number,
@@ -195,7 +205,7 @@ export const TruckFIFO = () => {
            </span>
         ) : null
       }));
-  }, [trucks]);
+  }, [trucks, selectedTruckId]);
 
   return (
     <div className={`space-y-6 ${isDriver ? 'max-w-md mx-auto pb-20' : ''}`}>
@@ -230,10 +240,19 @@ export const TruckFIFO = () => {
                        <AdvancedSelect 
                           options={truckOptions}
                           value={selectedTruckId}
-                          onChange={setSelectedTruckId}
+                          onChange={(val) => {
+                            setSelectedTruckId(val);
+                            setScanError('');
+                          }}
                           placeholder="Rechercher immatriculation..."
                           className="shadow-soft-sm"
                        />
+                       {scanError && (
+                          <div className="flex items-center gap-1.5 text-destructive mt-2 animate-in fade-in slide-in-from-top-1">
+                             <AlertCircle size={14} />
+                             <span className="text-xs font-bold">{scanError}</span>
+                          </div>
+                       )}
                     </div>
                     
                     <button 
@@ -258,7 +277,13 @@ export const TruckFIFO = () => {
                  </div>
               ) : (
                  <div className="space-y-4">
-                    <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 shadow-inner"></div>
+                    <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 shadow-inner bg-black min-h-[300px]"></div>
+                    {scanError && (
+                        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-2 text-destructive animate-in shake">
+                           <AlertCircle size={18} />
+                           <span className="text-xs font-bold leading-tight">{scanError}</span>
+                        </div>
+                    )}
                     <button 
                        onClick={stopScanner}
                        className="w-full bg-muted hover:bg-muted/80 text-foreground py-3 rounded-xl font-bold transition-colors"
@@ -270,7 +295,7 @@ export const TruckFIFO = () => {
            </div>
 
            {/* Last Scanned Feedback */}
-           {lastScannedTruck && (
+           {lastScannedTruck && !scanError && (
               <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-5 animate-in fade-in slide-in-from-top-2 shadow-soft-sm">
                  <div className="flex items-start gap-4">
                     <div className="p-3 bg-emerald-100 dark:bg-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-100 shrink-0 shadow-sm">
