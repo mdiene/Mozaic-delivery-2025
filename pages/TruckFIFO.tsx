@@ -3,9 +3,10 @@ import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/db';
 import { Truck, DeliveryView } from '../types';
-import { ScanBarcode, Truck as TruckIcon, Clock, ArrowRight, User, Search, RefreshCw, X, Camera, MapPin, Calendar, Printer, CheckCircle, Navigation, ShieldAlert } from 'lucide-react';
+import { ScanBarcode, Truck as TruckIcon, Clock, ArrowRight, User, Search, RefreshCw, X, Camera, MapPin, Calendar, Printer, CheckCircle, Navigation, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '../contexts/AuthContext';
+import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 
 // Helper for date grouping
 const formatDateGroup = (dateStr?: string) => {
@@ -70,7 +71,7 @@ export const TruckFIFO = () => {
   const [enRouteTrucks, setEnRouteTrucks] = useState<Truck[]>([]);
   
   const [loading, setLoading] = useState(true);
-  const [scanInput, setScanInput] = useState('');
+  const [selectedTruckId, setSelectedTruckId] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [lastScannedTruck, setLastScannedTruck] = useState<Truck | null>(null);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
@@ -138,26 +139,15 @@ export const TruckFIFO = () => {
 
   const handleManualScan = async (e?: FormEvent) => {
     if (e) e.preventDefault();
-    if (!scanInput.trim()) return;
+    if (!selectedTruckId) return;
 
-    let truckId = '';
-    let plateNumber = '';
-
-    try {
-      const data = JSON.parse(scanInput);
-      if (data.id) truckId = data.id;
-      if (data.plate) plateNumber = data.plate;
-    } catch (err) {
-      plateNumber = scanInput.trim().toUpperCase();
-    }
-
-    const truck = trucks.find(t => t.id === truckId || t.plate_number === plateNumber);
+    const truck = trucks.find(t => t.id === selectedTruckId);
 
     if (truck) {
       await enterTruckToQueue(truck);
-      setScanInput('');
+      setSelectedTruckId('');
     } else {
-      alert(`Camion non trouvé: ${scanInput}`);
+      alert(`Camion non trouvé.`);
     }
   };
 
@@ -209,7 +199,6 @@ export const TruckFIFO = () => {
         scannerRef.current = null;
     }
     setIsScannerOpen(false);
-    setScanInput(decodedText);
     
     let truckId = '';
     let plateNumber = '';
@@ -259,6 +248,22 @@ export const TruckFIFO = () => {
      }
   };
 
+  // Memoized options for searchable select
+  const truckOptions: Option[] = useMemo(() => {
+    return trucks
+      .filter(t => t.status === 'AVAILABLE') // Only show trucks that can actually enter the queue
+      .map(t => ({
+        value: t.id,
+        label: t.plate_number,
+        subLabel: t.driver_name || 'Chauffeur non assigné',
+        extraInfo: t.owner_type ? (
+           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[9px] font-black uppercase border border-blue-100">
+              <ShieldCheck size={10} /> Wague AB
+           </span>
+        ) : null
+      }));
+  }, [trucks]);
+
   return (
     <div className={`space-y-6 ${isDriver ? 'max-w-md mx-auto pb-20' : ''}`}>
       {!isDriver && (
@@ -287,21 +292,21 @@ export const TruckFIFO = () => {
               
               {!isScannerOpen ? (
                  <div className="space-y-4">
-                    <form onSubmit={handleManualScan} className="relative">
-                       <input 
-                          autoFocus
-                          type="text" 
-                          placeholder="Saisir immatriculation..."
-                          className="w-full pl-10 pr-4 py-4 rounded-xl border border-input bg-background focus:ring-1 focus:ring-primary outline-none font-mono text-sm uppercase placeholder:normal-case shadow-inner"
-                          value={scanInput}
-                          onChange={(e) => setScanInput(e.target.value)}
+                    <div className="space-y-1.5">
+                       <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest ml-1">Sélectionner Camion</label>
+                       <AdvancedSelect 
+                          options={truckOptions}
+                          value={selectedTruckId}
+                          onChange={setSelectedTruckId}
+                          placeholder="Rechercher immatriculation..."
+                          className="shadow-soft-sm"
                        />
-                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                    </form>
+                    </div>
                     
                     <button 
                        onClick={() => handleManualScan()}
-                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold transition-all shadow-glow active:scale-[0.98]"
+                       disabled={!selectedTruckId}
+                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold transition-all shadow-glow active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                     >
                        Valider Entrée
                     </button>
@@ -315,7 +320,7 @@ export const TruckFIFO = () => {
                        onClick={startScanner}
                        className="w-full border border-border hover:bg-muted text-foreground py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
                     >
-                       <Camera size={20} /> Utiliser la Caméra
+                       <Camera size={20} /> Scanner QR Code
                     </button>
                  </div>
               ) : (
@@ -424,6 +429,11 @@ export const TruckFIFO = () => {
                                             <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase border border-emerald-200">
                                                Sur Site
                                             </span>
+                                            {truck.owner_type && (
+                                               <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase border border-blue-200">
+                                                  WAB
+                                               </span>
+                                            )}
                                          </div>
                                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
                                             {truck.driver_name && (
