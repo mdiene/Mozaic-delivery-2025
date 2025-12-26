@@ -38,7 +38,7 @@ const CustomTooltip = ({ active, payload, label, chartType }: any) => {
             <span className="font-bold text-foreground">{data.name}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Livré:</span>
+            <span className="text-muted-foreground">Volume:</span>
             <span className="font-mono font-bold text-primary">{data.value.toLocaleString()} T</span>
           </div>
         </div>
@@ -79,6 +79,7 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
+  const [prodChartType, setProdChartType] = useState<'area' | 'bar' | 'pie'>('area');
   const [isMounted, setIsMounted] = useState(false);
   const [isProdGraphOpen, setIsProdGraphOpen] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -133,6 +134,15 @@ export const Dashboard = () => {
         return ma !== mb ? ma - mb : da - db;
       })
       .slice(-15);
+  }, [productionHistory]);
+
+  const productionByPhaseData = useMemo(() => {
+    const map: Record<string, number> = {};
+    productionHistory.forEach(p => {
+      const phase = p.project_phase || 'Autres';
+      map[phase] = (map[phase] || 0) + Number(p.tonnage || 0);
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [productionHistory]);
 
   if (loading && projects.length === 0) {
@@ -383,41 +393,71 @@ export const Dashboard = () => {
         
         {/* Toggle/Header Bar */}
         <div 
-           onClick={() => !isFullScreen && setIsProdGraphOpen(!isProdGraphOpen)}
-           className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer
+           className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group
              ${isProdGraphOpen || isFullScreen 
                ? 'bg-card border-border shadow-soft-xl' 
                : 'bg-card/50 border-transparent hover:bg-card hover:shadow-soft-sm'
              }`}
         >
-           <div className="flex items-center gap-4">
+           <div className="flex items-center gap-4 cursor-pointer" onClick={() => !isFullScreen && setIsProdGraphOpen(!isProdGraphOpen)}>
               <div className={`p-3 rounded-xl transition-colors ${isProdGraphOpen || isFullScreen ? 'bg-cyan-500/10 text-cyan-600' : 'bg-muted text-muted-foreground'}`}>
                  <Package size={24} />
               </div>
               <div className="text-left">
                  <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">Performance de Production</h3>
-                 <p className="text-sm text-muted-foreground">Tonnage ensaché par jour</p>
+                 <p className="text-sm text-muted-foreground">Tonnage ensaché {prodChartType === 'pie' ? 'par phase' : 'par jour'}</p>
               </div>
            </div>
            
-           <div className="flex items-center gap-2">
-              {(isProdGraphOpen || isFullScreen) && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsFullScreen(!isFullScreen);
-                    if (!isFullScreen) setIsProdGraphOpen(true);
-                  }}
-                  className="p-2 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
-                  title={isFullScreen ? "Réduire" : "Plein écran"}
-                >
-                   {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
-                </button>
-              )}
-              
-              {!isFullScreen && (
-                 isProdGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />
-              )}
+           <div className="flex items-center gap-4">
+              {/* Internal Toggles */}
+              <div className="flex bg-muted p-1 rounded-lg shrink-0">
+                  <button 
+                    onClick={() => setProdChartType('area')}
+                    className={`p-2 rounded-md transition-all ${prodChartType === 'area' ? 'bg-white dark:bg-card shadow-sm text-cyan-600' : 'text-muted-foreground hover:text-foreground'}`}
+                    title="Tendance temporelle"
+                  >
+                    <LineChartIcon size={18} />
+                  </button>
+                  <button 
+                    onClick={() => setProdChartType('bar')}
+                    className={`p-2 rounded-md transition-all ${prodChartType === 'bar' ? 'bg-white dark:bg-card shadow-sm text-cyan-600' : 'text-muted-foreground hover:text-foreground'}`}
+                    title="Histogramme quotidien"
+                  >
+                    <BarChart3 size={18} />
+                  </button>
+                  <button 
+                    onClick={() => setProdChartType('pie')}
+                    className={`p-2 rounded-md transition-all ${prodChartType === 'pie' ? 'bg-white dark:bg-card shadow-sm text-cyan-600' : 'text-muted-foreground hover:text-foreground'}`}
+                    title="Répartition par Phase"
+                  >
+                    <PieChartIcon size={18} />
+                  </button>
+              </div>
+
+              <div className="h-8 w-px bg-border"></div>
+
+              <div className="flex items-center gap-2">
+                {(isProdGraphOpen || isFullScreen) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsFullScreen(!isFullScreen);
+                      if (!isFullScreen) setIsProdGraphOpen(true);
+                    }}
+                    className="p-2 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
+                    title={isFullScreen ? "Réduire" : "Plein écran"}
+                  >
+                    {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                  </button>
+                )}
+                
+                {!isFullScreen && (
+                  <button onClick={() => setIsProdGraphOpen(!isProdGraphOpen)}>
+                    {isProdGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />}
+                  </button>
+                )}
+              </div>
            </div>
         </div>
 
@@ -426,37 +466,86 @@ export const Dashboard = () => {
           <div className={`mt-6 animate-in slide-in-from-top-4 fade-in duration-300 bg-card p-6 rounded-2xl border border-border shadow-soft-xl ${isFullScreen ? 'h-[calc(100vh-140px)]' : 'h-[400px]'}`}>
              {formattedProductionChartData.length > 0 ? (
                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={formattedProductionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="fillProd" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00cccd" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#00cccd" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" opacity={0.6} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={15}
-                      tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }}
-                    />
-                    <YAxis 
-                       tickLine={false} 
-                       axisLine={false} 
-                       tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
-                    />
-                    <Tooltip content={<CustomTooltip chartType="area" />} />
-                    <Area
-                      type="monotone"
-                      dataKey="tonnage"
-                      name="tonnage"
-                      stroke="#00cccd"
-                      strokeWidth={3}
-                      fill="url(#fillProd)"
-                      animationDuration={1500}
-                    />
-                  </AreaChart>
+                  {prodChartType === 'pie' ? (
+                    <PieChart>
+                      <Pie
+                        data={productionByPhaseData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={isFullScreen ? 100 : 70}
+                        outerRadius={isFullScreen ? 140 : 100}
+                        paddingAngle={5}
+                        dataKey="value"
+                        nameKey="name"
+                        stroke="none"
+                        cornerRadius={4}
+                      >
+                        {productionByPhaseData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={COLORS[index % COLORS.length]} 
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip chartType="pie" />} cursor={{fill: 'transparent'}} />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36} 
+                        iconType="circle"
+                        formatter={(value) => <span className="text-sm font-semibold text-foreground ml-2">{value}</span>}
+                      />
+                    </PieChart>
+                  ) : prodChartType === 'bar' ? (
+                    <BarChart data={formattedProductionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                       <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" opacity={0.6} />
+                       <XAxis
+                         dataKey="date"
+                         tickLine={false}
+                         axisLine={false}
+                         tickMargin={15}
+                         tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }}
+                       />
+                       <YAxis 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                       />
+                       <Tooltip content={<CustomTooltip chartType="bar" />} cursor={{fill: 'var(--muted)', opacity: 0.3}} />
+                       <Bar dataKey="tonnage" name="tonnage" fill="#00cccd" radius={[4, 4, 0, 0]} barSize={32} />
+                    </BarChart>
+                  ) : (
+                    <AreaChart data={formattedProductionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="fillProd" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#00cccd" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#00cccd" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" opacity={0.6} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={15}
+                        tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }}
+                      />
+                      <YAxis 
+                         tickLine={false} 
+                         axisLine={false} 
+                         tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                      />
+                      <Tooltip content={<CustomTooltip chartType="area" />} />
+                      <Area
+                        type="monotone"
+                        dataKey="tonnage"
+                        name="tonnage"
+                        stroke="#00cccd"
+                        strokeWidth={3}
+                        fill="url(#fillProd)"
+                        animationDuration={1500}
+                      />
+                    </AreaChart>
+                  )}
                </ResponsiveContainer>
              ) : (
                <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
