@@ -5,7 +5,7 @@ import { Project, ProductionView } from '../types';
 import { 
   Factory, Plus, Search, Calendar, Package, Users, Coins, 
   ChevronRight, Save, X, Edit2, Trash2, TrendingUp, History,
-  LayoutList, FileText, Banknote
+  LayoutList, FileText, Banknote, ChevronDown
 } from 'lucide-react';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 
@@ -20,6 +20,9 @@ export const ProductionPage = () => {
   const [dailyWage, setDailyWage] = useState<number>(5000); // Prefilled daily wage
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPhase, setFilterPhase] = useState<string>('all');
+  
+  // Accordion State
+  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
 
   const fetchData = async () => {
     setLoading(true);
@@ -98,7 +101,7 @@ export const ProductionPage = () => {
         production_date: formData.production_date,
         bags_deployed: Number(formData.bags_deployed),
         bags_filled_50kg: Number(formData.bags_filled_50kg),
-        nombre_elements: Number(formData.nombre_elements), // Corrected field
+        nombre_elements: Number(formData.nombre_elements),
         total_amount: Number(formData.total_amount),
         notes: formData.notes
       };
@@ -116,8 +119,8 @@ export const ProductionPage = () => {
     }
   };
 
-  const filteredProductions = useMemo(() => {
-    return productions.filter(p => {
+  const groupedProductions = useMemo(() => {
+    const filtered = productions.filter(p => {
       if (filterPhase !== 'all' && p.project_id !== filterPhase) return false;
       if (searchTerm) {
         const lower = searchTerm.toLowerCase();
@@ -126,15 +129,40 @@ export const ProductionPage = () => {
       }
       return true;
     });
+
+    const groups: Record<string, ProductionView[]> = {};
+    filtered.forEach(p => {
+      const phase = p.project_phase || 'Phase Inconnue';
+      if (!groups[phase]) groups[phase] = [];
+      groups[phase].push(p);
+    });
+
+    // Sort phases descending
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0], undefined, { numeric: true }));
   }, [productions, searchTerm, filterPhase]);
 
   const stats = useMemo(() => {
+    const filtered = productions.filter(p => {
+      if (filterPhase !== 'all' && p.project_id !== filterPhase) return false;
+      if (searchTerm) {
+        const lower = searchTerm.toLowerCase();
+        return p.notes?.toLowerCase().includes(lower) || p.project_phase.toLowerCase().includes(lower);
+      }
+      return true;
+    });
     return {
-      totalProduced: filteredProductions.reduce((acc, p) => acc + Number(p.tonnage || 0), 0),
-      totalBags: filteredProductions.reduce((acc, p) => acc + Number(p.bags_filled_50kg || 0), 0),
-      totalCost: filteredProductions.reduce((acc, p) => acc + Number(p.total_amount || 0), 0)
+      totalProduced: filtered.reduce((acc, p) => acc + Number(p.tonnage || 0), 0),
+      totalBags: filtered.reduce((acc, p) => acc + Number(p.bags_filled_50kg || 0), 0),
+      totalCost: filtered.reduce((acc, p) => acc + Number(p.total_amount || 0), 0)
     };
-  }, [filteredProductions]);
+  }, [productions, searchTerm, filterPhase]);
+
+  const togglePhase = (phase: string) => {
+    const newSet = new Set(expandedPhases);
+    if (newSet.has(phase)) newSet.delete(phase);
+    else newSet.add(phase);
+    setExpandedPhases(newSet);
+  };
 
   const projectOptions: Option[] = projects.map(p => ({
     value: p.id,
@@ -208,68 +236,108 @@ export const ProductionPage = () => {
         </div>
       </div>
 
-      {/* Table Content */}
-      <div className="bg-card rounded-2xl border border-border shadow-soft-xl overflow-hidden">
-        <div className="w-full overflow-x-auto">
-          <table className="table table-striped">
-            <thead className="bg-primary/5">
-              <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Projet</th>
-                <th className="px-4 py-3">Effectif</th>
-                <th className="px-4 py-3">Sacs Utilisés</th>
-                <th className="px-4 py-3">Prod. Finie (50kg)</th>
-                <th className="px-4 py-3">Tonnage</th>
-                <th className="px-4 py-3">Montant</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProductions.length === 0 ? (
-                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground italic">Aucun enregistrement trouvé.</td></tr>
-              ) : (
-                filteredProductions.map(p => (
-                  <tr key={p.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                       <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-primary" />
-                          <span className="font-medium">{new Date(p.production_date).toLocaleDateString('fr-FR')}</span>
-                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                       <span className="badge badge-soft badge-secondary text-xs">{p.project_phase}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                       <div className="flex items-center gap-1">
-                          <Users size={14} className="text-muted-foreground" />
-                          <span className="font-bold">{p.nombre_elements || 0}</span>
-                       </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm">{p.bags_deployed}</td>
-                    <td className="px-4 py-3">
-                       <div className="flex items-center gap-2">
-                          <span className="font-bold text-primary">{p.bags_filled_50kg}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase">Sacs</span>
-                       </div>
-                    </td>
-                    <td className="px-4 py-3 font-mono font-bold text-emerald-600">
-                       {Number(p.tonnage).toFixed(2)} T
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm">
-                       {p.total_amount?.toLocaleString()} F
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => handleOpenModal(p)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete(p.id)} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Accordion List */}
+      <div className="accordion flex flex-col gap-4">
+        {groupedProductions.length === 0 ? (
+          <div className="bg-card p-12 text-center text-muted-foreground border border-border rounded-2xl italic shadow-soft-sm">
+             Aucun enregistrement de production trouvé.
+          </div>
+        ) : (
+          groupedProductions.map(([phase, items]) => {
+            const isExpanded = expandedPhases.has(phase);
+            const phaseTonnage = items.reduce((sum, item) => sum + Number(item.tonnage || 0), 0);
+            const phaseCost = items.reduce((sum, item) => sum + Number(item.total_amount || 0), 0);
+
+            return (
+              <div key={phase} className="accordion-item shadow-soft-sm transition-all duration-300 overflow-hidden">
+                <button 
+                  onClick={() => togglePhase(phase)}
+                  className="accordion-toggle px-6 py-4 bg-card hover:bg-muted/30 flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2 rounded-lg transition-colors ${isExpanded ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-primary'}`}>
+                      <ChevronRight size={20} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
+                    </div>
+                    <div className="flex flex-col text-left">
+                       <span className="text-lg font-bold text-foreground">{phase}</span>
+                       <span className="text-xs text-muted-foreground font-medium">{items.length} Enregistrements</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-8 mr-4 text-right">
+                    <div className="hidden sm:block">
+                       <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-0.5">Tonnage Phase</p>
+                       <p className="font-mono font-bold text-primary">{phaseTonnage.toFixed(2)} T</p>
+                    </div>
+                    <div className="hidden sm:block">
+                       <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-0.5">Coût Phase</p>
+                       <p className="font-mono font-bold text-amber-600">{phaseCost.toLocaleString()} F</p>
+                    </div>
+                  </div>
+                </button>
+
+                <div className={`accordion-content ${!isExpanded ? 'hidden' : 'animate-in slide-in-from-top-2'}`}>
+                  <div className="w-full overflow-x-auto">
+                    <table className="table w-full border-t border-border">
+                      <thead className="bg-primary/5">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Date</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Effectif</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Sacs Déployés</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Prod. Finie (50kg)</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Tonnage</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Montant MO</th>
+                          <th className="px-6 py-3 text-right text-xs font-bold text-primary uppercase tracking-widest">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50">
+                        {items.map(p => (
+                          <tr key={p.id} className="hover:bg-muted/20 transition-colors">
+                            <td className="px-6 py-4">
+                               <div className="flex items-center gap-2">
+                                  <Calendar size={14} className="text-primary/70" />
+                                  <span className="font-medium text-sm">{new Date(p.production_date).toLocaleDateString('fr-FR')}</span>
+                               </div>
+                            </td>
+                            <td className="px-6 py-4">
+                               <div className="flex items-center gap-2">
+                                  <Users size={14} className="text-muted-foreground" />
+                                  <span className="font-bold text-sm">{p.nombre_elements || 0}</span>
+                               </div>
+                            </td>
+                            <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
+                               {p.bags_deployed} sacs
+                            </td>
+                            <td className="px-6 py-4">
+                               <div className="flex items-center gap-2">
+                                  <span className="font-bold text-primary text-sm">{p.bags_filled_50kg}</span>
+                                  <span className="text-[10px] text-muted-foreground uppercase font-black">Sacs</span>
+                               </div>
+                            </td>
+                            <td className="px-6 py-4">
+                               <span className="badge badge-soft badge-success font-mono font-bold text-xs">
+                                  {Number(p.tonnage).toFixed(2)} T
+                               </span>
+                            </td>
+                            <td className="px-6 py-4 font-mono text-sm text-foreground">
+                               {p.total_amount?.toLocaleString()} <span className="text-[10px] text-muted-foreground">F</span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex justify-end gap-1">
+                                <button onClick={() => handleOpenModal(p)} className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDelete(p.id)} className="btn btn-circle btn-text btn-sm text-destructive hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Entry Modal */}

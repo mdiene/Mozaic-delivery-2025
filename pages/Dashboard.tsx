@@ -1,20 +1,19 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
-  XAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { db } from '../services/db';
 import { 
   TrendingUp, Truck, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
-  Activity, ChevronDown, ChevronUp, Network, MoreHorizontal, Maximize2, Minimize2,
-  Coins, Factory
+  Activity, ChevronDown, ChevronUp, MoreHorizontal, Maximize2, Minimize2,
+  Coins, Factory, Package
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
-import RegionalGraph from '../components/RegionalGraph';
-import { NetworkHierarchy } from '../types';
+import { ProductionView } from '../types';
 
 // Aquiry Palette
 const COLORS = [
@@ -57,11 +56,11 @@ const CustomTooltip = ({ active, payload, label, chartType }: any) => {
                   style={{ backgroundColor: entry.stroke || entry.fill }}
                 />
                 <span className="capitalize text-muted-foreground font-medium">
-                  {entry.name === 'Planned' ? 'Prévu' : 'Livré'}
+                  {entry.name === 'tonnage' ? 'Tonnage' : entry.name === 'Planned' ? 'Prévu' : 'Livré'}
                 </span>
               </div>
               <span className="font-mono font-bold text-foreground">
-                {entry.value}
+                {entry.value} {entry.name === 'tonnage' || entry.name === 'delivered' || entry.name === 'planned' ? 'T' : ''}
               </span>
             </div>
           ))}
@@ -76,12 +75,12 @@ export const Dashboard = () => {
   const { selectedProject, projects } = useProject();
   const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, totalFees: 0, totalProduced: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
-  const [graphData, setGraphData] = useState<NetworkHierarchy>([]);
+  const [productionHistory, setProductionHistory] = useState<ProductionView[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
   const [isMounted, setIsMounted] = useState(false);
-  const [isGraphOpen, setIsGraphOpen] = useState(false);
+  const [isProdGraphOpen, setIsProdGraphOpen] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
@@ -92,14 +91,20 @@ export const Dashboard = () => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [s, c, g] = await Promise.all([
+        const [s, c, p] = await Promise.all([
           db.getStats(selectedProject),
           db.getChartData(selectedProject),
-          db.getNetworkHierarchy(selectedProject)
+          db.getProductions()
         ]);
         setStats(s as any); 
         setChartData(c);
-        setGraphData(g);
+        
+        // Filter production by project if needed
+        const filteredProd = selectedProject === 'all' 
+          ? p 
+          : p.filter(item => item.project_id === selectedProject);
+        
+        setProductionHistory(filteredProd);
       } catch (e: any) {
         console.error('Error loading dashboard data:', e.message || e);
       } finally {
@@ -110,6 +115,25 @@ export const Dashboard = () => {
   }, [selectedProject]);
 
   const completionRate = stats.totalTarget > 0 ? (stats.totalDelivered / stats.totalTarget) * 100 : 0;
+
+  const formattedProductionChartData = useMemo(() => {
+    // Group by date and sum tonnage
+    const map: Record<string, number> = {};
+    productionHistory.forEach(p => {
+      const date = new Date(p.production_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      map[date] = (map[date] || 0) + Number(p.tonnage || 0);
+    });
+
+    // Return last 15 days or entries
+    return Object.entries(map)
+      .map(([date, tonnage]) => ({ date, tonnage }))
+      .sort((a, b) => {
+        const [da, ma] = a.date.split('/').map(Number);
+        const [db, mb] = b.date.split('/').map(Number);
+        return ma !== mb ? ma - mb : da - db;
+      })
+      .slice(-15);
+  }, [productionHistory]);
 
   if (loading && projects.length === 0) {
     return (
@@ -122,7 +146,6 @@ export const Dashboard = () => {
     );
   }
 
-  // Determine current project label for Fee card
   const feeLabel = selectedProject === 'all' 
     ? 'Total Dépensé (Global)' 
     : `Total Dépensé (Phase ${projects.find(p => p.id === selectedProject)?.numero_phase || '-'})`;
@@ -355,37 +378,35 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Collapsible Network Graph with Fullscreen Mode */}
+      {/* Production Graph Section (Replacing Network Map) */}
       <div className={`pt-2 transition-all duration-300 ${isFullScreen ? 'fixed inset-0 z-50 bg-background p-6 overflow-hidden' : ''}`}>
         
         {/* Toggle/Header Bar */}
         <div 
-           onClick={() => !isFullScreen && setIsGraphOpen(!isGraphOpen)}
+           onClick={() => !isFullScreen && setIsProdGraphOpen(!isProdGraphOpen)}
            className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer
-             ${isGraphOpen || isFullScreen 
+             ${isProdGraphOpen || isFullScreen 
                ? 'bg-card border-border shadow-soft-xl' 
                : 'bg-card/50 border-transparent hover:bg-card hover:shadow-soft-sm'
              }`}
         >
            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl transition-colors ${isGraphOpen || isFullScreen ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                 <Network size={24} />
+              <div className={`p-3 rounded-xl transition-colors ${isProdGraphOpen || isFullScreen ? 'bg-cyan-500/10 text-cyan-600' : 'bg-muted text-muted-foreground'}`}>
+                 <Package size={24} />
               </div>
               <div className="text-left">
-                 <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">Carte du Réseau</h3>
-                 <p className="text-sm text-muted-foreground">Visualisation interactive</p>
+                 <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">Performance de Production</h3>
+                 <p className="text-sm text-muted-foreground">Tonnage ensaché par jour</p>
               </div>
            </div>
            
            <div className="flex items-center gap-2">
-              {/* Fullscreen Button - Only visible if open */}
-              {(isGraphOpen || isFullScreen) && (
+              {(isProdGraphOpen || isFullScreen) && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsFullScreen(!isFullScreen);
-                    // Ensure graph stays open if we exit fullscreen
-                    if (!isFullScreen) setIsGraphOpen(true);
+                    if (!isFullScreen) setIsProdGraphOpen(true);
                   }}
                   className="p-2 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
                   title={isFullScreen ? "Réduire" : "Plein écran"}
@@ -395,19 +416,52 @@ export const Dashboard = () => {
               )}
               
               {!isFullScreen && (
-                 isGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />
+                 isProdGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />
               )}
            </div>
         </div>
 
         {/* Graph Content */}
-        {(isGraphOpen || isFullScreen) && (
-          <div className={`mt-6 animate-in slide-in-from-top-4 fade-in duration-300 ${isFullScreen ? 'h-[calc(100vh-140px)]' : 'h-[500px]'}`}>
-             {graphData.length > 0 ? (
-               <RegionalGraph regions={graphData} />
+        {(isProdGraphOpen || isFullScreen) && (
+          <div className={`mt-6 animate-in slide-in-from-top-4 fade-in duration-300 bg-card p-6 rounded-2xl border border-border shadow-soft-xl ${isFullScreen ? 'h-[calc(100vh-140px)]' : 'h-[400px]'}`}>
+             {formattedProductionChartData.length > 0 ? (
+               <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={formattedProductionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="fillProd" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00cccd" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#00cccd" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" opacity={0.6} />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={15}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }}
+                    />
+                    <YAxis 
+                       tickLine={false} 
+                       axisLine={false} 
+                       tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                    />
+                    <Tooltip content={<CustomTooltip chartType="area" />} />
+                    <Area
+                      type="monotone"
+                      dataKey="tonnage"
+                      name="tonnage"
+                      stroke="#00cccd"
+                      strokeWidth={3}
+                      fill="url(#fillProd)"
+                      animationDuration={1500}
+                    />
+                  </AreaChart>
+               </ResponsiveContainer>
              ) : (
-               <div className="w-full h-full bg-card rounded-2xl border border-border flex items-center justify-center text-muted-foreground shadow-inner">
-                 {loading ? 'Chargement...' : 'Aucune donnée disponible.'}
+               <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
+                  <Package size={48} className="opacity-10 mb-2" />
+                  <p className="text-sm font-medium">Aucune donnée de production récente.</p>
                </div>
              )}
           </div>
@@ -419,7 +473,6 @@ export const Dashboard = () => {
 };
 
 const KpiCard = ({ title, value, subValue, icon: Icon, color }: any) => {
-  // Aquiry style gradients for icon backgrounds
   const colorMap: any = {
     purple: { bg: "from-purple-500 to-indigo-600", text: "text-purple-600" },
     green: { bg: "from-emerald-400 to-teal-500", text: "text-emerald-600" },
@@ -431,7 +484,6 @@ const KpiCard = ({ title, value, subValue, icon: Icon, color }: any) => {
 
   return (
     <div className="bg-card rounded-2xl p-6 shadow-soft-xl border border-border relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
-      {/* Background decoration */}
       <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${theme.bg} opacity-10 group-hover:opacity-20 transition-opacity`}></div>
       
       <div className="flex justify-between items-start">
