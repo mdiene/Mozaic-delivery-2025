@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, Legend,
@@ -8,7 +9,7 @@ import {
   TrendingUp, Truck, CheckCircle, Users, 
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, ChevronDown, ChevronUp, Network, MoreHorizontal, Maximize2, Minimize2,
-  Coins
+  Coins, Factory
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -73,7 +74,7 @@ const CustomTooltip = ({ active, payload, label, chartType }: any) => {
 
 export const Dashboard = () => {
   const { selectedProject, projects } = useProject();
-  const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, totalFees: 0 });
+  const [stats, setStats] = useState({ totalDelivered: 0, totalTarget: 0, activeTrucks: 0, totalFees: 0, totalProduced: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
   const [graphData, setGraphData] = useState<NetworkHierarchy>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +97,7 @@ export const Dashboard = () => {
           db.getChartData(selectedProject),
           db.getNetworkHierarchy(selectedProject)
         ]);
-        setStats(s as any); // Type assertion needed until db type updated fully
+        setStats(s as any); 
         setChartData(c);
         setGraphData(g);
       } catch (e: any) {
@@ -142,7 +143,7 @@ export const Dashboard = () => {
       </div>
 
       {/* KPI Cards (Aquiry Style) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         <KpiCard 
           title="Total Livré" 
           value={`${stats.totalDelivered.toLocaleString()} T`} 
@@ -156,6 +157,13 @@ export const Dashboard = () => {
           subValue="Progression globale"
           icon={Activity} 
           color="green" 
+        />
+        <KpiCard 
+          title="Stock Produit" 
+          value={`${stats.totalProduced.toLocaleString()} T`} 
+          subValue="Prêt pour livraison"
+          icon={Factory} 
+          color="cyan" 
         />
         <KpiCard 
           title="Camions Actifs" 
@@ -309,13 +317,13 @@ export const Dashboard = () => {
              
              <div className="relative z-10">
                 <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white shadow-glow mb-4">
-                  <Users size={22} />
+                  <Factory size={22} />
                 </div>
-                <h3 className="font-bold text-lg text-foreground">Gérer les Opérateurs</h3>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">Ajouter des GIE ou opérateurs individuels.</p>
+                <h3 className="font-bold text-lg text-foreground">Saisie Production</h3>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Enregistrer les charges ensachées prêtes au chargement.</p>
                 
                 <Link 
-                  to="/settings" 
+                  to="/production" 
                   className="inline-flex items-center text-sm font-bold text-primary hover:text-purple-700 transition-colors"
                 >
                   Accéder <ChevronDown className="rotate-[-90deg] ml-1" size={16} />
@@ -417,6 +425,7 @@ const KpiCard = ({ title, value, subValue, icon: Icon, color }: any) => {
     green: { bg: "from-emerald-400 to-teal-500", text: "text-emerald-600" },
     amber: { bg: "from-amber-400 to-orange-500", text: "text-amber-600" },
     red: { bg: "from-rose-500 to-red-600", text: "text-rose-600" },
+    cyan: { bg: "from-cyan-500 to-blue-600", text: "text-cyan-600" },
   };
   const theme = colorMap[color] || colorMap.purple;
 

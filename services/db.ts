@@ -2,7 +2,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { 
   DeliveryView, AllocationView, Truck, Driver, Region, Department, Commune, 
-  Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference 
+  Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference, ProductionView 
 } from '../types';
 
 const safeLog = (message: string, ...args: any[]) => {
@@ -155,12 +155,41 @@ export const db = {
         }, 0);
      }
 
+     // Production Stats
+     let prodQuery = supabase.from('production').select('tonnage, project_id');
+     if (projectId !== 'all') {
+       prodQuery = prodQuery.eq('project_id', projectId);
+     }
+     const { data: prodData } = await prodQuery;
+     const totalProduced = prodData?.reduce((sum, p) => sum + Number(p.tonnage || 0), 0) || 0;
+
      return {
         totalDelivered,
         totalTarget,
         activeTrucks: truckCount || 0,
-        totalFees: totalFees
+        totalFees: totalFees,
+        totalProduced: totalProduced
      };
+  },
+
+  getProductions: async (): Promise<ProductionView[]> => {
+    const { data, error } = await supabase
+      .from('production')
+      .select(`
+        *,
+        project:project_id(numero_phase)
+      `)
+      .order('production_date', { ascending: false });
+
+    if (error) {
+      safeLog('Error fetching production:', error);
+      return [];
+    }
+
+    return data.map((p: any) => ({
+      ...p,
+      project_phase: p.project ? `Phase ${p.project.numero_phase}` : 'N/A'
+    }));
   },
 
   getChartData: async (projectId: string) => {

@@ -13,6 +13,7 @@ import { Itinerary } from './pages/Itinerary';
 import { GlobalView } from './pages/GlobalView';
 import { Expenses } from './pages/Expenses';
 import { TruckFIFO } from './pages/TruckFIFO';
+import { ProductionPage } from './pages/Production';
 import { Login } from './pages/Login';
 import { useAuth } from './contexts/AuthContext';
 
@@ -60,6 +61,12 @@ function App() {
           <Route path="allocations" element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
               <Allocations />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="production" element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+              <ProductionPage />
             </ProtectedRoute>
           } />
           

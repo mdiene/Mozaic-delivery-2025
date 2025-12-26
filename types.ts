@@ -161,6 +161,24 @@ export interface UserPreference {
   user_statut?: boolean;
 }
 
+export interface Production {
+  id: string;
+  project_id: string;
+  production_date: string;
+  bags_deployed: number;
+  bags_filled_50kg: number;
+  tonnage: number;
+  nombre_elements: number; // Corrected column name
+  total_amount?: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionView extends Production {
+  project_phase: string;
+}
+
 export type NetworkHierarchy = Array<{
   id: string;
   name: string;
@@ -217,27 +235,18 @@ export type GlobalHierarchy = Array<{
   departments: Array<{
     id: string;
     name: string;
+    target: number;
+    delivered: number;
     communes: Array<{
       id: string;
       name: string;
-      operators: Array<{
+      delivered: number;
+      deliveries: Array<{
         id: string;
-        name: string;
-        is_coop: boolean;
-        allocations: Array<{
-          id: string;
-          allocation_key: string;
-          target: number;
-          delivered: number;
-          deliveries: Array<{
-            id: string;
-            bl_number: string;
-            date: string;
-            truck_plate: string;
-            driver_name: string;
-            tonnage: number;
-          }>
-        }>
+        bl_number: string;
+        tonnage: number;
+        truck_plate: string;
+        driver_name: string;
       }>
     }>
   }>

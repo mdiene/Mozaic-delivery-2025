@@ -1,4 +1,3 @@
-
 // Fix: Added React to imports to resolve 'Cannot find name React' error and improved submenu hiding logic
 import React, { useState, useEffect, createContext, useContext, ReactNode, FC, isValidElement } from 'react';
 import { NavLink, useLocation, Outlet, useNavigate } from 'react-router-dom';
@@ -26,7 +25,9 @@ import {
   Receipt,
   Pin,
   Circle,
-  ScanBarcode
+  ScanBarcode,
+  Factory,
+  Filter
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -202,6 +203,20 @@ const Sidebar = ({
             </li>
           )}
 
+          {(isAdmin || isManager) && (
+            <li>
+              <NavLink 
+                to="/production" 
+                className={({ isActive }) => 
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+                }
+              >
+                <Factory size={20} className="shrink-0" />
+                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Production</span>
+              </NavLink>
+            </li>
+          )}
+
           <SidebarSubmenu label="Logistique" icon={Package} basePath="/logistics" expanded={expanded}>
              <li><NavLink to="/logistics/fifo" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><ScanBarcode size={16} className="shrink-0" /><span className="truncate">File d'attente (FIFO)</span></NavLink></li>
              {isAdmin && <li><NavLink to="/logistics/dispatch" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Package size={16} className="shrink-0" /><span className="truncate">Expéditions</span></NavLink></li>}
@@ -268,178 +283,109 @@ const Sidebar = ({
   );
 };
 
-const Header = ({ 
-  isDarkMode, 
-  toggleDarkMode,
-  currentTheme,
-  setCurrentTheme
-}: { 
-  isDarkMode: boolean,
-  toggleDarkMode: () => void,
-  currentTheme: string,
-  setCurrentTheme: (t: string) => void
-}) => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const { projects, selectedProject, setSelectedProject } = useProject();
-  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
-  const isDashboard = location.pathname === '/';
-  const isDriver = user?.role === 'DRIVER';
-  const isAdmin = user?.role === 'ADMIN';
+// --- Missing Header Component ---
+const Header = () => {
+  const { selectedProject, setSelectedProject, projects } = useProject();
+  const { user } = useAuth();
 
   return (
-    <header className={`sticky top-0 z-40 flex h-20 w-full items-center justify-between px-6 bg-background/80 backdrop-blur-md transition-all ${isDriver ? 'border-b border-border' : ''}`}>
-      <div className="flex items-center gap-4 flex-1 overflow-hidden mr-4">
-        {!isDriver && (
-          <button className="lg:hidden p-2 text-muted-foreground hover:bg-muted rounded-md">
-            <Menu size={20} />
-          </button>
-        )}
-        
-        {isDashboard && isAdmin ? (
-          <div className="flex items-center overflow-x-auto no-scrollbar mask-fade-right py-1">
-             <form className="filter">
-                <input className="btn btn-square" type="reset" value="×" onClick={() => setSelectedProject('all')} title="Réinitialiser" />
-                <input className="btn" type="radio" name="header-project" aria-label="Vue d'ensemble" checked={selectedProject === 'all'} onChange={() => setSelectedProject('all')} />
-                {projects.map(p => (
-                  <input key={p.id} className="btn" type="radio" name="header-project" aria-label={`Phase ${p.numero_phase}${p.numero_marche ? ` - ${p.numero_marche}` : ''}`} checked={selectedProject === p.id} onChange={() => setSelectedProject(p.id)} />
-                ))}
-             </form>
+    <header className="h-20 bg-card border-b border-border px-8 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md bg-card/80">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+          <div className="px-3 text-muted-foreground">
+            <Filter size={16} />
           </div>
-        ) : (
-          <div className="flex items-center gap-3">
-             {isDriver && (
-                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-black text-sm">M</div>
-             )}
-             <h2 className="text-xl font-bold text-foreground tracking-tight">
-              {location.pathname === '/allocations' && 'Allocations'}
-              {location.pathname.startsWith('/logistics/fifo') && "File d'attente (FIFO)"}
-              {location.pathname.startsWith('/logistics/dispatch') && 'Logistique'}
-              {location.pathname.startsWith('/logistics/expenses') && 'Notes de Frais'}
-              {location.pathname === '/fleet' && 'Parc Auto'}
-              {location.pathname.startsWith('/views') && 'Rapports'}
-              {location.pathname.startsWith('/network') && 'Réseau'}
-              {location.pathname === '/settings' && 'Paramètres'}
-             </h2>
-          </div>
-        )}
+          <form className="filter m-0 p-0 border-none shadow-none bg-transparent flex">
+             <input 
+               className="btn btn-square h-8 w-8 min-h-0" 
+               type="reset" 
+               value="×" 
+               onClick={() => setSelectedProject('all')}
+               title="Réinitialiser"
+             />
+             <input 
+               className="btn h-8 min-h-0 px-3 text-xs" 
+               type="radio" 
+               name="header-phase" 
+               aria-label="Toutes"
+               checked={selectedProject === 'all'}
+               onChange={() => setSelectedProject('all')}
+             />
+             {projects.map(p => (
+               <input
+                 key={p.id}
+                 className="btn h-8 min-h-0 px-3 text-xs" 
+                 type="radio" 
+                 name="header-phase" 
+                 aria-label={`Phase ${p.numero_phase}`}
+                 checked={selectedProject === p.id}
+                 onChange={() => setSelectedProject(p.id)}
+               />
+             ))}
+          </form>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4 shrink-0 bg-secondary/50 dark:bg-card p-1.5 pr-4 pl-4 rounded-full shadow-inner border border-border/50 relative">
-        <div className="relative">
-             <button onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)} className="flex items-center gap-3 px-2 py-1.5 rounded-full hover:bg-background/80 transition-colors outline-none group">
-                <div className="w-6 h-6 rounded-full border border-border flex items-center justify-center bg-background shadow-sm">
-                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: THEMES.find(t => t.id === currentTheme)?.color }}></div>
-                </div>
-                <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground hidden sm:block">
-                    {THEMES.find(t => t.id === currentTheme)?.name}
-                </span>
-                <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${isThemeMenuOpen ? 'rotate-180' : ''}`} />
-             </button>
-             {isThemeMenuOpen && (
-                <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsThemeMenuOpen(false)}></div>
-                    <div className="absolute top-full right-0 mt-4 w-48 bg-background rounded-xl p-2 shadow-soft-xl border border-border animate-in fade-in slide-in-from-top-2 z-50">
-                        <div className="text-xs font-semibold text-muted-foreground px-2 py-2 uppercase tracking-wider">Choisir un thème</div>
-                        <div className="space-y-1">
-                            {THEMES.map((theme) => (
-                                <button key={theme.id} onClick={() => { setCurrentTheme(theme.id); setIsThemeMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${currentTheme === theme.id ? 'bg-primary/10 text-primary shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.color }}></div>
-                                  <span className="flex-1 text-left">{theme.name}</span>
-                                  {currentTheme === theme.id && <Check size={12} />}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </>
-             )}
+      <div className="flex items-center gap-6">
+        <div className="flex flex-col items-end hidden sm:flex">
+          <span className="text-sm font-bold text-foreground">{user?.name}</span>
+          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{user?.role}</span>
         </div>
-
-        <div className="h-6 w-px bg-border mx-2"></div>
-
-        <button onClick={toggleDarkMode} className="text-muted-foreground hover:text-primary transition-colors" aria-label="Toggle Dark Mode">
-          {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
-        </button>
-
-        {!isAdmin && (
-          <>
-            <div className="h-6 w-px bg-border mx-2"></div>
-            <button onClick={() => { logout(); navigate('/login'); }} className="text-destructive hover:opacity-80 transition-opacity" title="Déconnexion">
-              <LogOut size={18} />
-            </button>
-          </>
-        )}
+        <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
+          <User size={20} />
+        </div>
       </div>
     </header>
   );
 };
 
+// --- Missing Layout Component ---
 export const Layout = () => {
   const { user } = useAuth();
-  const [pinned, setPinned] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const isDriver = user?.role === 'DRIVER';
-  const expanded = !isDriver && (pinned || hovered);
-
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState('default');
-  
-  // Project State
+  const [sidebarPinned, setSidebarPinned] = useState(true);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+
+  const sidebarExpanded = sidebarPinned || sidebarHovered;
 
   useEffect(() => {
-    const init = async () => {
-      db.getProjects().then(setProjects).catch(console.error);
+    const loadProjects = async () => {
       try {
-        const prefs = await db.getUserPreferences(user?.email || 'guest');
-        if (prefs) {
-          setPinned(prefs.sidebar_pinned);
-          setIsDarkMode(prefs.theme_mode === 'dark');
-          setCurrentTheme(prefs.theme_color);
-        }
-      } catch (e) { console.error(e); }
+        const data = await db.getProjects();
+        setProjects(data);
+      } catch (e) {
+        console.error("Error loading projects:", e);
+      } finally {
+        setLoading(false);
+      }
     };
-    init();
-  }, [user]);
+    loadProjects();
+  }, []);
 
-  const savePref = async (updates: any) => {
-    if (user?.email) await db.saveUserPreferences(user.email, updates);
-  };
-
-  const togglePin = () => {
-    const newVal = !pinned;
-    setPinned(newVal);
-    savePref({ sidebar_pinned: newVal });
-  };
-
-  const toggleDarkMode = () => {
-    const newVal = !isDarkMode;
-    setIsDarkMode(newVal);
-    savePref({ theme_mode: newVal ? 'dark' : 'light' });
-  };
-
-  const handleSetTheme = (theme: string) => {
-    setCurrentTheme(theme);
-    savePref({ theme_color: theme });
-  };
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (isDarkMode) root.classList.add('dark');
-    else root.classList.remove('dark');
-    THEMES.forEach(t => { if (t.id !== 'default') root.classList.remove(t.id); });
-    if (currentTheme !== 'default') root.classList.add(currentTheme);
-  }, [isDarkMode, currentTheme]);
+  // For drivers, we skip the sidebar/header and just show the content (usually FIFO)
+  if (user?.role === 'DRIVER') {
+    return (
+      <main className="min-h-screen bg-background p-6">
+        <Outlet />
+      </main>
+    );
+  }
 
   return (
     <ProjectContext.Provider value={{ projects, selectedProject, setSelectedProject }}>
-      <div className="min-h-screen bg-background text-foreground transition-colors duration-300 font-sans">
-        <Sidebar expanded={expanded} setHovered={setHovered} pinned={pinned} togglePin={togglePin} />
-        <div className={`transition-all duration-300 ease-in-out ${expanded ? 'pl-64' : isDriver ? 'pl-0' : 'pl-20'}`}>
-          <Header isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} currentTheme={currentTheme} setCurrentTheme={handleSetTheme} />
-          <main className={`px-6 pb-6 pt-2 animate-fade-in max-w-screen-2xl mx-auto ${isDriver ? 'mt-4' : ''}`}>
+      <div className="min-h-screen bg-background">
+        <Sidebar 
+          expanded={sidebarExpanded} 
+          setHovered={setSidebarHovered}
+          pinned={sidebarPinned}
+          togglePin={() => setSidebarPinned(!sidebarPinned)}
+        />
+        
+        <div className={`transition-all duration-300 ${sidebarExpanded ? 'pl-64' : 'pl-20'}`}>
+          <Header />
+          <main className="p-6">
             <Outlet />
           </main>
         </div>
