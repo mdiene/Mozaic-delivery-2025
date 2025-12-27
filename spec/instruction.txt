@@ -1,65 +1,37 @@
-
 # AI Coding Assistant Instructions for MASAE Delivery Tracker
 
-You are working on the MASAE Delivery Tracker, a React/TypeScript application using Supabase. Follow these guidelines strictly when generating code or suggesting changes.
+Follow these guidelines strictly to maintain consistency across the Supply Chain and Logistics modules.
 
-## 1. Project Context
-*   **Domain:** Logistics & Agriculture (Senegal).
-*   **Design System:** "Soft UI" / Neumorphism Lite. Use `design/index.css` variables (`--card`, `--primary`, `shadow-soft-xl`) extensively.
-*   **Colors:** Primary is Amber/Orange (`#f59e0b` / `text-primary`). Do not introduce new hardcoded colors; use the CSS variables defined in `design/*.css`.
+## 1. Design System & UI Consistency
+*   **Theme:** "Soft UI" / Neumorphism Lite. Use the provided CSS variables for colors and shadows.
+*   **Primary Color:** Amber/Orange (`var(--primary)` / `#f59e0b`).
+*   **Layout Components:** 
+    *   **Filter Ribbon:** Always include a horizontal filter bar at the top of main views (Phase, Search, Status).
+    *   **Accordions:** Use the `.accordion` pattern for grouping list items (e.g., by Project Phase or Date).
+*   **Production Modals:** Forms in the Production module must use **Color-Coded Sections** (e.g., Blue for General, Amber for Workforce, Emerald for Production Data) to improve scanability.
 
-## 2. Coding Standards
+## 2. Business Logic Rules
 
-### React & TypeScript
-*   **Components:** Functional components only. Use `FC<Props>` or directly typed props.
-*   **Hooks:** Use `useEffect`, `useState`, `useMemo` for logic. Avoid class components.
-*   **Imports:**
-    *   Icons: `lucide-react`.
-    *   Charts: `recharts`.
-    *   AI: `@google/genai` (DO NOT use the deprecated `google-generative-ai` package).
-    *   Database: `../services/db` (Centralized Supabase calls).
-*   **Null Safety:** Always handle optional chaining (`?.`) when accessing deep objects, especially from Supabase joins (e.g., `allocation?.project?.numero_phase`).
+### Production Module (Ensachage)
+*   **Workforce Calculation:** Total site personnel is the sum of `nombre_elements` (general staff) and `equipe_couture` (sewing staff).
+*   **Labor Cost Formula:** The field `total_amount` must be automatically computed as `(nombre_elements + equipe_couture) * daily_wage`.
+*   **Tonnage Conversion:** 1 sac (50kg) = 0.05 T. Display tonnage estimates next to bag counts.
 
-### Database Interaction (Supabase)
-*   **Centralization:** ALL database calls must go through `services/db.ts`. Do not import `supabase` client directly in UI components unless absolutely necessary for realtime subscriptions.
-*   **Joins:** Supabase returns joined data as nested objects. You must map these to flat interfaces in `services/db.ts` before returning to the UI.
-    *   *Example:* `allocations(regions(name))` returns `{ regions: { name: 'Dakar' } }`. Map this to `region_name: 'Dakar'` in the service layer.
+### Logistics & Expenses
+*   **Internal vs External:** `truck_owner_type === true` indicates "Wague Agro Business". For these trucks, fuel and route fees are tracked. For external trucks, these are usually zeroed or moved to "Forfait" in `other_fees`.
+*   **FIFO Status:** A truck entering the queue becomes `ON_SITE`. When a delivery is created, it transitions to `IN_TRANSIT`.
 
-### Google Gemini API
-*   **Usage:** Only use for "Intelligence" features (Itinerary, Text analysis).
-*   **Configuration:**
-    *   Model: `gemini-2.5-flash` (for speed) or `gemini-2.5-flash-thinking` (for logic).
-    *   Initialization: `const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });`
-    *   Tools: Use `tools: [{googleMaps: {}}]` for routing queries.
+## 3. Database & Services (`services/db.ts`)
+*   **Mapping:** Map nested Supabase response objects into flat TypeScript interfaces before passing them to components.
+*   **Purchases:** Use the `production_purchases` table for all non-labor site expenses. Categories include: `INTRANTS`, `CARBURANT_SITE`, `MAINTENANCE`, `RESTAURATION`, `DIVERS`.
 
-## 3. UI/UX Rules
-*   **Shadows:** Use `shadow-soft-xl` for main cards and `shadow-sm` for buttons.
-*   **Borders:** Minimal borders. Use `border-border` (a subtle slate color).
-*   **Layout:**
-    *   Dashboard pages must have a Filter Ribbon at the top.
-    *   Tables must use the custom `.table` and `.table-striped` classes defined in `index.css`.
-    *   Modals must be centered, backdrop-blurred (`backdrop-blur-sm`), and use `bg-card`.
+## 4. Google Gemini API Implementation
+*   **Model:** Use `gemini-2.5-flash` for itinerary and routing logic.
+*   **Grounding:** Always enable `googleMaps` tool for distance/duration queries.
+*   **Origin:** The default site origin for routes is **Amadi Ounare** (GPS: 15.3469, -13.0218).
 
-## 4. File Structure
-*   `pages/`: Top-level route components.
-*   `components/`: Reusable UI parts (Layout, AdvancedSelect, Graphs).
-*   `services/`: Business logic and API calls (`db.ts`).
-*   `types.ts`: Shared TypeScript interfaces. **Update this first** when DB schema changes.
-
-## 5. Common Tasks & Snippets
-
-### Adding a new Report View
-1.  Define the Interface in `types.ts` matching the SQL View.
-2.  Add a fetch function in `services/db.ts` (`getNewReportView()`).
-3.  Add the tab logic in `pages/Views.tsx`.
-4.  Implement PDF export logic using `jspdf`.
-
-### Implementing Route Calculation
-When using Gemini for routes in `Itinerary.tsx`:
-*   Always parse the JSON response safely.
-*   Extract the `mapLink` if provided by the Grounding tool.
-*   Fallback to text parsing if JSON fails.
-
-## 6. Critical Warnings
-*   **API Keys:** Never hardcode API keys. Use `process.env.API_KEY` or `import.meta.env`.
-*   **Supabase Types:** The codebase currently uses manual types (`types.ts`) instead of generated Supabase types. Maintain consistency with `types.ts`.
+## 5. Export & Printing
+*   **PDF Template:** Use `jspdf` for BL generation. Maintain the "SOMA" corporate identity:
+    *   Header: Three colored bars (Orange, Gold, Green).
+    *   Table: "Quantité / Tonnes" right-aligned with bold sub-totals.
+    *   Footer: Branded stamp "SOCIETE MINIERE AFRICAINE" in Navy Blue.

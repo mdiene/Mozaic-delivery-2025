@@ -14,6 +14,9 @@ import { GlobalView } from './pages/GlobalView';
 import { Expenses } from './pages/Expenses';
 import { TruckFIFO } from './pages/TruckFIFO';
 import { ProductionPage } from './pages/Production';
+import { ProductionPurchases } from './pages/ProductionPurchases';
+import { ProductionScreening } from './pages/ProductionScreening';
+import { ProductionExcavation } from './pages/ProductionExcavation';
 import { Login } from './pages/Login';
 import { useAuth } from './contexts/AuthContext';
 
@@ -64,11 +67,28 @@ function App() {
             </ProtectedRoute>
           } />
           
-          <Route path="production" element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-              <ProductionPage />
-            </ProtectedRoute>
-          } />
+          <Route path="production">
+            <Route index element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                <ProductionPage />
+              </ProtectedRoute>
+            } />
+            <Route path="purchases" element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                <ProductionPurchases />
+              </ProtectedRoute>
+            } />
+            <Route path="screening" element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                <ProductionScreening />
+              </ProtectedRoute>
+            } />
+            <Route path="excavation" element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+                <ProductionExcavation />
+              </ProtectedRoute>
+            } />
+          </Route>
           
           {/* Logistics Routes */}
           <Route path="logistics">

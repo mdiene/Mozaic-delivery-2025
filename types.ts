@@ -168,7 +168,8 @@ export interface Production {
   bags_deployed: number;
   bags_filled_50kg: number;
   tonnage: number;
-  nombre_elements: number; // Corrected column name
+  nombre_elements: number; 
+  equipe_couture: number;
   total_amount?: number;
   notes?: string;
   created_at: string;

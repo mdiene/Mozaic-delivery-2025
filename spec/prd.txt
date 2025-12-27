@@ -1,86 +1,54 @@
-
 # Product Requirements Document (PRD): MASAE Delivery Tracker
 
 ## 1. Executive Summary
 **Product Name:** MASAE Delivery Tracker
-**Version:** 2.0 (Web)
-**Description:** A SaaS platform designed to digitize and manage the agricultural supply chain in Senegal. It facilitates the allocation of resources (fertilizers/seeds) to operators, manages the logistics of trucking and drivers, tracks real-time deliveries via "Bon de Livraison" (BL), and provides geospatial intelligence for network optimization.
+**Version:** 2.5 (Web)
+**Description:** A specialized supply chain and site management platform for agricultural resource distribution in Senegal. It manages the full lifecycle from raw material excavation and screening to bagging (Production), regional allocation (Planning), and dispatch/delivery (Logistics). 
 
 ## 2. User Roles
-*   **Administrator / Logistics Manager:** Has full access to dashboard, allocations, fleet management, and system settings. Responsible for planning phases and monitoring KPIs.
-*   **Dispatcher:** Focuses on the "Logistics" module to assign trucks to allocations and generate BLs.
-*   **Viewer:** Read-only access to Views & Reports (e.g., auditors or high-level stakeholders).
+*   **Administrator:** Full access to all modules, including financial overviews, system settings, and global network analysis.
+*   **Manager (Site):** Focuses on operational modules: Production (Ensachage, Purchases, Excavation), Logistics (FIFO), and Route planning.
+*   **Driver:** Limited access to the FIFO queue system via QR code scanning for site entry.
 
 ## 3. Functional Requirements
 
-### 3.1 Dashboard
-*   **KPI Cards:** Display real-time aggregates for Total Delivered Tonnage, Completion Rate (%), Active Trucks (In Transit), and Alert count (Over-delivered allocations).
-*   **Charts:**
-    *   **Regional Performance:** Bar/Area/Pie charts comparing Planned vs. Delivered tonnage per region.
-    *   **Interactive Filters:** Toggle chart data by Project Phase.
-*   **Network Graph:** A collapsible visual node graph (Vis-network) representing the hierarchy: Hub -> Region -> Department -> Commune -> Delivery. Node size must be proportional to tonnage.
+### 3.1 Dashboard & Analytics
+*   **KPI Tracking:** Real-time metrics for Delivered vs. Target tonnage, Production Stock, Active Fleet, and Site Expenses.
+*   **Regional Performance:** Visual comparisons of planning vs. realization per region.
+*   **Logistics Flow Correlation:** A dual-axis chart correlating daily bagged production tonnage against daily dispatched delivery tonnage to monitor inventory health and efficiency.
 
-### 3.2 Allocations (Planning)
-*   **Purpose:** Define quotas for specific operators in specific locations before delivery can occur.
-*   **Features:**
-    *   CRUD operations for Allocations.
-    *   **Filtering:** By Project Phase, Status (Open, In Progress, Closed), and Text Search.
-    *   **Visual Status:** Progress bars showing delivered vs. target tonnage.
-    *   **Accordion View:** Group allocations by Project Phase.
-    *   **Print/Preview:** Detailed modal view of an allocation's history for printing.
+### 3.2 Production Management (Module Suite)
+This module is split into four specialized sub-areas to track the upstream supply chain:
+*   **Ensachage (Bagging):**
+    *   Daily tracking of "Sacs Déployés" (consumption) vs. "Sacs Ensachés" (50kg units).
+    *   **Workforce Tracking:** Distinguishes between the general filling team (Nombre d'éléments) and the specialized sewing team (Equipe Couture).
+    *   **Automated Labor Cost:** Calculated as: `(Filling Team + Sewing Team) × Daily Wage`.
+    *   **UI:** Forms are organized into color-coded thematic sections (General, Workforce, Production Data).
+*   **Achats & Dépenses (Site Expenses):**
+    *   Granular tracking of inputs (bags, thread), site fuel, maintenance, and catering.
+    *   Category-based filtering and statistical summaries.
+*   **Cribblage (Screening):** Tracking of sifting operations and machine yields.
+*   **Excavation:** Tracking of mining extraction volumes and raw stock levels.
 
-### 3.3 Logistics (Execution)
-*   **Purpose:** The operational core where deliveries are created.
-*   **Features:**
-    *   **New Dispatch Wizard:**
-        *   Select Allocation (Contextual display of remaining quota).
-        *   Select Truck (Auto-fills assigned driver).
-        *   Input Tonnage and Date.
-        *   Auto-generate BL Number (Format: BL[YY][RANDOM]).
-    *   **Grouping:** List view grouped by Project Phase, Truck, Region, or Commune.
-    *   **Validation:** Prevent dispatch if Allocation is CLOSED.
+### 3.3 Allocations (Planning)
+*   Quotas management for operators across regions, departments, and communes.
+*   Visual progress tracking via multi-step indicators.
+*   Automated status transitions (Open -> In Progress -> Closed) based on delivered tonnage.
 
-### 3.4 Fleet Management
-*   **Trucks:** Manage plate numbers, capacity, and status (Available, In Transit, Maintenance).
-*   **Drivers:** Manage personnel info and license numbers.
-*   **Assignment:** Link Drivers to Trucks. Logic should handle 1:1 assignment updates efficiently.
+### 3.4 Logistics & FIFO
+*   **FIFO Queue:** A QR-code-based arrival system to manage the order of trucks on-site.
+*   **Dispatching:** Creating "Bons de Livraison" (BL) by linking trucks to open allocations.
+*   **Notes de Frais:** Tracking shipment-specific costs like fuel, road tolls, and handling (manutention).
 
-### 3.5 Network & Itinerary (Intelligence)
-*   **Graph View:** Full-screen visualization of the distribution network.
-*   **Itinerary Calculation:**
-    *   Integration with **Google Gemini API** (`gemini-2.5-flash`).
-    *   Calculate routes from a central hub (e.g., Amadi Ounare) to specific Communes.
-    *   Return Distance, Duration, and Google Maps links using AI-based grounding/tools.
+### 3.5 Intelligence & Reports
+*   **Network Map:** Proportional node-graph visualization of the distribution hierarchy.
+*   **Gemini Itinerary:** AI-powered route calculation between the central hub (Amadi Ounare) and any delivery point in Senegal.
+*   **Professional BL Export:** Generation of branded PDF delivery notes with specific SOMA header and stamp designs.
 
-### 3.6 Views & Reports
-*   **Bon de Livraison (BL):** Detailed list of individual shipments. Supports PDF generation (using `jspdf` and `jspdf-autotable`) with a specific visual template (SOMA branding, colored headers).
-*   **Fin de Cession:** Aggregated report by Operator/Region showing total tonnage and delivery counts. Used for final handover protocols.
-
-### 3.7 Settings (Master Data)
-*   **Geographic Data:** CRUD for Regions, Departments, Communes (Hierarchical dependency).
-*   **Projects:** Define Phases (e.g., Phase 1, Phase 2) and total contract tonnage.
-*   **Operators:** Manage beneficiaries (Cooperatives or Individuals). Must be linked to a specific Project Phase.
-
-## 4. Technical Requirements
-
-### 4.1 Frontend
-*   **Framework:** React 19 + Vite.
-*   **Language:** TypeScript.
-*   **Styling:** Tailwind CSS with `FlyonUI` components. Design system based on "Soft UI" (Neumorphism Lite) with Amber/Orange primary colors.
-*   **State Management:** React Context (for Project scope) + Local State.
-*   **Visualization:** Recharts (Charts), Vis-Network (Graphs).
-
-### 4.2 Backend & Data
-*   **Service:** Supabase (PostgreSQL).
-*   **Authentication:** Currently implementing Anonymous/Public access (API Key via environment variables).
-*   **AI Integration:** Google GenAI SDK (`@google/genai`) for itinerary planning.
-
-## 5. Environment Variables
-*   `VITE_SUPABASE_URL`: Endpoint for Supabase instance.
-*   `VITE_SUPABASE_ANON_KEY`: Public API key.
-*   `API_KEY`: Google Gemini API Key (for route calculation).
-
-## 6. Assumptions & Constraints
-*   The application assumes an internet connection is available (primary usage is web).
-*   PDF generation happens client-side to reduce backend overhead.
-*   Trucks can only have one active driver at a time.
+## 4. Technical Specifications
+*   **Frontend:** React 19, Tailwind CSS, Lucide, Recharts, Vis-network.
+*   **Backend:** Supabase (PostgreSQL) with Row Level Security (RLS).
+*   **Schema Additions:**
+    *   `production`: Added `equipe_couture`.
+    *   `production_purchases`: New table for site operational expenses.
+*   **AI:** Google Gemini 2.5 Flash for geospatial logic.

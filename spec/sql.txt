@@ -1,176 +1,166 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- MASAE Delivery Tracker - SQL Schema
--- Target Database: PostgreSQL (Supabase)
-
--- 1. Projects
--- Represents the overarching contracts or phases of the campaign.
-CREATE TABLE project (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    numero_marche TEXT NOT NULL,
-    numero_bon_disposition TEXT,
-    numero_phase INTEGER NOT NULL,
-    tonnage_total NUMERIC DEFAULT 0,
-    date_mise_disposition DATE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.allocations (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  allocation_key character varying NOT NULL UNIQUE,
+  region_id uuid NOT NULL,
+  department_id uuid NOT NULL,
+  commune_id uuid NOT NULL,
+  operator_id uuid NOT NULL,
+  responsible_name character varying NOT NULL,
+  responsible_phone_raw character varying,
+  responsible_phone_normalized character varying,
+  target_tonnage numeric NOT NULL CHECK (target_tonnage > 0::numeric),
+  status USER-DEFINED DEFAULT 'OPEN'::allocation_status,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  project_id uuid,
+  CONSTRAINT allocations_pkey PRIMARY KEY (id),
+  CONSTRAINT allocations_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id),
+  CONSTRAINT allocations_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id),
+  CONSTRAINT allocations_commune_id_fkey FOREIGN KEY (commune_id) REFERENCES public.communes(id),
+  CONSTRAINT allocations_operator_id_fkey FOREIGN KEY (operator_id) REFERENCES public.operators(id),
+  CONSTRAINT allocations_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.project(id)
 );
 
--- 2. Geographic Hierarchy
-CREATE TABLE regions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    code TEXT NOT NULL
+CREATE TABLE public.communes (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  department_id uuid NOT NULL,
+  name character varying NOT NULL,
+  code character varying NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  distance_mine numeric,
+  CONSTRAINT communes_pkey PRIMARY KEY (id),
+  CONSTRAINT communes_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
 );
-
-CREATE TABLE departments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    region_id UUID REFERENCES regions(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    code TEXT NOT NULL
+CREATE TABLE public.deliveries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  allocation_id uuid NOT NULL,
+  bl_number character varying UNIQUE,
+  truck_id uuid,
+  driver_id uuid,
+  tonnage_loaded numeric NOT NULL CHECK (tonnage_loaded > 0::numeric),
+  delivery_date timestamp with time zone,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  payments_id uuid,
+  CONSTRAINT deliveries_pkey PRIMARY KEY (id),
+  CONSTRAINT deliveries_allocation_id_fkey FOREIGN KEY (allocation_id) REFERENCES public.allocations(id),
+  CONSTRAINT deliveries_truck_id_fkey FOREIGN KEY (truck_id) REFERENCES public.trucks(id),
+  CONSTRAINT deliveries_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id),
+  CONSTRAINT deliveries_payments_id_fkey FOREIGN KEY (payments_id) REFERENCES public.payments(id)
 );
-
-CREATE TABLE communes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    department_id UUID REFERENCES departments(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    code TEXT NOT NULL
+CREATE TABLE public.departments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  region_id uuid NOT NULL,
+  name character varying NOT NULL,
+  code character varying NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT departments_pkey PRIMARY KEY (id),
+  CONSTRAINT departments_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id)
 );
-
--- 3. Operators (Beneficiaries)
-CREATE TABLE operators (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    commune_id UUID REFERENCES communes(id),
-    projet_id UUID REFERENCES project(id), -- Operators are often tied to specific project phases
-    contact_info TEXT,
-    operateur_coop_gie BOOLEAN DEFAULT FALSE,
-    coop_name TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.drivers (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name character varying NOT NULL,
+  phone_normalized character varying UNIQUE,
+  license_number character varying UNIQUE,
+  status character varying DEFAULT 'ACTIVE'::character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  truck_id uuid,
+  CONSTRAINT drivers_pkey PRIMARY KEY (id),
+  CONSTRAINT drivers_truck_id_fkey FOREIGN KEY (truck_id) REFERENCES public.trucks(id)
 );
-
--- 4. Fleet Management
-CREATE TABLE trucks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    plate_number TEXT NOT NULL UNIQUE,
-    capacity_tonnes NUMERIC DEFAULT 0,
-    status TEXT CHECK (status IN ('AVAILABLE', 'IN_TRANSIT', 'MAINTENANCE')) DEFAULT 'AVAILABLE',
-    trailer_number TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.operators (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name character varying NOT NULL,
+  contact_info character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  commune_id uuid,
+  operateur_coop_gie boolean,
+  coop_name text,
+  projet_id uuid,
+  CONSTRAINT operators_pkey PRIMARY KEY (id),
+  CONSTRAINT operators_commune_id_fkey FOREIGN KEY (commune_id) REFERENCES public.communes(id),
+  CONSTRAINT operators_projet_id_fkey FOREIGN KEY (projet_id) REFERENCES public.project(id)
 );
-
-CREATE TABLE drivers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    phone_normalized TEXT,
-    license_number TEXT,
-    status TEXT CHECK (status IN ('ACTIVE', 'INACTIVE')) DEFAULT 'ACTIVE',
-    truck_id UUID REFERENCES trucks(id) ON DELETE SET NULL, -- Current assignment
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.payments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  truck_id uuid NOT NULL,
+  delivery_id uuid NOT NULL,
+  road_fees numeric DEFAULT 0,
+  personal_fees numeric DEFAULT 0,
+  other_fees numeric DEFAULT 0,
+  other_fees_label text,
+  overweigh_fees numeric DEFAULT 0,
+  fuel_quantity numeric DEFAULT 0,
+  fuel_cost numeric DEFAULT 0,
+  date_updated timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  loading_cost numeric,
+  unloading_cost numeric,
+  CONSTRAINT payments_pkey PRIMARY KEY (id),
+  CONSTRAINT payments_truck_id_fkey FOREIGN KEY (truck_id) REFERENCES public.trucks(id),
+  CONSTRAINT payments_delivery_id_fkey FOREIGN KEY (delivery_id) REFERENCES public.deliveries(id)
 );
-
--- 5. Allocations (Quotas)
-CREATE TABLE allocations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    allocation_key TEXT UNIQUE, -- e.g., generated ID
-    project_id UUID REFERENCES project(id),
-    region_id UUID REFERENCES regions(id),
-    department_id UUID REFERENCES departments(id),
-    commune_id UUID REFERENCES communes(id),
-    operator_id UUID REFERENCES operators(id),
-    target_tonnage NUMERIC DEFAULT 0,
-    status TEXT CHECK (status IN ('OPEN', 'IN_PROGRESS', 'CLOSED', 'OVER_DELIVERED')) DEFAULT 'OPEN',
-    responsible_name TEXT,
-    responsible_phone_raw TEXT,
-    responsible_phone_normalized TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.production (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  production_date date NOT NULL DEFAULT CURRENT_DATE,
+  bags_deployed integer NOT NULL CHECK (bags_deployed >= 0),
+  bags_filled_50kg integer NOT NULL CHECK (bags_filled_50kg >= 0),
+  tonnage numeric DEFAULT ((bags_filled_50kg)::numeric / (20)::numeric),
+  total_amount numeric DEFAULT 0 CHECK (total_amount >= 0::numeric),
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  nombre_elements numeric,
+  equipe_couture numeric,
+  CONSTRAINT production_pkey PRIMARY KEY (id),
+  CONSTRAINT production_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.project(id)
 );
-
--- 6. Deliveries (Logistics Execution)
-CREATE TABLE deliveries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    allocation_id UUID REFERENCES allocations(id) ON DELETE CASCADE,
-    bl_number TEXT NOT NULL UNIQUE,
-    truck_id UUID REFERENCES trucks(id),
-    driver_id UUID REFERENCES drivers(id),
-    tonnage_loaded NUMERIC NOT NULL,
-    tonnage_delivered NUMERIC, -- Can be updated upon arrival
-    delivery_date DATE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.project (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  numero_marche character varying DEFAULT ''::character varying,
+  numero_bon_disposition character varying DEFAULT ''::character varying,
+  numero_phase smallint,
+  date_mise_disposition date,
+  tonnage_total smallint,
+  CONSTRAINT project_pkey PRIMARY KEY (id)
 );
-
--- 7. User Preferences (New)
-CREATE TABLE user_preferences (
-    user_email TEXT PRIMARY KEY,
-    theme_mode TEXT DEFAULT 'light', -- 'light' or 'dark'
-    theme_color TEXT DEFAULT 'default',
-    sidebar_pinned BOOLEAN DEFAULT false,
-    language TEXT DEFAULT 'fr',
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.regions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name character varying NOT NULL UNIQUE,
+  code character varying NOT NULL UNIQUE,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT regions_pkey PRIMARY KEY (id)
 );
-
--- 8. Views for Reporting
-
--- View: Bon de Livraison (Detailed Shipments)
-CREATE OR REPLACE VIEW view_bon_livraison AS
-SELECT 
-    d.bl_number,
-    d.tonnage_loaded,
-    d.delivery_date,
-    d.created_at,
-    a.allocation_key,
-    a.target_tonnage,
-    o.name AS operator_name,
-    o.coop_name AS operator_coop_name,
-    o.contact_info AS operator_contact_info,
-    c.name AS commune,
-    dept.name AS department,
-    r.name AS region,
-    p.numero_phase,
-    p.numero_bon_disposition AS project_num_bon,
-    t.plate_number AS truck_plate_number,
-    t.trailer_number AS truck_trailer_number,
-    dr.name AS driver_name
-FROM deliveries d
-JOIN allocations a ON d.allocation_id = a.id
-JOIN operators o ON a.operator_id = o.id
-JOIN communes c ON a.commune_id = c.id
-JOIN departments dept ON a.department_id = dept.id
-JOIN regions r ON a.region_id = r.id
-JOIN project p ON a.project_id = p.id
-LEFT JOIN trucks t ON d.truck_id = t.id
-LEFT JOIN drivers dr ON d.driver_id = dr.id;
-
--- View: Fin de Cession (Aggregated Protocol)
-CREATE OR REPLACE VIEW view_fin_de_cession AS
-SELECT 
-    r.name AS region,
-    dept.name AS department,
-    c.name AS commune,
-    o.name AS operator_name,
-    o.coop_name AS operator_coop_name,
-    o.contact_info AS operator_contact_info,
-    p.numero_phase AS project_phase,
-    COUNT(d.id) AS deliveries_count,
-    SUM(d.tonnage_loaded) AS total_tonnage
-FROM allocations a
-JOIN operators o ON a.operator_id = o.id
-JOIN communes c ON a.commune_id = c.id
-JOIN departments dept ON a.department_id = dept.id
-JOIN regions r ON a.region_id = r.id
-JOIN project p ON a.project_id = p.id
-LEFT JOIN deliveries d ON d.allocation_id = a.id
-GROUP BY 
-    r.name, dept.name, c.name, 
-    o.name, o.coop_name, o.contact_info, 
-    p.numero_phase;
-
--- Row Level Security (Simple Policy for Demo)
--- In production, replace using 'anon' role with proper authenticated roles.
-ALTER TABLE project ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public Read" ON project FOR SELECT USING (true);
-CREATE POLICY "Public Write" ON project FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Update" ON project FOR UPDATE USING (true);
-CREATE POLICY "Public Delete" ON project FOR DELETE USING (true);
-
--- (Repeat RLS policies for all tables as needed for the development env)
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public All Preferences" ON user_preferences FOR ALL USING (true);
+CREATE TABLE public.trucks (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  plate_number character varying NOT NULL UNIQUE,
+  capacity_tonnes numeric DEFAULT 50.00,
+  status character varying DEFAULT 'AVAILABLE'::character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  trailer_number character varying,
+  owner_type boolean NOT NULL DEFAULT true,
+  qrcode_content text,
+  updated_at date,
+  CONSTRAINT trucks_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.user_preferences (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  user_email text UNIQUE,
+  theme_mode text NOT NULL DEFAULT 'light'::text CHECK (theme_mode = ANY (ARRAY['light'::text, 'dark'::text])),
+  theme_color text NOT NULL DEFAULT 'default'::text,
+  theme_name text NOT NULL DEFAULT 'Light'::text,
+  sidebar_pinned boolean NOT NULL DEFAULT false,
+  language text NOT NULL DEFAULT 'fr'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  user_right_level numeric,
+  user_pswd text,
+  user_statut boolean DEFAULT false,
+  CONSTRAINT user_preferences_pkey PRIMARY KEY (id)
+);

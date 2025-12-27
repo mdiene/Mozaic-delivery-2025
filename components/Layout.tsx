@@ -1,3 +1,4 @@
+
 // Fix: Added React to imports to resolve 'Cannot find name React' error and improved submenu hiding logic
 import React, { useState, useEffect, createContext, useContext, ReactNode, FC, isValidElement } from 'react';
 import { NavLink, useLocation, Outlet, useNavigate } from 'react-router-dom';
@@ -27,7 +28,11 @@ import {
   Circle,
   ScanBarcode,
   Factory,
-  Filter
+  Filter,
+  Coins,
+  Grid,
+  HardHat,
+  ShoppingCart
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -204,17 +209,12 @@ const Sidebar = ({
           )}
 
           {(isAdmin || isManager) && (
-            <li>
-              <NavLink 
-                to="/production" 
-                className={({ isActive }) => 
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
-                }
-              >
-                <Factory size={20} className="shrink-0" />
-                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Production</span>
-              </NavLink>
-            </li>
+            <SidebarSubmenu label="Production" icon={Factory} basePath="/production" expanded={expanded}>
+               <li><NavLink to="/production" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Package size={16} className="shrink-0" /><span className="truncate">Ensachage</span></NavLink></li>
+               <li><NavLink to="/production/purchases" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><ShoppingCart size={16} className="shrink-0" /><span className="truncate">Achats & Dépenses</span></NavLink></li>
+               <li><NavLink to="/production/screening" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Grid size={16} className="shrink-0" /><span className="truncate">Cribblage</span></NavLink></li>
+               <li><NavLink to="/production/excavation" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><HardHat size={16} className="shrink-0" /><span className="truncate">Excavation</span></NavLink></li>
+            </SidebarSubmenu>
           )}
 
           <SidebarSubmenu label="Logistique" icon={Package} basePath="/logistics" expanded={expanded}>
