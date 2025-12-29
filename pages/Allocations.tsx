@@ -5,7 +5,8 @@ import { AllocationView, DeliveryView } from '../types';
 import { useAllocations, useReferenceData, useUpdateItem, useDeleteItem } from '../hooks/useData';
 import { 
   Plus, Search, MapPin, Edit2, Trash2, AlertTriangle, Lock, Unlock, X, Save,
-  CheckCircle, TrendingUp, Activity, Eye, Printer, ArrowUpDown, ChevronRight, Layers, ListFilter, Truck
+  CheckCircle, TrendingUp, Activity, Eye, Printer, ArrowUpDown, ChevronRight, Layers, ListFilter, Truck,
+  Phone, User
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -478,9 +479,39 @@ export const Allocations = () => {
                                  return (
                                     <tr key={alloc.id} className="hover:bg-muted/30 transition-colors">
                                        <td className="px-4 py-3">
-                                          <div className="flex flex-col">
-                                             <span className="font-bold text-foreground text-sm">{alloc.operator_name}</span>
-                                             <span className="text-xs text-muted-foreground font-mono">{alloc.allocation_key}</span>
+                                          <div className="group relative">
+                                             <div className="flex flex-col cursor-help">
+                                                <span className="font-bold text-foreground text-sm">{alloc.operator_name}</span>
+                                                <span className="text-xs text-muted-foreground font-mono">{alloc.allocation_key}</span>
+                                             </div>
+                                             
+                                             {/* Hover Tooltip Card */}
+                                             <div className="invisible group-hover:visible absolute z-50 left-0 top-full mt-2 w-64 p-3 bg-card border border-border rounded-xl shadow-soft-xl animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                                                <div className="flex flex-col gap-2">
+                                                   <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest">
+                                                      <User size={12} /> Contact Responsable
+                                                   </div>
+                                                   <div className="space-y-1.5">
+                                                      <p className="text-sm font-bold text-foreground">{alloc.responsible_name || 'Non spécifié'}</p>
+                                                      {alloc.responsible_phone_raw ? (
+                                                         <div className="flex items-center gap-2">
+                                                            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                                                               <Phone size={12} />
+                                                            </div>
+                                                            <span className="text-xs font-mono font-bold text-foreground tracking-tight">{alloc.responsible_phone_raw}</span>
+                                                         </div>
+                                                      ) : (
+                                                         <p className="text-xs text-muted-foreground italic">Aucun téléphone enregistré</p>
+                                                      )}
+                                                   </div>
+                                                   <div className="mt-1 pt-2 border-t border-border flex items-center gap-1.5">
+                                                      <MapPin size={10} className="text-muted-foreground" />
+                                                      <span className="text-[10px] text-muted-foreground font-medium truncate">
+                                                         {alloc.commune_name}, {alloc.region_name}
+                                                      </span>
+                                                   </div>
+                                                </div>
+                                             </div>
                                           </div>
                                        </td>
                                        <td className="px-4 py-3">
