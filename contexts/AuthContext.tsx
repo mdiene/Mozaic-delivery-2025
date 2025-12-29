@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'DRIVER' | null;
+export type UserRole = 'ADMIN' | 'MANAGER' | 'DRIVER' | 'VISITOR' | null;
 
 interface User {
   email: string;

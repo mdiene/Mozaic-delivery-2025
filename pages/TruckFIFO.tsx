@@ -24,6 +24,8 @@ const formatDateGroup = (dateStr?: string) => {
 export const TruckFIFO = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isVisitor = user?.role === 'VISITOR';
+  const isDriver = user?.role === 'DRIVER';
   
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [onSiteTrucks, setOnSiteTrucks] = useState<Truck[]>([]);
@@ -34,8 +36,6 @@ export const TruckFIFO = () => {
   const [lastScannedTruck, setLastScannedTruck] = useState<Truck | null>(null);
   const [scanError, setScanError] = useState('');
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
-
-  const isDriver = user?.role === 'DRIVER';
 
   const fetchData = async () => {
     setLoading(true);
@@ -77,7 +77,7 @@ export const TruckFIFO = () => {
 
   const handleManualScan = async (e?: FormEvent) => {
     if (e) e.preventDefault();
-    if (!selectedTruckId) return;
+    if (isVisitor || !selectedTruckId) return;
 
     const truck = trucks.find(t => t.id === selectedTruckId);
 
@@ -91,6 +91,7 @@ export const TruckFIFO = () => {
   };
 
   const enterTruckToQueue = async (truck: Truck) => {
+    if (isVisitor) return;
     try {
       const now = new Date().toISOString();
       await db.updateItem('trucks', truck.id, { 
@@ -115,11 +116,11 @@ export const TruckFIFO = () => {
   };
 
   const startScanner = () => {
+    if (isVisitor) return;
     setScanError('');
     setIsScannerOpen(true);
     setTimeout(() => {
       if (!scannerRef.current) {
-        // We use facingMode: "environment" to force back camera
         const scanner = new Html5QrcodeScanner(
           "reader", 
           { 
@@ -147,7 +148,6 @@ export const TruckFIFO = () => {
 
   const onScanSuccess = (decodedText: string) => {
     setScanError('');
-    
     let truckId = '';
     let plateNumber = '';
     try {
@@ -157,53 +157,39 @@ export const TruckFIFO = () => {
     } catch (e) {
        plateNumber = decodedText.trim().toUpperCase();
     }
-
-    // Find truck in the AVAILABLE pool or general list
     const truck = trucks.find(t => t.id === truckId || t.plate_number === plateNumber);
-    
     if (truck) {
-        // Selection Logic: Update the dropdown and close scanner
         setSelectedTruckId(truck.id);
         stopScanner();
     } else {
-        // Error Logic: Keep scanner open but show error
-        setScanError(`Le camion "${plateNumber || 'scanné'}" n'est pas reconnu dans la base.`);
+        setScanError(`Le camion "${plateNumber || 'scanné'}" n'est pas reconnu.`);
     }
   };
 
-  const onScanFailure = (error: any) => {
-    // Usually we don't want to show constant failures (focus issues etc)
-  };
+  const onScanFailure = (error: any) => {};
 
   const handleDispatch = (truck: Truck) => {
     navigate(`/logistics/dispatch?action=new&truckId=${truck.id}`);
   };
 
   const handleRemoveFromQueue = async (truckId: string) => {
-     if(!confirm("Retirer ce camion de la file d'attente ? Il sera marqué comme DISPONIBLE.")) return;
+     if (isVisitor) return;
+     if(!confirm("Retirer ce camion ?")) return;
      try {
         await db.updateItem('trucks', truckId, { status: 'AVAILABLE' });
         const updatedTrucks = trucks.map(t => t.id === truckId ? { ...t, status: 'AVAILABLE' as const } : t);
         setTrucks(updatedTrucks);
         processLists(updatedTrucks);
-     } catch(e) {
-        alert("Erreur lors de la mise à jour.");
-     }
+     } catch(e) { alert("Erreur."); }
   };
 
-  // Memoized options for searchable select
   const truckOptions: Option[] = useMemo(() => {
     return trucks
       .filter(t => t.status === 'AVAILABLE' || t.id === selectedTruckId) 
       .map(t => ({
         value: t.id,
         label: t.plate_number,
-        subLabel: t.driver_name || 'Chauffeur non assigné',
-        extraInfo: t.owner_type ? (
-           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[9px] font-black uppercase border border-blue-100">
-              <ShieldCheck size={10} /> Wague AB
-           </span>
-        ) : null
+        subLabel: t.driver_name || 'Chauffeur non assigné'
       }));
   }, [trucks, selectedTruckId]);
 
@@ -226,183 +212,56 @@ export const TruckFIFO = () => {
       )}
 
       <div className={`grid grid-cols-1 ${isDriver ? '' : 'lg:grid-cols-3'} gap-6`}>
-        {/* Left: Input / Scanner */}
         <div className="space-y-6">
            <div className={`bg-card rounded-2xl border border-border shadow-soft-xl p-6 ${!isDriver ? 'sticky top-24' : ''}`}>
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                 <ScanBarcode size={20} className="text-primary" /> Entrée Camion
-              </h3>
-              
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><ScanBarcode size={20} className="text-primary" /> Entrée Camion</h3>
               {!isScannerOpen ? (
                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                       <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest ml-1">Sélectionner Camion</label>
-                       <AdvancedSelect 
-                          options={truckOptions}
-                          value={selectedTruckId}
-                          onChange={(val) => {
-                            setSelectedTruckId(val);
-                            setScanError('');
-                          }}
-                          placeholder="Rechercher immatriculation..."
-                          className="shadow-soft-sm"
-                       />
-                       {scanError && (
-                          <div className="flex items-center gap-1.5 text-destructive mt-2 animate-in fade-in slide-in-from-top-1">
-                             <AlertCircle size={14} />
-                             <span className="text-xs font-bold">{scanError}</span>
-                          </div>
-                       )}
-                    </div>
-                    
-                    <button 
-                       onClick={() => handleManualScan()}
-                       disabled={!selectedTruckId}
-                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold transition-all shadow-glow active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
-                    >
-                       Valider Entrée
-                    </button>
-
-                    <div className="relative py-2">
-                       <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border"></span></div>
-                       <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest"><span className="bg-card px-3 text-muted-foreground">OU</span></div>
-                    </div>
-
-                    <button 
-                       onClick={startScanner}
-                       className="w-full border border-border hover:bg-muted text-foreground py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
-                    >
-                       <Camera size={20} /> Scanner QR Code
-                    </button>
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest ml-1">Sélectionner Camion</label>
+                    <AdvancedSelect options={truckOptions} value={selectedTruckId} onChange={(val) => setSelectedTruckId(val)} placeholder="Rechercher immatriculation..." disabled={isVisitor} />
+                    <button onClick={() => handleManualScan()} disabled={!selectedTruckId || isVisitor} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed">Valider Entrée</button>
+                    <div className="relative py-2"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border"></span></div><div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest"><span className="bg-card px-3 text-muted-foreground">OU</span></div></div>
+                    <button onClick={startScanner} disabled={isVisitor} className="w-full border border-border hover:bg-muted text-foreground py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><Camera size={20} /> Scanner QR Code</button>
                  </div>
               ) : (
                  <div className="space-y-4">
                     <div id="reader" className="w-full rounded-2xl overflow-hidden border-2 border-primary/20 shadow-inner bg-black min-h-[300px]"></div>
-                    {scanError && (
-                        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-2 text-destructive animate-in shake">
-                           <AlertCircle size={18} />
-                           <span className="text-xs font-bold leading-tight">{scanError}</span>
-                        </div>
-                    )}
-                    <button 
-                       onClick={stopScanner}
-                       className="w-full bg-muted hover:bg-muted/80 text-foreground py-3 rounded-xl font-bold transition-colors"
-                    >
-                       Annuler le scan
-                    </button>
+                    <button onClick={stopScanner} className="w-full bg-muted hover:bg-muted/80 text-foreground py-3 rounded-xl font-bold transition-colors">Annuler le scan</button>
                  </div>
               )}
            </div>
-
-           {/* Last Scanned Feedback */}
-           {lastScannedTruck && !scanError && (
-              <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-5 animate-in fade-in slide-in-from-top-2 shadow-soft-sm">
-                 <div className="flex items-start gap-4">
-                    <div className="p-3 bg-emerald-100 dark:bg-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-100 shrink-0 shadow-sm">
-                       <TruckIcon size={24} />
-                    </div>
-                    <div className="flex-1">
-                       <div className="flex justify-between items-start">
-                          <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-200 uppercase tracking-widest mb-1">Succès</p>
-                          <span className="text-[10px] font-mono text-emerald-600/80 flex items-center gap-1">
-                             <Clock size={10} /> {new Date(lastScannedTruck.updated_at!).toLocaleTimeString()}
-                          </span>
-                       </div>
-                       <p className="font-black text-xl text-emerald-900 dark:text-emerald-100 font-mono">{lastScannedTruck.plate_number}</p>
-                       <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Positionné dans la file d'attente.</p>
-                    </div>
-                 </div>
-              </div>
-           )}
         </div>
 
-        {/* Right: The Queue */}
         <div className={`${isDriver ? 'opacity-90' : 'lg:col-span-2'} bg-card rounded-2xl border border-border shadow-soft-xl flex flex-col h-[600px] overflow-hidden`}>
-           {/* Header Area */}
            <div className="p-4 border-b border-border bg-muted/10 flex items-center gap-3">
-              <div className="p-2.5 bg-primary/10 text-primary rounded-xl shrink-0">
-                 <Clock size={20} />
-              </div>
-              <div>
-                 <h3 className="font-bold text-base text-foreground uppercase tracking-wider flex items-center gap-2">
-                    File d'attente <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs">{onSiteTrucks.length}</span>
-                 </h3>
-                 <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Ordre d'arrivée FIFO</p>
-              </div>
-              <button onClick={fetchData} className="ml-auto p-2 hover:bg-muted rounded-full text-muted-foreground transition-colors" title="Actualiser">
-                 <RefreshCw size={18} />
-              </button>
+              <div className="p-2.5 bg-primary/10 text-primary rounded-xl shrink-0"><Clock size={20} /></div>
+              <div><h3 className="font-bold text-base text-foreground uppercase tracking-wider flex items-center gap-2">File d'attente <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs">{onSiteTrucks.length}</span></h3><p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Ordre d'arrivée FIFO</p></div>
+              <button onClick={fetchData} className="ml-auto p-2 hover:bg-muted rounded-full text-muted-foreground transition-colors" title="Actualiser"><RefreshCw size={18} /></button>
            </div>
-
-           {isDriver && (
+           {(isDriver || isVisitor) && (
               <div className="p-4 bg-amber-50 text-amber-800 text-[10px] font-bold flex items-center gap-3 border-b border-amber-100">
                  <ShieldAlert size={14} className="shrink-0" />
-                 L'ACCÈS AUX ACTIONS EST RÉSERVÉ AUX COORDINATEURS DE SITE.
+                 {isVisitor ? "CONSULTATION UNIQUEMENT - LES ACTIONS SONT DÉSACTIVÉES." : "L'ACCÈS AUX ACTIONS EST RÉSERVÉ AUX COORDINATEURS DE SITE."}
               </div>
            )}
-
            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
               {onSiteTrucks.length === 0 ? (
-                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-40">
-                    <TruckIcon size={48} className="mb-4" />
-                    <p className="text-sm font-bold uppercase tracking-widest">File vide</p>
-                 </div>
+                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-40"><TruckIcon size={48} className="mb-4" /><p className="text-sm font-bold uppercase tracking-widest">File vide</p></div>
               ) : (
                  Object.entries(groupedOnSite).map(([dateLabel, groupTrucks]) => (
                     <div key={dateLabel} className="space-y-2">
-                       <div className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground sticky top-0 bg-card py-2 z-10">
-                          <Calendar size={12} /> {dateLabel}
-                       </div>
+                       <div className="flex items-center gap-2 text-[10px] font-black uppercase text-muted-foreground sticky top-0 bg-card py-2 z-10"><Calendar size={12} /> {dateLabel}</div>
                        {(groupTrucks as Truck[]).map((truck, index) => (
-                          <div 
-                             key={truck.id} 
-                             className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-border hover:border-primary/20 hover:shadow-soft-sm transition-all bg-card"
-                          >
+                          <div key={truck.id} className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-border hover:border-primary/20 hover:shadow-soft-sm transition-all bg-card">
                              <div className="flex items-center gap-4 pl-1">
-                                <div className={`text-lg font-black ${isDriver ? 'text-muted-foreground' : 'text-primary/20'}`}>
-                                   {String(index + 1).padStart(2, '0')}
-                                </div>
-                                <div className="p-2 bg-primary/5 text-primary rounded-lg shrink-0">
-                                   <TruckIcon size={20} />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                   <div className="flex items-center gap-2 flex-wrap">
-                                      <h4 className="font-bold text-base text-foreground font-mono">{truck.plate_number}</h4>
-                                      <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase border border-emerald-200">
-                                         Sur Site
-                                      </span>
-                                      {truck.owner_type && (
-                                         <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase border border-blue-200">
-                                            WAB
-                                         </span>
-                                      )}
-                                   </div>
-                                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
-                                      {truck.driver_name && (
-                                         <span className="flex items-center gap-1"><User size={10} /> {truck.driver_name}</span>
-                                      )}
-                                      <span className="flex items-center gap-1 font-mono">
-                                         <Clock size={10} /> {truck.updated_at ? new Date(truck.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
-                                      </span>
-                                   </div>
-                                </div>
+                                <div className={`text-lg font-black ${(isDriver || isVisitor) ? 'text-muted-foreground' : 'text-primary/20'}`}>{String(index + 1).padStart(2, '0')}</div>
+                                <div className="p-2 bg-primary/5 text-primary rounded-lg shrink-0"><TruckIcon size={20} /></div>
+                                <div className="min-w-0 flex-1"><div className="flex items-center gap-2 flex-wrap"><h4 className="font-bold text-base text-foreground font-mono">{truck.plate_number}</h4><span className="bg-emerald-100 text-emerald-700 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase border border-emerald-200">Sur Site</span></div></div>
                              </div>
-
-                             {!isDriver && (
+                             {!(isDriver || isVisitor) && (
                                 <div className="flex items-center gap-2 mt-4 sm:mt-0">
-                                   <button 
-                                      onClick={() => handleRemoveFromQueue(truck.id)}
-                                      className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                                      title="Retirer"
-                                   >
-                                      <X size={18} />
-                                   </button>
-                                   <button 
-                                      onClick={() => handleDispatch(truck)}
-                                      className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-xl font-bold shadow-soft-sm transition-all text-xs"
-                                   >
-                                      Charger <ArrowRight size={14} />
-                                   </button>
+                                   <button onClick={() => handleRemoveFromQueue(truck.id)} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors" title="Retirer"><X size={18} /></button>
+                                   <button onClick={() => handleDispatch(truck)} className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-xl font-bold shadow-soft-sm transition-all text-xs">Charger <ArrowRight size={14} /></button>
                                 </div>
                              )}
                           </div>

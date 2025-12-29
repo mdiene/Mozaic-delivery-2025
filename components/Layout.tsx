@@ -137,6 +137,7 @@ const Sidebar = ({
 
   const isAdmin = user?.role === 'ADMIN';
   const isManager = user?.role === 'MANAGER';
+  const isVisitor = user?.role === 'VISITOR';
 
   return (
     <aside 
@@ -180,7 +181,7 @@ const Sidebar = ({
              <span className={expanded ? 'opacity-100 transition-opacity' : 'opacity-0'}>Menu Principal</span>
           </li>
 
-          {isAdmin && (
+          {(isAdmin || isVisitor) && (
             <li>
               <NavLink 
                 to="/" 
@@ -194,7 +195,7 @@ const Sidebar = ({
             </li>
           )}
 
-          {isAdmin && (
+          {(isAdmin || isVisitor) && (
             <li>
               <NavLink 
                 to="/allocations"
@@ -208,7 +209,7 @@ const Sidebar = ({
             </li>
           )}
 
-          {(isAdmin || isManager) && (
+          {(isAdmin || isManager || isVisitor) && (
             <SidebarSubmenu label="Production" icon={Factory} basePath="/production" expanded={expanded}>
                <li><NavLink to="/production" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Package size={16} className="shrink-0" /><span className="truncate">Ensachage</span></NavLink></li>
                <li><NavLink to="/production/purchases" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><ShoppingCart size={16} className="shrink-0" /><span className="truncate">Achats & Dépenses</span></NavLink></li>
@@ -219,11 +220,11 @@ const Sidebar = ({
 
           <SidebarSubmenu label="Logistique" icon={Package} basePath="/logistics" expanded={expanded}>
              <li><NavLink to="/logistics/fifo" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><ScanBarcode size={16} className="shrink-0" /><span className="truncate">File d'attente (FIFO)</span></NavLink></li>
-             {isAdmin && <li><NavLink to="/logistics/dispatch" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Package size={16} className="shrink-0" /><span className="truncate">Expéditions</span></NavLink></li>}
-             {(isAdmin || isManager) && <li><NavLink to="/logistics/expenses" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Receipt size={16} className="shrink-0" /><span className="truncate">Note de frais</span></NavLink></li>}
+             {(isAdmin || isVisitor) && <li><NavLink to="/logistics/dispatch" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Package size={16} className="shrink-0" /><span className="truncate">Expéditions</span></NavLink></li>}
+             {(isAdmin || isManager || isVisitor) && <li><NavLink to="/logistics/expenses" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Receipt size={16} className="shrink-0" /><span className="truncate">Note de frais</span></NavLink></li>}
           </SidebarSubmenu>
 
-          {isAdmin && (
+          {(isAdmin || isVisitor) && (
             <li>
               <NavLink to="/fleet" className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`}>
                 <Truck size={20} className="shrink-0" />
@@ -234,16 +235,16 @@ const Sidebar = ({
 
           <SidebarSubmenu label="Vues & Rapports" icon={Eye} basePath="/views" expanded={expanded}>
               <li><NavLink to="/views?tab=bon_livraison" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><FileText size={16} className="shrink-0" /><span className="truncate">Bon de Livraison</span></NavLink></li>
-              {isAdmin && <li><NavLink to="/views?tab=fin_cession" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Gift size={16} className="shrink-0" /><span className="truncate">Fin de Cession</span></NavLink></li>}
+              {(isAdmin || isVisitor) && <li><NavLink to="/views?tab=fin_cession" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Gift size={16} className="shrink-0" /><span className="truncate">Fin de Cession</span></NavLink></li>}
           </SidebarSubmenu>
 
           <SidebarSubmenu label="Réseau" icon={Network} basePath="/network" expanded={expanded}>
-              {isAdmin && <li><NavLink to="/network/map" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Map size={16} className="shrink-0" /><span className="truncate">Carte</span></NavLink></li>}
-              {(isAdmin || isManager) && <li><NavLink to="/network/itinerary" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Navigation size={16} className="shrink-0" /><span className="truncate">Itinéraire</span></NavLink></li>}
-              {isAdmin && <li><NavLink to="/network/global" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Globe size={16} className="shrink-0" /><span className="truncate">Vue Globale</span></NavLink></li>}
+              {(isAdmin || isVisitor) && <li><NavLink to="/network/map" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Map size={16} className="shrink-0" /><span className="truncate">Carte</span></NavLink></li>}
+              {(isAdmin || isManager || isVisitor) && <li><NavLink to="/network/itinerary" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Navigation size={16} className="shrink-0" /><span className="truncate">Itinéraire</span></NavLink></li>}
+              {(isAdmin || isVisitor) && <li><NavLink to="/network/global" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Globe size={16} className="shrink-0" /><span className="truncate">Vue Globale</span></NavLink></li>}
           </SidebarSubmenu>
 
-          {isAdmin && (
+          {(isAdmin || isVisitor) && (
             <>
               <div className="my-2 px-2"><div className="h-px bg-sidebar-border/50 w-full"></div></div>
               <li>
