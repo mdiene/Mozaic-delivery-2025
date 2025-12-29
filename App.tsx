@@ -54,37 +54,37 @@ function App() {
         
         {/* Main App Container */}
         <Route path="/" element={<Layout />}>
-          {/* Dashboard for Admin and Visitor */}
+          {/* Dashboard is only for Admin */}
           <Route index element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <Dashboard />
             </ProtectedRoute>
           } />
           
           <Route path="allocations" element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <Allocations />
             </ProtectedRoute>
           } />
           
           <Route path="production">
             <Route index element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
                 <ProductionPage />
               </ProtectedRoute>
             } />
             <Route path="purchases" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
                 <ProductionPurchases />
               </ProtectedRoute>
             } />
             <Route path="screening" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
                 <ProductionScreening />
               </ProtectedRoute>
             } />
             <Route path="excavation" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
                 <ProductionExcavation />
               </ProtectedRoute>
             } />
@@ -96,35 +96,35 @@ function App() {
             
             {/* FIFO is accessible to all roles */}
             <Route path="fifo" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'DRIVER', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'DRIVER']}>
                 <TruckFIFO />
               </ProtectedRoute>
             } />
             
-            {/* Dispatch is ADMIN and VISITOR */}
+            {/* Dispatch is ADMIN only */}
             <Route path="dispatch" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <Logistics />
               </ProtectedRoute>
             } />
             
-            {/* Expenses is ADMIN, MANAGER, VISITOR */}
+            {/* Expenses is ADMIN and MANAGER */}
             <Route path="expenses" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
                 <Expenses />
               </ProtectedRoute>
             } />
           </Route>
           
           <Route path="fleet" element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <Fleet />
             </ProtectedRoute>
           } />
           
-          {/* Reports */}
+          {/* Reports: BL is for Manager, Fin de Cession usually Admin only but we allow the page for both and filter inside */}
           <Route path="views" element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VISITOR']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
               <Views />
             </ProtectedRoute>
           } />
@@ -132,24 +132,24 @@ function App() {
           <Route path="network">
             <Route index element={<Navigate to="/network/itinerary" replace />} />
             <Route path="map" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <NetworkPage />
               </ProtectedRoute>
             } />
             <Route path="itinerary" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
                 <Itinerary />
               </ProtectedRoute>
             } />
             <Route path="global" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <GlobalView />
               </ProtectedRoute>
             } />
           </Route>
           
           <Route path="settings" element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <Settings />
             </ProtectedRoute>
           } />
