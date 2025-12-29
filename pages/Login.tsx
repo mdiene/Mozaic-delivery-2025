@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { useAuth, UserRole } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, ShieldCheck, Truck, Lock, Mail, ArrowRight, UserPlus, AlertCircle } from 'lucide-react';
+import { User, ShieldCheck, Truck, Lock, Mail, ArrowRight, UserPlus, AlertCircle, Eye } from 'lucide-react';
 import { db } from '../services/db';
 
 export const Login = () => {
@@ -21,7 +20,8 @@ export const Login = () => {
   const roleToLevel: Record<string, number> = {
     'ADMIN': 3,
     'MANAGER': 2,
-    'DRIVER': 1
+    'DRIVER': 1,
+    'VISITOR': 0
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,18 +31,24 @@ export const Login = () => {
 
     try {
       if (isLogin) {
-        // DRIVER: Direct access without password (as per existing simplified logic)
+        // DRIVER: Direct access without password
         if ((selectedRole as string) === 'DRIVER') {
           login(`driver-${Date.now()}@masae.sn`, 'DRIVER', 'Chauffeur');
           navigate('/logistics/fifo');
           return;
         }
 
-        // MANAGER: Simplified access - Only password verification required (no status check)
+        // VISITOR: Direct access without password
+        if ((selectedRole as string) === 'VISITOR') {
+          login(`visitor-${Date.now()}@masae.sn`, 'VISITOR', 'Visiteur');
+          navigate('/');
+          return;
+        }
+
+        // MANAGER: Simplified access - Only password verification required
         if ((selectedRole as string) === 'MANAGER') {
           const userPrefs = await db.authenticateUser('manager@site.sn', password);
           if (userPrefs) {
-             // Success: Bypass user_statut check for Manager as requested ("remove connection control")
              login(userPrefs.user_email || 'manager@site.sn', 'MANAGER', 'Manager Site');
              navigate('/logistics/fifo');
              return;
@@ -107,9 +113,9 @@ export const Login = () => {
     { id: 'ADMIN' as UserRole, label: 'Administrateur', icon: ShieldCheck, desc: 'Gestion complète du système' },
     { id: 'MANAGER' as UserRole, label: 'Manager (Site)', icon: User, desc: 'FIFO, BL, Itinéraire, Frais' },
     { id: 'DRIVER' as UserRole, label: 'Utilisateur (Chauffeur)', icon: Truck, desc: 'Validation Entrée & QR Code' },
+    { id: 'VISITOR' as UserRole, label: 'Visiteur', icon: Eye, desc: 'Accès consultation seule' },
   ];
 
-  // Only Admin can see the signup toggle
   const showSignupToggle = selectedRole === 'ADMIN';
 
   return (
@@ -130,7 +136,7 @@ export const Login = () => {
               </div>
               <h1 className="text-3xl font-bold mb-4 tracking-tight">MASAE Delivery Tracker</h1>
               <p className="text-primary-foreground/80 leading-relaxed">
-                 Solution moderne pour la gestion des intrants agricoles au Sénégal. Optimisez vos flux logistiques en temps réel.
+                 Programme de suivi et de gestion du phosphate. Optimisez vos flux logistiques en temps réel.
               </p>
            </div>
 
@@ -157,11 +163,11 @@ export const Login = () => {
           )}
 
           <h2 className="text-2xl font-bold text-foreground mb-2">
-            {selectedRole === 'DRIVER' ? 'Accès Chauffeur' : isLogin ? 'Bon retour parmi nous' : 'Créer un compte Admin'}
+            {selectedRole === 'DRIVER' ? 'Accès Chauffeur' : selectedRole === 'VISITOR' ? 'Accès Visiteur' : isLogin ? 'Bon retour parmi nous' : 'Créer un compte Admin'}
           </h2>
           <p className="text-muted-foreground text-sm mb-8">
-            {selectedRole === 'DRIVER' 
-              ? 'Accédez directement à la file d\'attente.' 
+            {selectedRole === 'DRIVER' || selectedRole === 'VISITOR'
+              ? 'Accédez directement au système.' 
               : isLogin 
                 ? (selectedRole === 'MANAGER' ? 'Saisissez votre mot de passe pour accéder au site.' : 'Connectez-vous pour accéder à votre espace de travail.') 
                 : 'Enregistrez un nouvel administrateur système.'}
@@ -205,7 +211,7 @@ export const Login = () => {
               </div>
             </div>
 
-            {selectedRole !== 'DRIVER' && (
+            {(selectedRole !== 'DRIVER' && selectedRole !== 'VISITOR') && (
               <div className="space-y-4 animate-in slide-in-from-top-2">
                 {!isLogin && (
                   <div className="relative">
@@ -220,7 +226,6 @@ export const Login = () => {
                     />
                   </div>
                 )}
-                {/* Email is hidden for Manager Login */}
                 {(selectedRole === 'ADMIN' || !isLogin) && (
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
@@ -257,7 +262,7 @@ export const Login = () => {
                 <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <>
-                  {selectedRole === 'DRIVER' ? 'Accéder Directement' : isLogin ? 'Se connecter' : 'Créer le compte'}
+                  {(selectedRole === 'DRIVER' || selectedRole === 'VISITOR') ? 'Accéder Directement' : isLogin ? 'Se connecter' : 'Créer le compte'}
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </>
               )}

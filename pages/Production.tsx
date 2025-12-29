@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { db } from '../services/db';
 import { Project, ProductionView } from '../types';
@@ -8,11 +7,15 @@ import {
   LayoutList, FileText, Banknote, ChevronDown, UserCircle, Scissors
 } from 'lucide-react';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
+import { useAuth } from '../contexts/AuthContext';
 
 export const ProductionPage = () => {
+  const { user } = useAuth();
   const [productions, setProductions] = useState<ProductionView[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const isVisitor = user?.role === 'VISITOR';
   
   // UI State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,6 +48,7 @@ export const ProductionPage = () => {
   }, []);
 
   const handleOpenModal = (prod?: ProductionView) => {
+    if (isVisitor) return;
     if (prod) {
       setFormData({ ...prod });
       const totalWorkers = (Number(prod.nombre_elements) || 0) + (Number(prod.equipe_couture) || 0);
@@ -81,6 +85,7 @@ export const ProductionPage = () => {
   }, [formData.nombre_elements, formData.equipe_couture, dailyWage, isModalOpen]);
 
   const handleDelete = async (id: string) => {
+    if (isVisitor) return;
     if (!confirm('Voulez-vous vraiment supprimer cet enregistrement de production ?')) return;
     try {
       await db.deleteItem('production', id);
@@ -92,6 +97,7 @@ export const ProductionPage = () => {
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
+    if (isVisitor) return;
     if (!formData.project_id) {
        alert("Le projet est requis");
        return;
@@ -183,7 +189,8 @@ export const ProductionPage = () => {
         </div>
         <button 
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium shadow-soft-sm transition-all"
+          disabled={isVisitor}
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium shadow-soft-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus size={18} /> Nouvelle Production
         </button>
@@ -333,8 +340,8 @@ export const ProductionPage = () => {
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex justify-end gap-1">
-                                <button onClick={() => handleOpenModal(p)} className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 size={16} /></button>
-                                <button onClick={() => handleDelete(p.id)} className="btn btn-circle btn-text btn-sm text-destructive hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+                                <button onClick={() => handleOpenModal(p)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDelete(p.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><Trash2 size={16} /></button>
                               </div>
                             </td>
                           </tr>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/db';
@@ -36,6 +35,7 @@ export const TruckFIFO = () => {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   const isDriver = user?.role === 'DRIVER';
+  const isVisitor = user?.role === 'VISITOR';
 
   const fetchData = async () => {
     setLoading(true);
@@ -77,7 +77,7 @@ export const TruckFIFO = () => {
 
   const handleManualScan = async (e?: FormEvent) => {
     if (e) e.preventDefault();
-    if (!selectedTruckId) return;
+    if (isVisitor || !selectedTruckId) return;
 
     const truck = trucks.find(t => t.id === selectedTruckId);
 
@@ -91,6 +91,7 @@ export const TruckFIFO = () => {
   };
 
   const enterTruckToQueue = async (truck: Truck) => {
+    if (isVisitor) return;
     try {
       const now = new Date().toISOString();
       await db.updateItem('trucks', truck.id, { 
@@ -115,6 +116,7 @@ export const TruckFIFO = () => {
   };
 
   const startScanner = () => {
+    if (isVisitor) return;
     setScanError('');
     setIsScannerOpen(true);
     setTimeout(() => {
@@ -180,6 +182,7 @@ export const TruckFIFO = () => {
   };
 
   const handleRemoveFromQueue = async (truckId: string) => {
+     if (isVisitor) return;
      if(!confirm("Retirer ce camion de la file d'attente ? Il sera marqué comme DISPONIBLE.")) return;
      try {
         await db.updateItem('trucks', truckId, { status: 'AVAILABLE' });
@@ -246,6 +249,7 @@ export const TruckFIFO = () => {
                           }}
                           placeholder="Rechercher immatriculation..."
                           className="shadow-soft-sm"
+                          disabled={isVisitor}
                        />
                        {scanError && (
                           <div className="flex items-center gap-1.5 text-destructive mt-2 animate-in fade-in slide-in-from-top-1">
@@ -257,7 +261,7 @@ export const TruckFIFO = () => {
                     
                     <button 
                        onClick={() => handleManualScan()}
-                       disabled={!selectedTruckId}
+                       disabled={!selectedTruckId || isVisitor}
                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold transition-all shadow-glow active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                     >
                        Valider Entrée
@@ -270,7 +274,8 @@ export const TruckFIFO = () => {
 
                     <button 
                        onClick={startScanner}
-                       className="w-full border border-border hover:bg-muted text-foreground py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
+                       disabled={isVisitor}
+                       className="w-full border border-border hover:bg-muted text-foreground py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                        <Camera size={20} /> Scanner QR Code
                     </button>
@@ -334,10 +339,10 @@ export const TruckFIFO = () => {
               </button>
            </div>
 
-           {isDriver && (
+           {(isDriver || isVisitor) && (
               <div className="p-4 bg-amber-50 text-amber-800 text-[10px] font-bold flex items-center gap-3 border-b border-amber-100">
                  <ShieldAlert size={14} className="shrink-0" />
-                 L'ACCÈS AUX ACTIONS EST RÉSERVÉ AUX COORDINATEURS DE SITE.
+                 {isVisitor ? "ACCÈS CONSULTATION : LES ACTIONS SONT DÉSACTIVÉES." : "L'ACCÈS AUX ACTIONS EST RÉSERVÉ AUX COORDINATEURS DE SITE."}
               </div>
            )}
 
@@ -359,7 +364,7 @@ export const TruckFIFO = () => {
                              className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-border hover:border-primary/20 hover:shadow-soft-sm transition-all bg-card"
                           >
                              <div className="flex items-center gap-4 pl-1">
-                                <div className={`text-lg font-black ${isDriver ? 'text-muted-foreground' : 'text-primary/20'}`}>
+                                <div className={`text-lg font-black ${(isDriver || isVisitor) ? 'text-muted-foreground' : 'text-primary/20'}`}>
                                    {String(index + 1).padStart(2, '0')}
                                 </div>
                                 <div className="p-2 bg-primary/5 text-primary rounded-lg shrink-0">
@@ -388,7 +393,7 @@ export const TruckFIFO = () => {
                                 </div>
                              </div>
 
-                             {!isDriver && (
+                             {(!isDriver && !isVisitor) && (
                                 <div className="flex items-center gap-2 mt-4 sm:mt-0">
                                    <button 
                                       onClick={() => handleRemoveFromQueue(truck.id)}

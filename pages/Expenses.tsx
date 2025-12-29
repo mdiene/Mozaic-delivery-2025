@@ -1,13 +1,14 @@
-
 import { useState, useEffect, useMemo, FormEvent, useRef, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { db } from '../services/db';
 import { EnrichedPayment, DeliveryView, Project } from '../types';
 import { Search, Filter, Layers, X, Edit2, RotateCcw, Save, Truck, User, Fuel, Receipt, ShieldCheck, RefreshCw, Calendar, Minimize2, ChevronRight, MapPin, PackageOpen, Coins } from 'lucide-react';
 import { AdvancedSelect } from '../components/AdvancedSelect';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Expenses = () => {
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [payments, setPayments] = useState<EnrichedPayment[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -16,6 +17,8 @@ export const Expenses = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<Partial<EnrichedPayment>>({});
   
+  const isVisitor = user?.role === 'VISITOR';
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPhase, setFilterPhase] = useState<string>('all');
@@ -84,6 +87,7 @@ export const Expenses = () => {
   }, []);
 
   const handleOpenModal = (payment?: EnrichedPayment) => {
+     if (isVisitor) return;
      if (payment) {
         setFormData({ ...payment });
         if (payment.fuel_quantity > 0) {
@@ -129,6 +133,7 @@ export const Expenses = () => {
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
+    if (isVisitor) return;
     if (!formData.delivery_id || !formData.truck_id) {
       alert("Veuillez sélectionner une livraison valide.");
       return;
@@ -163,7 +168,7 @@ export const Expenses = () => {
   };
 
   const handleReset = async () => {
-    if (!formData.id) return;
+    if (isVisitor || !formData.id) return;
     if (!confirm('Voulez-vous vraiment réinitialiser TOUS les montants de cette note à zéro ?')) return;
     try {
       await db.updateItem('payments', formData.id, {
@@ -559,8 +564,9 @@ export const Expenses = () => {
                                                 <div className="flex justify-end gap-1">
                                                    <button 
                                                       onClick={() => handleOpenModal(p)} 
-                                                      className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50"
-                                                      title="Modifier"
+                                                      disabled={isVisitor}
+                                                      className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                      title={isVisitor ? "Lecture seule" : "Modifier"}
                                                    >
                                                       <Edit2 size={16} />
                                                    </button>
