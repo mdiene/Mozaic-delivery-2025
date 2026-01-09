@@ -5,7 +5,7 @@ import { useAllocations, useReferenceData, useUpdateItem, useDeleteItem } from '
 import { 
   Plus, Search, MapPin, Edit2, Trash2, AlertTriangle, Lock, Unlock, X, Save,
   CheckCircle, TrendingUp, Activity, Eye, Printer, ArrowUpDown, ChevronRight, Layers, ListFilter, Truck,
-  Phone, User, Box, Calendar, FileText, Info, Lightbulb
+  Phone, User, Box, Calendar, FileText, Info, Lightbulb, History as HistoryIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -488,7 +488,7 @@ export const Allocations = () => {
                     {/* NEW SECTION: Deliveries History */}
                     <div className="space-y-4">
                        <h3 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2 ml-1">
-                          <History size={16} className="text-primary" /> Historique des Livraisons ({viewDeliveries.length})
+                          <HistoryIcon size={16} className="text-primary" /> Historique des Livraisons ({viewDeliveries.length})
                        </h3>
                        
                        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-soft-sm">
