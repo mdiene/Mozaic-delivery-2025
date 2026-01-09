@@ -11,14 +11,52 @@ const safeLog = (message: string, ...args: any[]) => {
 
 export const db = {
   getDeliveriesView: async (): Promise<DeliveryView[]> => {
-    const { data, error } = await supabase.rpc('get_deliveries_view');
+    const { data, error } = await supabase
+      .from('deliveries')
+      .select(`
+        *,
+        trucks:truck_id(plate_number, owner_type),
+        drivers:driver_id(name),
+        allocations:allocation_id (
+          operator_id,
+          region_id,
+          department_id,
+          project_id,
+          operators(name),
+          regions(name),
+          departments(name),
+          communes(name),
+          project:project_id(numero_phase, numero_marche)
+        )
+      `);
 
     if (error) {
-      console.error('Error fetching deliveries view:', error);
-      throw new Error(error.message);
+      safeLog('Error fetching deliveries view:', error);
+      return [];
     }
 
-    return data;
+    return data.map((del: any) => {
+      const alloc = del.allocations; 
+      const proj = alloc?.project;
+      
+      const phaseStr = proj 
+        ? `Phase ${proj.numero_phase}${proj.numero_marche ? ` - ${proj.numero_marche}` : ''}`
+        : 'Phase Non Assignée';
+
+      return {
+        ...del,
+        operator_name: alloc?.operators?.name || 'Unknown',
+        operator_id: alloc?.operator_id,
+        region_name: alloc?.regions?.name || 'Unknown',
+        department_name: alloc?.departments?.name || 'Unknown',
+        commune_name: alloc?.communes?.name || 'Unknown',
+        project_phase: phaseStr,
+        truck_plate: del.trucks?.plate_number || 'Unknown',
+        truck_owner_type: del.trucks?.owner_type,
+        driver_name: del.drivers?.name || 'Unknown',
+        project_id: alloc?.project_id
+      };
+    });
   },
 
   getAllocationsView: async (): Promise<AllocationView[]> => {

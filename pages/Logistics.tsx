@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo, Fragment, FormEvent } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
 import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight, Receipt } from 'lucide-react';
@@ -10,11 +9,16 @@ import { useAuth } from '../contexts/AuthContext';
 type GroupBy = 'none' | 'truck' | 'commune' | 'region';
 
 export const Logistics = () => {
-  const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
+  const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [allocations, setAllocations] = useState<AllocationView[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   
+  const [loading, setLoading] = useState(true);
   const isVisitor = user?.role === 'VISITOR';
   
   // Page Filters & Search
@@ -34,63 +38,63 @@ export const Logistics = () => {
   // Modal Filter State
   const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
   
-  const { data: deliveries = [], isLoading: deliveriesLoading, error: deliveriesError } = useQuery({
-    queryKey: ['deliveries'],
-    queryFn: db.getDeliveriesView,
-  });
-
-  const { data: trucks = [], isLoading: trucksLoading, error: trucksError } = useQuery({
-    queryKey: ['trucks'],
-    queryFn: db.getTrucks,
-  });
-
-  const { data: drivers = [], isLoading: driversLoading, error: driversError } = useQuery({
-    queryKey: ['drivers'],
-    queryFn: db.getDrivers,
-  });
-
-  const { data: allocations = [], isLoading: allocationsLoading, error: allocationsError } = useQuery({
-    queryKey: ['allocations'],
-    queryFn: db.getAllocationsView,
-  });
-
-  const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useQuery({
-    queryKey: ['projects'],
-    queryFn: db.getProjects,
-  });
-
-  const loading = deliveriesLoading || trucksLoading || driversLoading || allocationsLoading || projectsLoading;
-  const error = deliveriesError || trucksError || driversError || allocationsError || projectsError;
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [del, tr, dr, al, proj] = await Promise.all([
+        db.getDeliveriesView(),
+        db.getTrucks(),
+        db.getDrivers(),
+        db.getAllocationsView(),
+        db.getProjects()
+      ]);
+      setDeliveries(del);
+      setTrucks(tr);
+      setDrivers(dr);
+      setAllocations(al); 
+      setProjects(proj);
+      return { allocations: al, projects: proj, trucks: tr };
+    } catch (e) {
+      console.error(e);
+      return { allocations: [], projects: [], trucks: [] };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!loading && !error) {
+    const init = async () => {
+      const { allocations: loadedAllocations, projects: loadedProjects, trucks: loadedTrucks } = await fetchData();
+      
+      // Check URL params for auto-open action
       const params = new URLSearchParams(location.search);
       if (params.get('action') === 'new' && !isVisitor) {
         const initialData: any = {
-          bl_number: generateBL(),
-          delivery_date: new Date().toISOString().split('T')[0],
-          tonnage_loaded: 0
+           bl_number: generateBL(),
+           delivery_date: new Date().toISOString().split('T')[0],
+           tonnage_loaded: 0
         };
 
         const allocId = params.get('allocationId');
         if (allocId) {
-          const targetAlloc = allocations.find(a => a.id === allocId);
-          if (targetAlloc) initialData.allocation_id = targetAlloc.id;
+           const targetAlloc = loadedAllocations.find(a => a.id === allocId);
+           if (targetAlloc) initialData.allocation_id = targetAlloc.id;
         }
 
         const truckId = params.get('truckId');
         if (truckId) {
-          initialData.truck_id = truckId;
-          const t = trucks.find(truck => truck.id === truckId);
-          if (t && t.driver_id) initialData.driver_id = t.driver_id;
+           initialData.truck_id = truckId;
+           const t = loadedTrucks.find(truck => truck.id === truckId);
+           if (t && t.driver_id) initialData.driver_id = t.driver_id;
         }
 
         setFormData(initialData);
         setIsModalOpen(true);
         navigate('/logistics/dispatch', { replace: true });
       }
-    }
-  }, [loading, error, location.search, isVisitor, allocations, trucks, navigate]);
+    };
+    init();
+  }, [location.search, isVisitor]);
 
   const toggleAccordion = (phase: string) => {
     const newSet = new Set(activeAccordionPhases);
@@ -126,70 +130,20 @@ export const Logistics = () => {
     setIsModalOpen(true);
   };
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => db.deleteItem('deliveries', id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deliveries'] });
-    },
-    onError: (error) => {
-      alert(`Error deleting item: ${error.message}`);
-    },
-  });
-
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (isVisitor) return;
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette expédition ?')) {
-      deleteMutation.mutate(id);
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette expédition ?')) return;
+    try {
+      await db.deleteItem('deliveries', id);
+      fetchData();
+    } catch (e) {
+      alert("Erreur lors de la suppression de l'élément.");
     }
   };
 
   const goToExpenses = (blNumber: string) => {
     navigate(`/logistics/expenses?search=${blNumber}`);
   };
-
-  const saveMutation = useMutation({
-    mutationFn: (dbPayload: any) => {
-      if (formData.id) {
-        return db.updateItem('deliveries', formData.id, dbPayload);
-      } else {
-        return db.createItem('deliveries', dbPayload);
-      }
-    },
-    onSuccess: (data, variables) => {
-      // If it was a new delivery (data will be an array with the new item)
-      if (!formData.id && data && data.length > 0 && variables.truck_id) {
-        const newDelivery = data[0];
-        // Create corresponding payment record
-        db.createItem('payments', {
-          delivery_id: newDelivery.id,
-          truck_id: variables.truck_id,
-          road_fees: 0,
-          personal_fees: 0,
-          other_fees: 0,
-          overweigh_fees: 0,
-          fuel_quantity: 0,
-          fuel_cost: 0
-        });
-
-        // Update truck status if it was ON_SITE
-        const currentTruck = trucks.find(t => t.id === variables.truck_id);
-        if (currentTruck && currentTruck.status === 'ON_SITE') {
-          db.updateItem('trucks', currentTruck.id, { status: 'IN_TRANSIT' });
-        }
-
-        // Invalidate all related queries
-        queryClient.invalidateQueries({ queryKey: ['payments'] });
-        queryClient.invalidateQueries({ queryKey: ['trucks'] });
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['deliveries'] });
-      setIsModalOpen(false);
-    },
-    onError: (error: any) => {
-      const msg = error.details || error.hint || error.message || JSON.stringify(error);
-      alert(`Échec de l'enregistrement: ${msg}`);
-    },
-  });
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
@@ -203,15 +157,46 @@ export const Logistics = () => {
        return;
     }
 
-    const dbPayload: any = {
-      allocation_id: formData.allocation_id,
-      bl_number: formData.bl_number,
-      truck_id: formData.truck_id || null,
-      driver_id: formData.driver_id || null,
-      tonnage_loaded: Number(formData.tonnage_loaded),
-      delivery_date: formData.delivery_date
-    };
-    saveMutation.mutate(dbPayload);
+    try {
+      const dbPayload: any = {
+        allocation_id: formData.allocation_id,
+        bl_number: formData.bl_number,
+        truck_id: formData.truck_id || null, 
+        driver_id: formData.driver_id || null,
+        tonnage_loaded: Number(formData.tonnage_loaded),
+        delivery_date: formData.delivery_date
+      };
+
+      if (formData.id) {
+        await db.updateItem('deliveries', formData.id, dbPayload);
+      } else {
+        const result = await db.createItem('deliveries', dbPayload);
+        if (result && result.length > 0 && dbPayload.truck_id) {
+           const newDelivery = result[0];
+           await db.createItem('payments', {
+              delivery_id: newDelivery.id,
+              truck_id: dbPayload.truck_id,
+              road_fees: 0,
+              personal_fees: 0,
+              other_fees: 0,
+              overweigh_fees: 0,
+              fuel_quantity: 0,
+              fuel_cost: 0
+           });
+           
+           const currentTruck = trucks.find(t => t.id === dbPayload.truck_id);
+           if (currentTruck && currentTruck.status === 'ON_SITE') {
+              await db.updateItem('trucks', currentTruck.id, { status: 'IN_TRANSIT' });
+           }
+        }
+      }
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      console.error("Save Error:", error);
+      const msg = error.details || error.hint || error.message || JSON.stringify(error);
+      alert(`Échec de l'enregistrement: ${msg}`);
+    }
   };
 
   const handleTruckChange = (truckId: string) => {
@@ -380,21 +365,13 @@ export const Logistics = () => {
       </div>
 
       <div className="accordion flex flex-col gap-4 min-h-[500px]">
-        {loading ? (
-          <div className="p-12 text-center text-muted-foreground bg-card rounded-xl border border-border">
-            Loading...
-          </div>
-        ) : error ? (
-          <div className="p-12 text-center text-red-500 bg-card rounded-xl border border-border">
-            Error: {error.message}
-          </div>
-        ) : groupedDeliveries.length === 0 && (
+        {groupedDeliveries.length === 0 && (
           <div className="p-12 text-center text-muted-foreground bg-card rounded-xl border border-border">
              {searchTerm || mainPhaseFilter !== 'all' ? 'Aucun résultat.' : 'Aucune expédition trouvée.'}
           </div>
         )}
         
-        {!loading && !error && groupedDeliveries.map((projectGroup) => {
+        {groupedDeliveries.map((projectGroup) => {
            const isOpen = activeAccordionPhases.has(projectGroup.phase);
            return (
             <div key={projectGroup.phase} className="accordion-item">

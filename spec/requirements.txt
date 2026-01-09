@@ -1,0 +1,37 @@
+# MASAE Delivery Tracker - Local Dependency List
+# Run "npm install <package_name>" for each of these or use a package.json
+
+# Core Framework
+react@^19.0.0
+react-dom@^19.0.0
+react-router-dom@^7.0.0
+
+# Build & Tooling
+vite@^6.0.0
+typescript@^5.0.0
+@vitejs/plugin-react@^4.0.0
+
+# Backend & State Management
+@supabase/supabase-js@^2.45.0
+@tanstack/react-query@^5.60.0
+
+# UI & Styling
+tailwindcss@^3.4.0
+autoprefixer@^10.4.0
+postcss@^8.4.0
+lucide-react@^0.450.0
+
+# Specialized Components & Utilities
+recharts@^2.13.0
+vis-network@^9.1.9
+@google/genai@^0.21.0
+jspdf@^2.5.1
+jspdf-autotable@^3.8.2
+qrcode.react@^4.0.0
+html5-qrcode@^2.3.8
+sortablejs@^1.15.3
+react-barcode@^1.5.3
+flatpickr@^4.6.13
+
+# Command to install all at once locally:
+# npm install react react-dom react-router-dom @supabase/supabase-js @tanstack/react-query tailwindcss lucide-react recharts vis-network @google/genai jspdf jspdf-autotable qrcode.react html5-qrcode sortablejs react-barcode flatpickr

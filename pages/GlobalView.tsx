@@ -70,6 +70,7 @@ const calculateNodeStats = (node: any, level: 'region' | 'dept' | 'commune' | 'o
 
     if (currentLevel === 'region') { children = item.departments; nextLevel = 'dept'; }
     else if (currentLevel === 'dept') { children = item.communes; nextLevel = 'commune'; }
+    // Fix: In GlobalHierarchy, commune children are 'operators', not 'deliveries'
     else if (currentLevel === 'commune') { children = item.operators; nextLevel = 'operator'; }
     else if (currentLevel === 'operator') { children = item.allocations; nextLevel = 'allocation'; }
 
@@ -82,7 +83,8 @@ const calculateNodeStats = (node: any, level: 'region' | 'dept' | 'commune' | 'o
 
   if (level === 'region') count = node.departments?.length || 0;
   if (level === 'dept') count = node.communes?.length || 0;
-  if (level === 'commune') count = node.operators?.length || 0;
+  // Fix: Property 'operators' access check
+  if (level === 'commune') count = (node as any).operators?.length || 0;
   if (level === 'operator') count = node.allocations?.length || 0;
   if (level === 'allocation') count = node.deliveries?.length || 0;
 
