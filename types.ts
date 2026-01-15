@@ -180,6 +180,52 @@ export interface ProductionView extends Production {
   project_phase: string;
 }
 
+// Admin / Parameters Types
+export interface AdminCategoryDepense {
+  id_categorie: string;
+  nom_categorie: string;
+}
+
+export interface AdminModePaiement {
+  id_mode: string;
+  nom_mode: string;
+}
+
+export interface AdminCodeAnalytique {
+  id_code: string;
+  code: string;
+  description: string;
+}
+
+export interface AdminPoste {
+  id_poste: string;
+  titre_poste: string;
+  categorie_poste: string;
+}
+
+export interface AdminPersonnel {
+  id_personnel: string;
+  nom: string;
+  prenom: string;
+  id_poste: string;
+  telephone: string;
+  poste_titre?: string;
+}
+
+export interface AdminDepense {
+  id_depense: string;
+  date_operation: string;
+  libelle: string;
+  montant: number;
+  id_categorie: string;
+  id_mode_paiement: string;
+  id_code_analytique: string;
+  id_responsable: string;
+  reference_piece: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type NetworkHierarchy = Array<{
   id: string;
   name: string;

@@ -1,3 +1,4 @@
+
 // Fix: Added React to imports to resolve 'Cannot find name React' error and improved submenu hiding logic
 import React, { useState, useEffect, createContext, useContext, ReactNode, FC, isValidElement } from 'react';
 import { NavLink, useLocation, Outlet, useNavigate } from 'react-router-dom';
@@ -31,7 +32,9 @@ import {
   Coins,
   Grid,
   HardHat,
-  ShoppingCart
+  ShoppingCart,
+  Database,
+  Briefcase
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -244,15 +247,10 @@ const Sidebar = ({
           </SidebarSubmenu>
 
           {(isAdmin || isVisitor) && (
-            <>
-              <div className="my-2 px-2"><div className="h-px bg-sidebar-border/50 w-full"></div></div>
-              <li>
-                <NavLink to="/settings" className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`}>
-                  <Settings size={20} className="shrink-0" />
-                  <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Paramètres</span>
-                </NavLink>
-              </li>
-            </>
+            <SidebarSubmenu label="Paramètres" icon={Settings} basePath="/settings" expanded={expanded}>
+               <li><NavLink to="/settings" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Database size={16} className="shrink-0" /><span className="truncate">Système</span></NavLink></li>
+               <li><NavLink to="/settings/admin" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Briefcase size={16} className="shrink-0" /><span className="truncate">Administratif</span></NavLink></li>
+            </SidebarSubmenu>
           )}
         </ul>
       </nav>

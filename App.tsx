@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -6,6 +7,7 @@ import { Allocations } from './pages/Allocations';
 import { Logistics } from './pages/Logistics';
 import { Fleet } from './pages/Fleet';
 import { Settings } from './pages/Settings';
+import { AdminParameters } from './pages/admin/AdminParameters';
 import { Views } from './pages/Views';
 import { NetworkPage } from './pages/Network';
 import { Itinerary } from './pages/Itinerary';
@@ -147,11 +149,18 @@ function App() {
             } />
           </Route>
           
-          <Route path="settings" element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
-              <Settings />
-            </ProtectedRoute>
-          } />
+          <Route path="settings">
+            <Route index element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin" element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminParameters />
+              </ProtectedRoute>
+            } />
+          </Route>
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />

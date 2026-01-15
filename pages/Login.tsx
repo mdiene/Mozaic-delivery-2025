@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth, UserRole } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -49,7 +50,7 @@ export const Login = () => {
         if ((selectedRole as string) === 'MANAGER') {
           const userPrefs = await db.authenticateUser('manager@site.sn', password);
           if (userPrefs) {
-             login(userPrefs.user_email || 'manager@site.sn', 'MANAGER', 'Manager Site');
+             login(userPrefs.user_email || 'manager@site.sn', 'MANAGER', 'Manager Site', userPrefs.id);
              navigate('/logistics/fifo');
              return;
           } else {
@@ -75,7 +76,7 @@ export const Login = () => {
           if (userPrefs.user_right_level !== requiredLevel) {
             setError("Rôle incorrect pour cet utilisateur.");
           } else {
-            login(userPrefs.user_email, selectedRole, userPrefs.user_email.split('@')[0]);
+            login(userPrefs.user_email, selectedRole, userPrefs.user_email.split('@')[0], userPrefs.id);
             navigate('/');
           }
         } else {

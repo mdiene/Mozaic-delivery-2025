@@ -1,8 +1,10 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'DRIVER' | 'VISITOR' | null;
 
 interface User {
+  id?: string; // Database ID from user_preferences
   email: string;
   role: UserRole;
   name: string;
@@ -10,7 +12,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, role: UserRole, name: string) => void;
+  login: (email: string, role: UserRole, name: string, id?: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -28,8 +30,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const login = (email: string, role: UserRole, name: string) => {
-    const newUser = { email, role, name };
+  const login = (email: string, role: UserRole, name: string, id?: string) => {
+    const newUser = { email, role, name, id };
     setUser(newUser);
     localStorage.setItem('masae_auth_user', JSON.stringify(newUser));
   };

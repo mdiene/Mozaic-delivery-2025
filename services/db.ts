@@ -2,7 +2,8 @@
 import { supabase } from '../lib/supabaseClient';
 import { 
   DeliveryView, AllocationView, Truck, Driver, Region, Department, Commune, 
-  Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference, ProductionView 
+  Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference, ProductionView,
+  AdminCategoryDepense, AdminModePaiement, AdminCodeAnalytique, AdminPoste, AdminPersonnel, AdminDepense
 } from '../types';
 
 const safeLog = (message: string, ...args: any[]) => {
@@ -290,6 +291,64 @@ export const db = {
     });
   },
 
+  // Admin Parameters
+  getAdminCategories: async (): Promise<AdminCategoryDepense[]> => {
+    const { data } = await supabase.from('admin_categories_depense').select('*');
+    return data || [];
+  },
+
+  getAdminModesPaiement: async (): Promise<AdminModePaiement[]> => {
+    const { data } = await supabase.from('admin_modes_paiement').select('*');
+    return data || [];
+  },
+
+  getAdminCodesAnalytiques: async (): Promise<AdminCodeAnalytique[]> => {
+    const { data } = await supabase.from('admin_codes_analytiques').select('*');
+    return data || [];
+  },
+
+  getAdminPostes: async (): Promise<AdminPoste[]> => {
+    const { data } = await supabase.from('admin_postes').select('*');
+    return data || [];
+  },
+
+  getAdminPersonnel: async (): Promise<AdminPersonnel[]> => {
+    const { data } = await supabase.from('admin_personnel').select(`
+      *,
+      admin_postes(titre_poste)
+    `);
+    return (data || []).map((p: any) => ({
+      ...p,
+      poste_titre: p.admin_postes?.titre_poste || '-'
+    }));
+  },
+
+  getAdminDepenses: async (): Promise<any[]> => {
+    const { data, error } = await supabase
+      .from('admin_depenses')
+      .select(`
+        *,
+        admin_categories_depense(nom_categorie),
+        admin_modes_paiement(nom_mode),
+        admin_codes_analytiques(code),
+        admin_personnel(nom, prenom)
+      `)
+      .order('date_operation', { ascending: false });
+
+    if (error) {
+      safeLog('Error fetching admin expenses:', error);
+      return [];
+    }
+
+    return (data || []).map((d: any) => ({
+      ...d,
+      nom_categorie: d.admin_categories_depense?.nom_categorie || '-',
+      nom_mode: d.admin_modes_paiement?.nom_mode || '-',
+      code_analytique: d.admin_codes_analytiques?.code || '-',
+      responsable_nom: d.admin_personnel ? `${d.admin_personnel.prenom} ${d.admin_personnel.nom}` : '-'
+    }));
+  },
+
   getUsedProjectIds: async (): Promise<Set<string>> => {
      const { data } = await supabase.from('allocations').select('project_id');
      const set = new Set<string>();
@@ -341,13 +400,30 @@ export const db = {
   },
 
   updateItem: async (table: string, id: string, payload: any) => {
-    const { data, error } = await supabase.from(table).update(payload).eq('id', id).select();
+    // Map primary key name based on table
+    let pk = 'id';
+    if (table === 'admin_categories_depense') pk = 'id_categorie';
+    if (table === 'admin_modes_paiement') pk = 'id_mode';
+    if (table === 'admin_codes_analytiques') pk = 'id_code';
+    if (table === 'admin_postes') pk = 'id_poste';
+    if (table === 'admin_personnel') pk = 'id_personnel';
+    if (table === 'admin_depenses') pk = 'id_depense';
+
+    const { data, error } = await supabase.from(table).update(payload).eq(pk, id).select();
     if (error) throw error;
     return data;
   },
 
   deleteItem: async (table: string, id: string) => {
-    const { error } = await supabase.from(table).delete().eq('id', id);
+    let pk = 'id';
+    if (table === 'admin_categories_depense') pk = 'id_categorie';
+    if (table === 'admin_modes_paiement') pk = 'id_mode';
+    if (table === 'admin_codes_analytiques') pk = 'id_code';
+    if (table === 'admin_postes') pk = 'id_poste';
+    if (table === 'admin_personnel') pk = 'id_personnel';
+    if (table === 'admin_depenses') pk = 'id_depense';
+
+    const { error } = await supabase.from(table).delete().eq(pk, id);
     if (error) throw error;
     return true;
   },
