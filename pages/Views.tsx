@@ -339,7 +339,7 @@ export const Views = () => {
       // Recipient Box
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.1);
-      doc.rect(120, 70, 75, 28); // Increased height for contact info
+      doc.rect(120, 70, 75, 28); 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
@@ -393,19 +393,19 @@ export const Views = () => {
             }, 
             { content: `${item.tonnage_loaded}`, styles: { halign: 'right', fontStyle: 'bold', fontSize: 12 } }
           ],
-          ['', ''], // Spacer
+          ['', ''], 
           ['SOUS-TOTAL', { content: `${item.tonnage_loaded}`, styles: { halign: 'right', fontStyle: 'bold' } }]
         ],
         theme: 'plain',
         headStyles: { fillColor: [255, 249, 230], textColor: [0, 0, 0], fontStyle: 'bold' },
         styles: { fontSize: 10, cellPadding: 4 },
         columnStyles: {
-          0: { cellWidth: 125 }, // Reduced to prevent overflow (125 + 50 = 175, fitting within margins)
+          0: { cellWidth: 125 }, 
           1: { cellWidth: 50 }
         },
         didParseCell: (data) => {
            if (data.row.index === 2) {
-              data.cell.styles.fillColor = [240, 253, 244]; // Light green for total
+              data.cell.styles.fillColor = [240, 253, 244]; 
               data.cell.styles.lineWidth = { top: 0.1 };
            }
         }
@@ -434,9 +434,8 @@ export const Views = () => {
       }
 
       // Cachet Simulation
-      doc.setDrawColor(30, 58, 138); // #1e3a8a Blue
+      doc.setDrawColor(30, 58, 138); 
       doc.setLineWidth(0.8);
-      // Rotate context
       doc.saveGraphicsState();
       doc.setTextColor(30, 58, 138);
       doc.text("SOCIETE MINIERE AFRICAINE", 140, finalY + 30);
@@ -460,6 +459,103 @@ export const Views = () => {
     } catch (e) {
       console.error("PDF Generation Error:", e);
       alert("Erreur lors de la génération du PDF.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  // PDF Download Handler for Fin de Cession
+  const downloadFCPdf = (item: FinDeCessionView) => {
+    const uniqueId = `FC-PH${item.project_phase}-${item.operator_id.slice(0, 4)}`;
+    setDownloadingId(uniqueId);
+    
+    try {
+      const doc = new jsPDF();
+      
+      // Header Branding (consistent with BL)
+      doc.setFillColor(224, 155, 96); doc.rect(15, 15, 8, 2, 'F');
+      doc.setFillColor(191, 161, 47); doc.rect(15, 18, 9, 2, 'F');
+      doc.setFillColor(114, 140, 40); doc.rect(15, 21, 8.5, 2, 'F');
+      doc.setFont("helvetica", "bold"); doc.setFontSize(28); doc.text("SOMA", 30, 25);
+      doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.text("SOCIÉTÉ", 70, 18); doc.text("MINIÈRE", 70, 22); doc.text("AFRICAINE", 70, 26);
+      doc.setLineWidth(0.5); doc.line(65, 15, 65, 28);
+
+      // Document Title
+      doc.setFillColor(255, 249, 230); doc.rect(15, 35, 180, 10, 'F');
+      doc.setDrawColor(217, 119, 6); doc.setLineWidth(1.5); doc.line(15, 35, 15, 45);
+      doc.setFontSize(14); doc.setTextColor(60, 60, 60);
+      doc.text("PROCÈS VERBAL DE RÉCEPTION DES INTRANTS", 20, 42);
+
+      doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+      doc.text(`Date : ${new Date().toLocaleDateString('fr-FR')}`, 15, 55);
+      doc.setFont("helvetica", "bold"); doc.text("CAMPAGNE AGRICOLE 2025-2026", 15, 60);
+
+      // Main Text
+      doc.setFont("helvetica", "normal");
+      doc.text(`COMMUNE DE : ${item.commune.toUpperCase()}`, 15, 75);
+      doc.setLineWidth(0.1); doc.line(15, 76, 15 + doc.getTextWidth(`COMMUNE DE : ${item.commune.toUpperCase()}`), 76);
+
+      const splitText = doc.splitTextToSize(
+        `Suite à la notification de mise à disposition d’engrais N° 394/MASAE/DA faite à la société minière africaine et selon le planning de la lettre N° 0971/DA/BRAFS de mise en place phosphate naturel.`, 
+        180
+      );
+      doc.text(splitText, 15, 85);
+
+      // Summary Table
+      autoTable(doc, {
+        startY: 100,
+        margin: { left: 15, right: 15 },
+        head: [['NOM DE L\'OPÉRATEUR', 'REPRÉSENTANT', 'PRODUIT', 'QUANTITÉ / T']],
+        body: [[
+          item.operator_name,
+          item.operator_coop_name || item.operator_name,
+          'Phosphate naturel',
+          { content: `${item.total_tonnage}`, styles: { fontStyle: 'bold' } }
+        ]],
+        theme: 'grid',
+        headStyles: { fillColor: [254, 243, 199], textColor: [146, 64, 14], fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 5, halign: 'center' },
+        columnStyles: { 0: { halign: 'left' } }
+      });
+
+      const nextY = (doc as any).lastAutoTable.finalY + 15;
+      const concludingText = doc.splitTextToSize(
+        `La commission de réception des engrais du point de réception de la commune de ${item.commune} du Département de ${item.department} de la région de ${item.region}. 
+        
+Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré ${item.total_tonnage} tonnes à l’opérateur.`,
+        180
+      );
+      doc.text(concludingText, 15, nextY);
+
+      // Signatures
+      doc.setFont("helvetica", "bold");
+      doc.text("Ont signé :", 15, nextY + 40);
+      
+      doc.setFontSize(9);
+      doc.text("Prénom et nom", 15, nextY + 50);
+      doc.text("Fonction", 80, nextY + 50);
+      doc.text("Signature", 140, nextY + 50);
+      
+      doc.setLineWidth(0.2);
+      doc.line(15, nextY + 65, 70, nextY + 65);
+      doc.line(80, nextY + 65, 130, nextY + 65);
+      doc.line(140, nextY + 65, 190, nextY + 65);
+      
+      doc.setFont("helvetica", "normal");
+      doc.text(item.operator_coop_name || item.operator_name, 15, nextY + 60);
+
+      // Professional Footer
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 100);
+      doc.text("SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage", 105, 285, { align: 'center' });
+      doc.text("Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 mdiene@gmail.com", 105, 289, { align: 'center' });
+
+      // Save with unique name
+      const filename = `FC_PH${item.project_phase}_${item.operator_name.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
+      doc.save(filename);
+    } catch (e) {
+      console.error(e);
+      alert("Erreur generation PDF");
     } finally {
       setDownloadingId(null);
     }
@@ -772,7 +868,6 @@ export const Views = () => {
                             <td className="px-4 py-3">
                                <div className="flex flex-col">
                                   <span className="font-mono font-medium text-foreground">{item.bl_number}</span>
-                                  {/* Caption Added under N° BL */}
                                   <span className="text-[10px] text-muted-foreground mt-0.5">
                                      Phase {item.numero_phase} (Bon: {item.project_num_bon})
                                   </span>
@@ -787,7 +882,6 @@ export const Views = () => {
                                 {item.operator_coop_name && (
                                   <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>
                                 )}
-                                {/* Styled Blue Caption for Tonnage & Truck */}
                                 <div className="flex items-center gap-2 mt-1">
                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 text-xs font-semibold border border-blue-100 dark:border-blue-800">
                                       <Package size={12} /> {item.tonnage_loaded} T
@@ -864,39 +958,52 @@ export const Views = () => {
                             </td>
                           </tr>
                         )}
-                        {group.items.map((item, idx) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
-                                {item.operator_coop_name && (
-                                  <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">
-                              {item.commune}, {item.department}, {item.region}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-foreground">
-                              Phase {item.project_phase}
-                            </td>
-                            <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
-                              {item.deliveries_count}
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono font-medium text-primary">
-                              {item.total_tonnage} T
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <button 
-                                onClick={() => fullPrintFC(item)}
-                                className="btn btn-text btn-sm text-primary hover:bg-primary/10 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2"
-                                title="Imprimer PV"
-                              >
-                                  <Printer size={16} /> Imprimer
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {group.items.map((item, idx) => {
+                          const fcUniqueId = `FC-PH${item.project_phase}-${item.operator_id.slice(0, 4)}`;
+                          return (
+                            <tr key={idx}>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-foreground">{item.operator_name}</span>
+                                  {item.operator_coop_name && (
+                                    <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">
+                                {item.commune}, {item.department}, {item.region}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-foreground">
+                                Phase {item.project_phase}
+                              </td>
+                              <td className="px-4 py-3 text-center font-mono text-sm text-foreground">
+                                {item.deliveries_count}
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono font-medium text-primary">
+                                {item.total_tonnage} T
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button 
+                                    onClick={() => downloadFCPdf(item)}
+                                    disabled={downloadingId === fcUniqueId}
+                                    className={`btn btn-text btn-sm text-blue-500 hover:bg-blue-50 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2 ${downloadingId === fcUniqueId ? 'opacity-50 cursor-wait' : ''}`}
+                                    title="Enregistrer PDF"
+                                  >
+                                      <Download size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => fullPrintFC(item)}
+                                    className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2"
+                                    title="Imprimer PV"
+                                  >
+                                      <Printer size={16} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </Fragment>
                     ))}
                   </tbody>
