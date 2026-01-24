@@ -285,6 +285,9 @@ const Sidebar = ({
 const Header = () => {
   const { selectedProject, setSelectedProject, projects } = useProject();
   const { user } = useAuth();
+  
+  // Filter for visible projects only in the header
+  const visibleProjects = projects.filter(p => p.project_visibility !== false);
 
   return (
     <header className="h-20 bg-card border-b border-border px-8 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md bg-card/80">
@@ -309,7 +312,7 @@ const Header = () => {
                checked={selectedProject === 'all'}
                onChange={() => setSelectedProject('all')}
              />
-             {projects.map(p => (
+             {visibleProjects.map(p => (
                <input
                  key={p.id}
                  className="btn h-8 min-h-0 px-3 text-xs" 

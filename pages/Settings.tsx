@@ -1,7 +1,7 @@
 
 import { useState, useEffect, Fragment, FormEvent } from 'react';
 import { db } from '../services/db';
-import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers, Save, Ruler, Info } from 'lucide-react';
+import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers, Save, Ruler, Info, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,8 +18,8 @@ export const Settings = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [usedProjectIds, setUsedProjectIds] = useState<Set<string>>(new Set());
   const [operators, setOperators] = useState<Operator[]>([]);
-  const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,8 +59,35 @@ export const Settings = () => {
   const openModal = (type: string, item: any = {}) => {
     if (isVisitor) return;
     setModalType(type);
-    setFormData(item);
+    
+    // Logic for checkbox initialization
+    if (type === 'project') {
+      if (!item.id) {
+        // New Project: Default visibility to true
+        setFormData({ ...item, project_visibility: true });
+      } else {
+        // Existing Project: Use stored value, default to true if null/undefined
+        setFormData({ ...item, project_visibility: item.project_visibility !== false });
+      }
+    } else {
+      setFormData(item);
+    }
+    
     setIsModalOpen(true);
+  };
+
+  const handleToggleVisibility = async (project: Project) => {
+    if (isVisitor || togglingId) return;
+    setTogglingId(project.id);
+    try {
+      const newVisibility = !project.project_visibility;
+      await db.updateItem('project', project.id, { project_visibility: newVisibility });
+      setProjects(prev => prev.map(p => p.id === project.id ? { ...p, project_visibility: newVisibility } : p));
+    } catch (e) {
+      alert("Erreur lors du changement de visibilité.");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   const handleSave = async (e: FormEvent) => {
@@ -81,6 +108,12 @@ export const Settings = () => {
       if (modalType === 'project') { 
         payload.numero_phase = Number(payload.numero_phase); 
         payload.tonnage_total = Number(payload.tonnage_total); 
+        // Ensure strictly boolean
+        payload.project_visibility = !!payload.project_visibility;
+        
+        // FIX: Remove calculated field 'total_delivered' before saving to DB
+        // as it does not exist in the 'project' table schema
+        delete payload.total_delivered;
       }
       if (modalType === 'commune') { 
         payload.distance_mine = payload.distance_mine ? Number(payload.distance_mine) : null; 
@@ -88,14 +121,12 @@ export const Settings = () => {
       if (modalType === 'operator') { 
         payload.operateur_coop_gie = !!payload.is_coop; 
         payload.contact_info = payload.phone;
-        // Clean UI-only fields
         delete payload.is_coop;
         delete payload.phone;
         delete payload.commune_name;
         delete payload.project_name;
         delete payload.project;
         delete payload.project_id;
-        // Map project link correctly
         payload.projet_id = formData.projet_id; 
       }
 
@@ -125,7 +156,7 @@ export const Settings = () => {
     }
   };
 
-  if (loading) return <div className="p-12 text-center text-muted-foreground animate-pulse">Chargement des paramètres...</div>;
+  if (loading && projects.length === 0) return <div className="p-12 text-center text-muted-foreground animate-pulse">Chargement des paramètres...</div>;
 
   return (
     <div className="space-y-6">
@@ -240,6 +271,7 @@ export const Settings = () => {
                   <th>N° Marché</th>
                   <th>Tonnage Total</th>
                   <th>Date</th>
+                  <th>Visibilité (Cliquer pour changer)</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -250,6 +282,22 @@ export const Settings = () => {
                     <td className="font-mono text-sm">{p.numero_marche || '-'}</td>
                     <td className="font-mono font-bold text-primary">{p.tonnage_total.toLocaleString()} T</td>
                     <td className="text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString('fr-FR') : '-'}</td>
+                    <td>
+                       <button 
+                         onClick={() => handleToggleVisibility(p)}
+                         disabled={isVisitor || togglingId === p.id}
+                         className={`badge badge-soft text-[10px] font-black uppercase transition-all flex items-center gap-2 ${p.project_visibility ? 'badge-success hover:bg-success/20' : 'badge-secondary hover:bg-muted-foreground/20'} disabled:opacity-50`}
+                       >
+                          {togglingId === p.id ? (
+                            <Loader2 size={10} className="animate-spin" />
+                          ) : p.project_visibility ? (
+                            <Eye size={10} />
+                          ) : (
+                            <EyeOff size={10} />
+                          )}
+                          {p.project_visibility ? 'Actif' : 'Masqué'}
+                       </button>
+                    </td>
                     <td className="text-right">
                       <div className="flex justify-end gap-1">
                         <button onClick={() => openModal('project', p)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
@@ -331,7 +379,6 @@ export const Settings = () => {
             </div>
             
             <form onSubmit={handleSave} className="p-6 space-y-4">
-               {/* Fields based on modalType */}
                {(modalType === 'region' || modalType === 'department' || modalType === 'commune') && (
                  <>
                    {modalType === 'department' && (
@@ -388,6 +435,18 @@ export const Settings = () => {
                     <div>
                       <label className="block text-sm font-medium mb-1">Date mise à dispo</label>
                       <input type="date" className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.date_mise_disposition || ''} onChange={e => setFormData({...formData, date_mise_disposition: e.target.value})} />
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border">
+                       <input 
+                         type="checkbox" 
+                         id="project_visibility_modal"
+                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                         checked={!!formData.project_visibility}
+                         onChange={e => setFormData({...formData, project_visibility: e.target.checked})}
+                       />
+                       <label htmlFor="project_visibility_modal" className="text-sm font-bold text-foreground cursor-pointer">
+                          Afficher cette phase sur le site
+                       </label>
                     </div>
                  </div>
                )}

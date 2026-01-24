@@ -39,6 +39,7 @@ export interface Project {
   numero_bon_disposition: string;
   date_mise_disposition: string;
   tonnage_total: number;
+  project_visibility: boolean;
   total_delivered?: number;
 }
 

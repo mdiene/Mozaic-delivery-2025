@@ -227,6 +227,8 @@ export const Allocations = () => {
     }
     setFormData(prev => ({ ...prev, ...updates }));
   };
+  
+  const visibleProjects = useMemo(() => projects.filter(p => p.project_visibility !== false), [projects]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-[50vh]">
@@ -273,7 +275,7 @@ export const Allocations = () => {
               <form className="filter">
                 <input className="btn btn-square" type="reset" value="×" onClick={() => setSelectedProject('all')} />
                 <input className="btn" type="radio" name="allocation-phase" aria-label="Toutes" checked={selectedProject === 'all'} onChange={() => setSelectedProject('all')} />
-                {projects.map(p => (
+                {visibleProjects.map(p => (
                   <input key={p.id} className="btn" type="radio" name="allocation-phase" aria-label={`Phase ${p.numero_phase}`} checked={selectedProject === p.id} onChange={() => setSelectedProject(p.id)} />
                 ))}
               </form>
@@ -405,7 +407,7 @@ export const Allocations = () => {
                 {/* Main Form Section */}
                 <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-4">
-                      <div><label className="block text-sm font-medium text-foreground mb-1">Projet</label><select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.project_id || ''} onChange={e => setFormData({ ...formData, project_id: e.target.value, operator_id: '', region_id: '', department_id: '', commune_id: '' })}><option value="">Sélectionner un Projet...</option>{projects.map(p => (<option key={p.id} value={p.id}>Phase {p.numero_phase}</option>))}</select></div>
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Projet</label><select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.project_id || ''} onChange={e => setFormData({ ...formData, project_id: e.target.value, operator_id: '', region_id: '', department_id: '', commune_id: '' })}><option value="">Sélectionner un Projet...</option>{visibleProjects.map(p => (<option key={p.id} value={p.id}>Phase {p.numero_phase}</option>))}</select></div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Région</label><select required disabled={!formData.project_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.region_id || ''} onChange={e => setFormData({...formData, region_id: e.target.value, department_id: '', commune_id: ''})}><option value="">Sélectionner...</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Département</label><select required disabled={!formData.region_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.department_id || ''} onChange={e => setFormData({...formData, department_id: e.target.value, commune_id: ''})}><option value="">Sélectionner...</option>{filteredDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Commune</label><select required disabled={!formData.department_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.commune_id || ''} onChange={e => setFormData({...formData, commune_id: e.target.value})}><option value="">Sélectionner...</option>{filteredCommunes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>

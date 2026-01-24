@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { db } from '../services/db';
 import { Project, ProductionView } from '../types';
@@ -127,6 +128,8 @@ export const ProductionPage = () => {
       alert(`Erreur: ${error.message || "Une erreur est survenue."}`);
     }
   };
+  
+  const visibleProjects = useMemo(() => projects.filter(p => p.project_visibility !== false), [projects]);
 
   const groupedProductions = useMemo(() => {
     const filtered = productions.filter(p => {
@@ -172,7 +175,7 @@ export const ProductionPage = () => {
     setExpandedPhases(newSet);
   };
 
-  const projectOptions: Option[] = projects.map(p => ({
+  const projectOptions: Option[] = visibleProjects.map(p => ({
     value: p.id,
     label: `Phase ${p.numero_phase}`,
     subLabel: p.numero_marche
@@ -238,7 +241,7 @@ export const ProductionPage = () => {
           <form className="filter bg-muted/30">
             <input className="btn btn-square" type="reset" value="×" onClick={() => setFilterPhase('all')} />
             <input className="btn" type="radio" name="prod-phase" aria-label="Tous" checked={filterPhase === 'all'} onChange={() => setFilterPhase('all')} />
-            {projects.map(p => (
+            {visibleProjects.map(p => (
               <input key={p.id} className="btn" type="radio" name="prod-phase" aria-label={`Ph ${p.numero_phase}`} checked={filterPhase === p.id} onChange={() => setFilterPhase(p.id)} />
             ))}
           </form>

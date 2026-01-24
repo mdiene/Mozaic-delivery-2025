@@ -46,8 +46,8 @@ export const Views = () => {
         const proj = await db.getProjects();
         setProjects(proj);
         
-        // Auto-select Phase 3 if available
-        const phase3 = proj.find(p => p.numero_phase === 3);
+        // Auto-select Phase 3 if available and visible
+        const phase3 = proj.find(p => p.numero_phase === 3 && p.project_visibility !== false);
         if (phase3) {
           setSelectedPhaseFilter(phase3.numero_phase);
         }
@@ -133,6 +133,8 @@ export const Views = () => {
     if (selectedPhaseFilter === 'all') return fcData;
     return fcData.filter(item => item.project_phase === selectedPhaseFilter);
   }, [fcData, selectedPhaseFilter]);
+  
+  const visibleProjects = useMemo(() => projects.filter(p => p.project_visibility !== false), [projects]);
 
   // Grouping Logic for BL
   const groupedBlData = useMemo(() => {
@@ -771,7 +773,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
                checked={selectedPhaseFilter === 'all'}
                onChange={() => setSelectedPhaseFilter('all')}
             />
-            {projects.map(p => (
+            {visibleProjects.map(p => (
                <input
                   key={p.id}
                   className="btn" 

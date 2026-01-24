@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useMemo, Fragment, FormEvent } from 'react';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
@@ -207,6 +208,8 @@ export const Logistics = () => {
       driver_id: selectedTruck?.driver_id || prev.driver_id
     }));
   };
+  
+  const visibleProjects = useMemo(() => projects.filter(p => p.project_visibility !== false), [projects]);
 
   // Grouping & Filtering Logic
   const groupedDeliveries = useMemo(() => {
@@ -269,30 +272,24 @@ export const Logistics = () => {
   }, [deliveries, groupBy, mainPhaseFilter, searchTerm]);
 
   const selectedAllocation = allocations.find(a => a.id === formData.allocation_id);
-  const selectedTruck = trucks.find(t => t.id === formData.truck_id);
-
-  const calculatedDelivered = useMemo(() => {
-    if (!formData.allocation_id) return 0;
-    return deliveries
-      .filter(d => d.allocation_id === formData.allocation_id)
-      .reduce((sum, d) => sum + Number(d.tonnage_loaded || 0), 0);
-  }, [formData.allocation_id, deliveries]);
-
   const targetTonnage = selectedAllocation?.target_tonnage || 0;
-  const remainingTonnage = targetTonnage - calculatedDelivered;
 
   const allocationOptions: Option[] = useMemo(() => {
     return allocations
       .filter(a => {
-        if (modalPhaseFilter !== 'all' && a.project_id !== modalPhaseFilter) return false;
-        return true;
+        if (modalPhaseFilter !== 'all') {
+           return a.project_id === modalPhaseFilter;
+        }
+        // If "all" is selected in modal, still only show visible allocations unless editing an old one
+        const proj = projects.find(p => p.id === a.project_id);
+        return proj?.project_visibility !== false || a.id === formData.allocation_id;
       })
       .map(a => ({
         value: a.id,
         label: a.operator_name,
         subLabel: `${a.region_name} • ${a.commune_name} ${a.project_phase ? `(${a.project_phase})` : ''}`
       }));
-  }, [allocations, modalPhaseFilter]);
+  }, [allocations, modalPhaseFilter, projects, formData.allocation_id]);
   
   const truckOptions: Option[] = useMemo(() => {
     return trucks.map(t => ({
@@ -341,7 +338,7 @@ export const Logistics = () => {
               <form className="filter">
                 <input className="btn btn-square" type="reset" value="×" onClick={() => setMainPhaseFilter('all')} />
                 <input className="btn" type="radio" name="logistic-phase" aria-label="Tous" checked={mainPhaseFilter === 'all'} onChange={() => setMainPhaseFilter('all')} />
-                {projects.map(p => (
+                {visibleProjects.map(p => (
                   <input key={p.id} className="btn" type="radio" name="logistic-phase" aria-label={`Phase ${p.numero_phase}`} checked={mainPhaseFilter === p.id} onChange={() => setMainPhaseFilter(p.id)} />
                 ))}
               </form>
@@ -446,7 +443,17 @@ export const Logistics = () => {
             <form onSubmit={handleSave}>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-card">
                 <div className="space-y-4">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><MapPin size={14} /> Affectation</h4>
+                  <div className="flex items-center justify-between">
+                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><MapPin size={14} /> Affectation</h4>
+                     <select 
+                       className="text-[10px] bg-muted border-none rounded px-1.5 py-0.5 outline-none font-bold uppercase"
+                       value={modalPhaseFilter}
+                       onChange={e => setModalPhaseFilter(e.target.value)}
+                     >
+                       <option value="all">Toutes Phases Actives</option>
+                       {visibleProjects.map(p => <option key={p.id} value={p.id}>Phase {p.numero_phase}</option>)}
+                     </select>
+                  </div>
                   <label className="block text-sm font-medium text-foreground mb-1">Sélectionner Allocation</label>
                   <AdvancedSelect options={allocationOptions} value={formData.allocation_id || ''} onChange={(val) => setFormData({...formData, allocation_id: val})} placeholder="Rechercher par Nom, Région..." required />
                   <div className="p-4 bg-muted/50 rounded-lg border border-border"><div className="flex justify-between items-center mb-2"><span className="text-sm font-medium text-foreground">Numéro BL</span></div><input type="text" required className="w-full border border-input rounded-lg p-2 text-lg font-mono font-bold bg-background text-foreground tracking-wide" value={formData.bl_number || ''} onChange={(e) => setFormData({...formData, bl_number: e.target.value.toUpperCase()})} /></div>
