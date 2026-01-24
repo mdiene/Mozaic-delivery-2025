@@ -1,3 +1,4 @@
+
 import { useState, useMemo, FormEvent } from 'react';
 import { db } from '../services/db';
 import { AllocationView, DeliveryView } from '../types';
@@ -5,7 +6,7 @@ import { useAllocations, useReferenceData, useUpdateItem, useDeleteItem } from '
 import { 
   Plus, Search, MapPin, Edit2, Trash2, AlertTriangle, Lock, Unlock, X, Save,
   CheckCircle, TrendingUp, Activity, Eye, Printer, ArrowUpDown, ChevronRight, Layers, ListFilter, Truck,
-  Phone, User, Box, Calendar, FileText, Info, Lightbulb, History as HistoryIcon
+  Phone, User, Box, Calendar, FileText, Info, Lightbulb, History as HistoryIcon, Building2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -62,6 +63,7 @@ export const Allocations = () => {
         const lower = searchTerm.toLowerCase();
         return (
           alloc.operator_name.toLowerCase().includes(lower) ||
+          (alloc.coop_name && alloc.coop_name.toLowerCase().includes(lower)) ||
           alloc.commune_name.toLowerCase().includes(lower) ||
           (alloc.allocation_key && alloc.allocation_key.toLowerCase().includes(lower))
         );
@@ -207,7 +209,11 @@ export const Allocations = () => {
   const handleOperatorSelect = (operatorId: string) => {
     const op = operators.find(o => o.id === operatorId);
     if (!op) return;
-    const updates: any = { operator_id: operatorId };
+    const updates: any = { 
+      operator_id: operatorId,
+      coop_name: op.coop_name,
+      is_coop: op.is_coop
+    };
     if (op.name) updates.responsible_name = op.name;
     if (op.phone) updates.responsible_phone_raw = op.phone;
     if (op.commune_id) {
@@ -315,7 +321,7 @@ export const Allocations = () => {
                               <tr>
                                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Opérateur / Référence</th>
                                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Localisation</th>
-                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Phase</th>
+                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Coopérative</th>
                                  <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => requestSort('performance')}>
                                     <div className="flex items-center gap-1">Performance & Quota <ArrowUpDown size={14} className={sortConfig?.key === 'performance' ? 'text-primary' : 'text-primary/50'} /></div>
                                  </th>
@@ -346,7 +352,12 @@ export const Allocations = () => {
                                           </div>
                                        </td>
                                        <td className="px-4 py-3"><div className="flex flex-col text-sm"><span className="text-foreground">{alloc.commune_name}</span><span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span></div></td>
-                                       <td className="px-4 py-3"><span className="badge badge-soft badge-secondary text-xs">{alloc.project_phase || '-'}</span></td>
+                                       <td className="px-4 py-3">
+                                          <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-foreground">{alloc.coop_name || 'Individuel'}</span>
+                                            <span className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">{alloc.project_phase || '-'}</span>
+                                          </div>
+                                       </td>
                                        <td className="px-4 py-3 w-64">
                                           <div className="flex flex-col gap-1.5">
                                              <div className="flex justify-between text-xs font-medium"><span className={textColor}>{alloc.delivered_tonnage.toLocaleString()} / {alloc.target_tonnage.toLocaleString()} T</span><span className="text-muted-foreground">{alloc.progress.toFixed(0)}%</span></div>
@@ -384,25 +395,93 @@ export const Allocations = () => {
       {/* Edit/Create Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden border border-border">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
               <h3 className="font-semibold text-foreground">{formData.id ? 'Modifier Allocation' : 'Nouvelle Allocation'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
-            <form onSubmit={handleSave} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="space-y-4">
-                  <div><label className="block text-sm font-medium text-foreground mb-1">Projet</label><select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.project_id || ''} onChange={e => setFormData({ ...formData, project_id: e.target.value, operator_id: '', region_id: '', department_id: '', commune_id: '' })}><option value="">Sélectionner un Projet...</option>{projects.map(p => (<option key={p.id} value={p.id}>Phase {p.numero_phase}</option>))}</select></div>
-                  <div><label className="block text-sm font-medium text-foreground mb-1">Région</label><select required disabled={!formData.project_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.region_id || ''} onChange={e => setFormData({...formData, region_id: e.target.value, department_id: '', commune_id: ''})}><option value="">Sélectionner...</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
-                  <div><label className="block text-sm font-medium text-foreground mb-1">Département</label><select required disabled={!formData.region_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.department_id || ''} onChange={e => setFormData({...formData, department_id: e.target.value, commune_id: ''})}><option value="">Sélectionner...</option>{filteredDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
-                  <div><label className="block text-sm font-medium text-foreground mb-1">Commune</label><select required disabled={!formData.department_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.commune_id || ''} onChange={e => setFormData({...formData, commune_id: e.target.value})}><option value="">Sélectionner...</option>{filteredCommunes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-               </div>
-               <div className="space-y-4">
-                  <div><label className="block text-sm font-medium text-foreground mb-1">Opérateur</label><AdvancedSelect options={filteredOperators.map(op => ({ value: op.id, label: op.name, subLabel: op.is_coop ? op.coop_name : 'Individuel' }))} value={formData.operator_id || ''} onChange={handleOperatorSelect} placeholder="Rechercher Opérateur..." disabled={!formData.project_id} /></div>
-                  <div><label className="block text-sm font-medium text-foreground mb-1">Objectif Tonnage (T)</label><input type="number" step="0.01" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.target_tonnage || ''} onChange={e => setFormData({...formData, target_tonnage: e.target.value})} /></div>
-                  <div><label className="block text-sm font-medium text-foreground mb-1">Responsable</label><input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.responsible_name || ''} onChange={e => setFormData({...formData, responsible_name: e.target.value})} /></div>
-                  <div><label className="block text-sm font-medium text-foreground mb-1">Téléphone</label><input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.responsible_phone_raw || ''} onChange={e => setFormData({...formData, responsible_phone_raw: e.target.value})} /></div>
-               </div>
-               <div className="md:col-span-2 pt-4 flex justify-end gap-2 border-t border-border mt-2"><button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground">Annuler</button><button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg flex items-center gap-2"><Save size={16} /> Enregistrer</button></div>
+            <form onSubmit={handleSave}>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+                {/* Main Form Section */}
+                <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Projet</label><select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.project_id || ''} onChange={e => setFormData({ ...formData, project_id: e.target.value, operator_id: '', region_id: '', department_id: '', commune_id: '' })}><option value="">Sélectionner un Projet...</option>{projects.map(p => (<option key={p.id} value={p.id}>Phase {p.numero_phase}</option>))}</select></div>
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Région</label><select required disabled={!formData.project_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.region_id || ''} onChange={e => setFormData({...formData, region_id: e.target.value, department_id: '', commune_id: ''})}><option value="">Sélectionner...</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Département</label><select required disabled={!formData.region_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.department_id || ''} onChange={e => setFormData({...formData, department_id: e.target.value, commune_id: ''})}><option value="">Sélectionner...</option>{filteredDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Commune</label><select required disabled={!formData.department_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.commune_id || ''} onChange={e => setFormData({...formData, commune_id: e.target.value})}><option value="">Sélectionner...</option>{filteredCommunes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  </div>
+                  <div className="space-y-4">
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Opérateur</label><AdvancedSelect options={filteredOperators.map(op => ({ value: op.id, label: op.name, subLabel: op.is_coop ? op.coop_name : 'Individuel' }))} value={formData.operator_id || ''} onChange={handleOperatorSelect} placeholder="Rechercher Opérateur..." disabled={!formData.project_id} /></div>
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Objectif Tonnage (T)</label><input type="number" step="0.01" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.target_tonnage || ''} onChange={e => setFormData({...formData, target_tonnage: e.target.value})} /></div>
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Responsable</label><input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.responsible_name || ''} onChange={e => setFormData({...formData, responsible_name: e.target.value})} /></div>
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Téléphone</label><input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.responsible_phone_raw || ''} onChange={e => setFormData({...formData, responsible_phone_raw: e.target.value})} /></div>
+                  </div>
+                </div>
+
+                {/* Sidebar Info Section (Updated Info) */}
+                <div className="md:col-span-4 bg-muted/20 rounded-xl border border-border p-5 space-y-6">
+                   <div className="space-y-2">
+                      <h4 className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                        <Building2 size={16} /> Détails de l'Opérateur
+                      </h4>
+                      <div className="p-3 bg-card rounded-lg border border-border shadow-soft-sm">
+                         <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Coopérative</p>
+                         <p className="text-sm font-bold text-foreground">{formData.coop_name || 'Individuel'}</p>
+                         <span className={`inline-block mt-1 badge text-[9px] font-black uppercase ${formData.is_coop ? 'badge-info' : 'badge-secondary'}`}>
+                            {formData.is_coop ? 'Membre Coopérative' : 'Producteur Privé'}
+                         </span>
+                      </div>
+                   </div>
+
+                   {formData.id && (
+                     <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                          <Activity size={16} /> Suivi des Livraisons
+                        </h4>
+                        <div className="space-y-3">
+                           <div className="flex justify-between items-end border-b border-border pb-2">
+                              <span className="text-xs font-medium text-muted-foreground">Livré à ce jour</span>
+                              <span className="text-lg font-black text-primary font-mono">{formData.delivered_tonnage || 0} T</span>
+                           </div>
+                           <div className="flex justify-between items-end border-b border-border pb-2">
+                              <span className="text-xs font-medium text-muted-foreground">Reliquat</span>
+                              <span className="text-lg font-black text-amber-600 font-mono">
+                                 {Math.max(0, (formData.target_tonnage || 0) - (formData.delivered_tonnage || 0)).toLocaleString()} T
+                              </span>
+                           </div>
+                           <div className="pt-2">
+                              <div className="flex justify-between items-center text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                                 <span>Progression</span>
+                                 <span>{(formData.progress || 0).toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full h-3 bg-muted rounded-full overflow-hidden shadow-inner">
+                                 <div 
+                                    className={`h-full transition-all duration-1000 ${formData.progress >= 100 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-primary shadow-[0_0_8px_rgba(111,66,193,0.5)]'}`} 
+                                    style={{ width: `${Math.min(100, formData.progress || 0)}%` }} 
+                                 />
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                   )}
+
+                   <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-lg">
+                      <div className="flex gap-2 text-amber-800 dark:text-amber-200">
+                         <Info size={14} className="shrink-0 mt-0.5" />
+                         <p className="text-[10px] leading-relaxed italic">
+                            Les modifications sur le tonnage affecteront directement le reliquat affiché dans le module d'expédition.
+                         </p>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="md:col-span-12 pt-4 flex justify-end gap-2 border-t border-border mt-2">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors">Annuler</button>
+                  <button type="submit" className="px-6 py-2 bg-primary text-primary-foreground rounded-lg flex items-center gap-2 font-bold shadow-soft-xl hover:shadow-glow transition-all active:scale-95">
+                    <Save size={18} /> Enregistrer
+                  </button>
+                </div>
+              </div>
             </form>
           </div>
         </div>
@@ -448,6 +527,10 @@ export const Allocations = () => {
                             </div>
                             <h1 className="text-3xl font-black text-foreground leading-tight">{viewAllocation.operator_name}</h1>
                             <p className="text-lg text-muted-foreground font-mono mt-1 tracking-tight">{viewAllocation.allocation_key}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                               <Building2 size={16} className="text-blue-500" />
+                               <span className="text-sm font-bold text-foreground">{viewAllocation.coop_name || 'Individuel'}</span>
+                            </div>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-4">

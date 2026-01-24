@@ -85,6 +85,8 @@ export interface Allocation {
 
 export interface AllocationView extends Allocation {
   operator_name: string;
+  coop_name?: string;
+  is_coop?: boolean;
   region_name: string;
   department_name: string;
   commune_name: string;

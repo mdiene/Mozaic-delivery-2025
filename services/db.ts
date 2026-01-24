@@ -67,7 +67,7 @@ export const db = {
       regions:region_id(name),
       departments:department_id(name),
       communes:commune_id(name),
-      operators:operator_id(name)
+      operators:operator_id(name, coop_name, operateur_coop_gie)
     `);
 
     if (allocError) return [];
@@ -92,6 +92,8 @@ export const db = {
          ...a,
          delivered_tonnage: delivered,
          operator_name: a.operators?.name || '?',
+         coop_name: a.operators?.coop_name,
+         is_coop: a.operators?.operateur_coop_gie,
          region_name: a.regions?.name || '?',
          department_name: a.departments?.name || '?',
          commune_name: a.communes?.name || '?',
