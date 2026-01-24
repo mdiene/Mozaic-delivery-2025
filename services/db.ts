@@ -11,14 +11,14 @@ const safeLog = (message: string, ...args: any[]) => {
 };
 
 export const db = {
-  getDeliveriesView: async (): Promise<DeliveryView[]> => {
-    const { data, error } = await supabase
+  getDeliveriesView: async (onlyVisible: boolean = true): Promise<DeliveryView[]> => {
+    let query = supabase
       .from('deliveries')
       .select(`
         *,
         trucks:truck_id(plate_number, owner_type),
         drivers:driver_id(name),
-        allocations:allocation_id (
+        allocations:allocation_id!inner (
           operator_id,
           region_id,
           department_id,
@@ -27,9 +27,15 @@ export const db = {
           regions(name),
           departments(name),
           communes(name),
-          project:project_id(numero_phase, numero_marche)
+          project:project_id!inner(numero_phase, numero_marche, project_visibility)
         )
       `);
+
+    if (onlyVisible) {
+      query = query.eq('allocations.project.project_visibility', true);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       safeLog('Error fetching deliveries view:', error);
@@ -60,15 +66,21 @@ export const db = {
     });
   },
 
-  getAllocationsView: async (): Promise<AllocationView[]> => {
-    const { data: allocs, error: allocError } = await supabase.from('allocations').select(`
+  getAllocationsView: async (onlyVisible: boolean = true): Promise<AllocationView[]> => {
+    let query = supabase.from('allocations').select(`
       *,
-      project:project_id(numero_phase, numero_marche),
+      project:project_id!inner(numero_phase, numero_marche, project_visibility, tonnage_total),
       regions:region_id(name),
       departments:department_id(name),
       communes:commune_id(name),
       operators:operator_id(name, coop_name, operateur_coop_gie)
     `);
+
+    if (onlyVisible) {
+      query = query.eq('project.project_visibility', true);
+    }
+
+    const { data: allocs, error: allocError } = await query;
 
     if (allocError) return [];
 
@@ -98,22 +110,27 @@ export const db = {
          department_name: a.departments?.name || '?',
          commune_name: a.communes?.name || '?',
          project_phase: phaseStr,
-         progress: progress
+         progress: progress,
+         project_total_tonnage: proj?.tonnage_total
        };
     });
   },
 
   getStats: async (projectId: string) => {
-     const dels = await db.getDeliveriesView();
+     // Statistics should always respect project visibility
+     const dels = await db.getDeliveriesView(true);
      const filteredDels = projectId === 'all' ? dels : dels.filter(d => d.project_id === projectId);
      
      const totalDelivered = filteredDels.reduce((sum, d) => sum + Number(d.tonnage_loaded), 0);
      
-     const { data: allocs } = await supabase.from('allocations').select('target_tonnage, project_id');
+     let allocsQuery = supabase.from('allocations').select('target_tonnage, project:project_id!inner(id, project_visibility)');
+     allocsQuery = allocsQuery.eq('project.project_visibility', true);
+
+     const { data: allocs } = await allocsQuery;
      let totalTarget = 0;
      if (allocs) {
         totalTarget = allocs
-           .filter((a: any) => projectId === 'all' || a.project_id === projectId)
+           .filter((a: any) => projectId === 'all' || a.project.id === projectId)
            .reduce((sum: number, a: any) => sum + Number(a.target_tonnage), 0);
      }
      
@@ -133,13 +150,13 @@ export const db = {
         deliveries!inner (
             allocation_id,
             allocations!inner (
-                project_id
+                project:project_id!inner (id, project_visibility)
             )
         )
-     `);
+     `).eq('deliveries.allocations.project.project_visibility', true);
 
      if (projectId !== 'all') {
-        feesQuery = feesQuery.eq('deliveries.allocations.project_id', projectId);
+        feesQuery = feesQuery.eq('deliveries.allocations.project.id', projectId);
      }
 
      const { data: paymentsData } = await feesQuery;
@@ -159,9 +176,9 @@ export const db = {
      }
 
      // Production Stats
-     let prodQuery = supabase.from('production').select('tonnage, project_id');
+     let prodQuery = supabase.from('production').select('tonnage, project:project_id!inner(id, project_visibility)').eq('project.project_visibility', true);
      if (projectId !== 'all') {
-       prodQuery = prodQuery.eq('project_id', projectId);
+       prodQuery = prodQuery.eq('project.id', projectId);
      }
      const { data: prodData } = await prodQuery;
      const totalProduced = prodData?.reduce((sum, p) => sum + Number(p.tonnage || 0), 0) || 0;
@@ -175,14 +192,19 @@ export const db = {
      };
   },
 
-  getProductions: async (): Promise<ProductionView[]> => {
-    const { data, error } = await supabase
+  getProductions: async (onlyVisible: boolean = true): Promise<ProductionView[]> => {
+    let query = supabase
       .from('production')
       .select(`
         *,
-        project:project_id(numero_phase)
-      `)
-      .order('production_date', { ascending: false });
+        project:project_id!inner(numero_phase, project_visibility)
+      `);
+    
+    if (onlyVisible) {
+      query = query.eq('project.project_visibility', true);
+    }
+    
+    const { data, error } = await query.order('production_date', { ascending: false });
 
     if (error) {
       safeLog('Error fetching production:', error);
@@ -196,7 +218,8 @@ export const db = {
   },
 
   getChartData: async (projectId: string) => {
-     const allocsView = await db.getAllocationsView();
+     // Respect visibility
+     const allocsView = await db.getAllocationsView(true);
      const filtered = projectId === 'all' ? allocsView : allocsView.filter(a => a.project_id === projectId);
      
      const groups: Record<string, { planned: number, delivered: number }> = {};
@@ -228,11 +251,17 @@ export const db = {
     return data || [];
   },
 
-  getOperators: async (): Promise<Operator[]> => {
-    const { data } = await supabase.from('operators').select(`
+  getOperators: async (onlyVisible: boolean = true): Promise<Operator[]> => {
+    let query = supabase.from('operators').select(`
        *,
-       project:projet_id(numero_phase)
+       project:projet_id!inner(numero_phase, project_visibility)
     `);
+
+    if (onlyVisible) {
+      query = query.eq('project.project_visibility', true);
+    }
+
+    const { data } = await query;
     
     return (data || []).map((op: any) => ({
        ...op,
@@ -279,11 +308,18 @@ export const db = {
      }));
   },
 
-  getProjects: async (): Promise<Project[]> => {
-    const { data: projects } = await supabase.from('project').select('*');
+  getProjects: async (onlyVisible: boolean = false): Promise<Project[]> => {
+    let query = supabase.from('project').select('*');
+    if (onlyVisible) {
+      query = query.eq('project_visibility', true);
+    }
+    const { data: projects } = await query;
     if (!projects) return [];
     
-    const deliveries = await db.getDeliveriesView();
+    // Pass false to getDeliveriesView to include all for calculations if needed,
+    // but typically we should only care about visible data.
+    // The requirement says "dont use the project data related to that project phase".
+    const deliveries = await db.getDeliveriesView(onlyVisible);
     
     return projects.map((p: any) => {
        const delivered = deliveries
@@ -361,20 +397,21 @@ export const db = {
   getPayments: async (): Promise<EnrichedPayment[]> => {
      const { data } = await supabase.from('payments').select(`
         *,
-        deliveries:delivery_id (
+        deliveries:delivery_id!inner (
            bl_number,
            delivery_date,
            trucks:truck_id (plate_number, owner_type),
            drivers:driver_id (name),
-           allocations:allocation_id (
+           allocations:allocation_id!inner (
               region_id, 
               commune_id, 
               project_id,
               regions(name),
-              communes(name)
+              communes(name),
+              project:project_id!inner (project_visibility)
            )
         )
-     `);
+     `).eq('deliveries.allocations.project.project_visibility', true);
      
      if (!data) return [];
      
@@ -385,7 +422,7 @@ export const db = {
            ...p,
            bl_number: del?.bl_number,
            delivery_date: del?.delivery_date,
-           truck_plate: del?.trucks?.plate_number,
+           truck_plate: del?.truck_plate,
            truck_owner_type: del?.trucks?.owner_type,
            driver_name: del?.drivers?.name,
            region_name: alloc?.regions?.name,
@@ -438,9 +475,9 @@ export const db = {
   },
 
   getNetworkHierarchy: async (projectId: string): Promise<NetworkHierarchy> => {
-    const allocs = await db.getAllocationsView();
+    const allocs = await db.getAllocationsView(true);
     const filtered = projectId === 'all' ? allocs : allocs.filter(a => a.project_id === projectId);
-    const deliveries = await db.getDeliveriesView();
+    const deliveries = await db.getDeliveriesView(true);
     const filteredDeliveries = projectId === 'all' ? deliveries : deliveries.filter(d => d.project_id === projectId);
 
     const regionsMap: Record<string, any> = {};
@@ -515,9 +552,9 @@ export const db = {
   },
 
   getGlobalHierarchy: async (projectId: string): Promise<GlobalHierarchy> => {
-     const allocs = await db.getAllocationsView();
+     const allocs = await db.getAllocationsView(true);
      const filteredAllocs = projectId === 'all' ? allocs : allocs.filter(a => a.project_id === projectId);
-     const deliveries = await db.getDeliveriesView();
+     const deliveries = await db.getDeliveriesView(true);
      
      const tree: Record<string, any> = {};
 
@@ -587,8 +624,8 @@ export const db = {
   },
 
   getBonLivraisonViews: async (): Promise<BonLivraisonView[]> => {
-    const dels = await db.getDeliveriesView();
-    const { data: projects } = await supabase.from('project').select('*');
+    const dels = await db.getDeliveriesView(true);
+    const { data: projects } = await supabase.from('project').select('*').eq('project_visibility', true);
     const projectMap: Record<string, any> = {};
     projects?.forEach((p: any) => projectMap[p.id] = p);
 
@@ -620,7 +657,7 @@ export const db = {
   },
 
   getFinDeCessionViews: async (): Promise<FinDeCessionView[]> => {
-     const allocs = await db.getAllocationsView();
+     const allocs = await db.getAllocationsView(true);
      const map: Record<string, FinDeCessionView> = {};
      
      allocs.forEach(a => {

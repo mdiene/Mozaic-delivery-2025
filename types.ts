@@ -94,6 +94,7 @@ export interface AllocationView extends Allocation {
   project_phase: string;
   progress: number;
   delivered_tonnage: number;
+  project_total_tonnage?: number;
 }
 
 export interface Delivery {

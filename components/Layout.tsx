@@ -286,7 +286,7 @@ const Header = () => {
   const { selectedProject, setSelectedProject, projects } = useProject();
   const { user } = useAuth();
   
-  // Filter for visible projects only in the header
+  // Strict visibility filtering
   const visibleProjects = projects.filter(p => p.project_visibility !== false);
 
   return (
@@ -354,7 +354,8 @@ export const Layout = () => {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const data = await db.getProjects();
+        // Site-wide components only get visible projects
+        const data = await db.getProjects(true);
         setProjects(data);
       } catch (e) {
         console.error("Error loading projects:", e);

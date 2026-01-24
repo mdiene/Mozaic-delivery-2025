@@ -6,7 +6,7 @@ import { useAllocations, useReferenceData, useUpdateItem, useDeleteItem } from '
 import { 
   Plus, Search, MapPin, Edit2, Trash2, AlertTriangle, Lock, Unlock, X, Save,
   CheckCircle, TrendingUp, Activity, Eye, Printer, ArrowUpDown, ChevronRight, Layers, ListFilter, Truck,
-  Phone, User, Box, Calendar, FileText, Info, Lightbulb, History as HistoryIcon, Building2
+  Phone, User, Box, Calendar, FileText, Info, Lightbulb, History as HistoryIcon, Building2, FileSpreadsheet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -191,6 +191,63 @@ export const Allocations = () => {
 
   const handlePrint = () => { window.print(); };
 
+  const handleExportCSV = () => {
+    if (!filteredAllocations.length) return alert('Aucune donnée à exporter');
+
+    const headers = [
+      'Phase',
+      'Objectif Phase (T)',
+      'Référence',
+      'Opérateur',
+      'Coopérative',
+      'Région',
+      'Département',
+      'Commune',
+      'Cible (T)',
+      'Livré (T)',
+      'Progression (%)',
+      'Statut',
+      'Responsable',
+      'Téléphone'
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...filteredAllocations.map(alloc => {
+        const escape = (str?: string) => `"${(str || '').replace(/"/g, '""')}"`;
+        return [
+          escape(alloc.project_phase),
+          alloc.project_total_tonnage || 0,
+          escape(alloc.allocation_key),
+          escape(alloc.operator_name),
+          escape(alloc.coop_name),
+          escape(alloc.region_name),
+          escape(alloc.department_name),
+          escape(alloc.commune_name),
+          alloc.target_tonnage,
+          alloc.delivered_tonnage,
+          alloc.progress.toFixed(2),
+          escape(alloc.status),
+          escape(alloc.responsible_name),
+          escape(alloc.responsible_phone_raw)
+        ].join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      const phaseName = selectedProject === 'all' ? 'Toutes_Phases' : `Phase_${projects.find(p => p.id === selectedProject)?.numero_phase || ''}`;
+      link.setAttribute('download', `Allocations_${phaseName}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   const filteredDepartments = useMemo(() => {
     if (!formData.region_id) return [];
     return departments.filter(d => d.region_id === formData.region_id);
@@ -246,14 +303,23 @@ export const Allocations = () => {
           <h1 className="text-2xl font-bold text-foreground">Allocations</h1>
           <p className="text-muted-foreground text-sm">Gérer les quotas par commune et par opérateur.</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          disabled={isVisitor}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Plus size={18} />
-          Nouvelle Allocation
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <FileSpreadsheet size={18} />
+            Exporter CSV
+          </button>
+          <button 
+            onClick={() => handleOpenModal()}
+            disabled={isVisitor}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus size={18} />
+            Nouvelle Allocation
+          </button>
+        </div>
       </div>
 
       {/* Modern Filter Ribbon */}
