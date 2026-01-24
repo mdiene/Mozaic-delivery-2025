@@ -507,10 +507,10 @@ export const Views = () => {
       autoTable(doc, {
         startY: 100,
         margin: { left: 15, right: 15 },
-        head: [['NOM DE L\'OPÉRATEUR', 'REPRÉSENTANT', 'PRODUIT', 'QUANTITÉ / T']],
+        head: [['COOPÉRATIVE / GIE', 'REPRÉSENTANT', 'PRODUIT', 'QUANTITÉ / T']],
         body: [[
+          { content: item.operator_coop_name || item.operator_name, styles: { fontStyle: 'bold' } },
           item.operator_name,
-          item.operator_coop_name || item.operator_name,
           'Phosphate naturel',
           { content: `${item.total_tonnage}`, styles: { fontStyle: 'bold' } }
         ]],
@@ -535,7 +535,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
       
       doc.setFontSize(9);
       doc.text("Prénom et nom", 15, nextY + 50);
-      doc.text("Fonction", 80, nextY + 50);
+      doc.text("Téléphone", 80, nextY + 50);
       doc.text("Signature", 140, nextY + 50);
       
       doc.setLineWidth(0.2);
@@ -544,7 +544,8 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
       doc.line(140, nextY + 65, 190, nextY + 65);
       
       doc.setFont("helvetica", "normal");
-      doc.text(item.operator_coop_name || item.operator_name, 15, nextY + 60);
+      doc.text(item.operator_name, 15, nextY + 60);
+      doc.text(item.operator_phone || '', 80, nextY + 60);
 
       // Professional Footer
       doc.setFontSize(7);
@@ -713,9 +714,9 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
           <div class="doc-title"><h2>Procès Verbal de Réception des Intrants Agricoles</h2><p>CAMPAGNE AGRICOLE 2025-2026</p></div>
           <div class="content-block"><strong>COMMUNE DE : <span style="text-transform: uppercase; border-bottom: 1px dotted #000;">${item.commune}</span></strong></div>
           <div class="content-block">Suite à la notification de mise à disposition d’engrais N° 394/MASAE/DA faite à la société minière africaine et selon le planning de la lettre N° 0971/DA/BRAFS de mise en place phosphate naturel.</div>
-          <table><thead><tr><th>Nom de l'opérateur</th><th>Représentant</th><th>Produit</th><th>Quantité / Tonnes</th></tr></thead><tbody><tr><td>${item.operator_name}</td><td>${item.operator_coop_name || item.operator_name}</td><td>Phosphate naturel</td><td>${item.total_tonnage}</td></tr></tbody></table>
-          <div class="content-block">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage}</strong> tonnes à l’opérateur.</div>
-          <div class="signatures"><p><strong>Ont signé :</strong></p><table class="sig-table"><tr><td width="40%" class="sig-header">Prénom et nom</td><td width="30%" class="sig-header">Fonction</td><td width="30%" class="sig-header">Signature</td></tr><tr><td class="sig-line" style="vertical-align: bottom;">${item.operator_coop_name || item.operator_name}</td><td class="sig-line"></td><td class="sig-line"></td></tr></table></div>
+          <table><thead><tr><th>Coopérative / GIE</th><th>Représentant</th><th>Produit</th><th>Quantité / Tonnes</th></tr></thead><tbody><tr><td>${item.operator_coop_name || item.operator_name}</td><td>${item.operator_name}</td><td>Phosphate naturel</td><td>${item.total_tonnage}</td></tr></tbody></table>
+          <div class="content-block">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage}</strong> tonnes à l’opérateur : <strong>${item.operator_coop_name}</strong>.</div>
+          <div class="signatures"><p><strong>Ont signé :</strong></p><table class="sig-table"><tr><td width="40%" class="sig-header">Prénom et nom</td><td width="30%" class="sig-header">Téléphone</td><td width="30%" class="sig-header">Signature</td></tr><tr><td class="sig-line" style="vertical-align: bottom;">${item.operator_name}</td><td class="sig-line" style="vertical-align: bottom;">${item.operator_phone || ''}</td><td class="sig-line"></td></tr></table></div>
           <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
         </body>
       </html>

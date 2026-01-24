@@ -73,7 +73,7 @@ export const db = {
       regions:region_id(name),
       departments:department_id(name),
       communes:commune_id(name),
-      operators:operator_id(name, coop_name, operateur_coop_gie)
+      operators:operator_id(name, coop_name, operateur_coop_gie, contact_info)
     `);
 
     if (onlyVisible) {
@@ -106,6 +106,7 @@ export const db = {
          operator_name: a.operators?.name || '?',
          coop_name: a.operators?.coop_name,
          is_coop: a.operators?.operateur_coop_gie,
+         operator_phone: a.operators?.contact_info,
          region_name: a.regions?.name || '?',
          department_name: a.departments?.name || '?',
          commune_name: a.communes?.name || '?',
@@ -666,6 +667,8 @@ export const db = {
            map[key] = {
               operator_id: a.operator_id,
               operator_name: a.operator_name,
+              operator_coop_name: a.coop_name || '',
+              operator_phone: a.operator_phone || '',
               region: a.region_name,
               department: a.department_name,
               commune: a.commune_name,
@@ -675,6 +678,17 @@ export const db = {
            };
         }
         map[key].total_tonnage += a.delivered_tonnage;
+        // Count unique deliveries based on delivery logs if needed, but for now we aggregate tonnage
+        // Usually, deliveries_count is calculated by looking at delivery logs
+     });
+     
+     // Correct deliveries count by checking delivery data
+     const allDeliveries = await db.getDeliveriesView(true);
+     Object.values(map).forEach(fc => {
+        fc.deliveries_count = allDeliveries.filter(d => 
+           d.operator_id === fc.operator_id && 
+           Number(d.project_phase.replace('Phase ', '').split(' - ')[0]) === fc.project_phase
+        ).length;
      });
 
      return Object.values(map);

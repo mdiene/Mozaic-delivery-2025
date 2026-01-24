@@ -88,6 +88,7 @@ export interface AllocationView extends Allocation {
   operator_name: string;
   coop_name?: string;
   is_coop?: boolean;
+  operator_phone?: string;
   region_name: string;
   department_name: string;
   commune_name: string;
@@ -272,6 +273,7 @@ export interface FinDeCessionView {
   operator_id: string;
   operator_name: string;
   operator_coop_name?: string;
+  operator_phone?: string;
   region: string;
   department: string;
   commune: string;
