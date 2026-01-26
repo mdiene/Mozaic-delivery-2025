@@ -274,19 +274,18 @@ export const Views = () => {
     }
   };
 
-  const SOMA_LOGO_URL = 'http://soma.sn/wp-content/uploads/2025/09/WhatsApp-Image-2025-08-23-at-22.12.34.jpeg';
-
   // PDF Download Handler (using jsPDF)
   const downloadBLPdf = async (item: BonLivraisonView) => {
     setDownloadingId(item.bl_number);
     try {
       const doc = new jsPDF();
       
+      const logoUrl = `${window.location.origin}/spec/logo_soma.jpg`;
       try {
-        const logoImg = await loadImage(SOMA_LOGO_URL);
+        const logoImg = await loadImage(logoUrl);
         doc.addImage(logoImg, 'JPEG', 15, 10, 50, 20);
       } catch (e) {
-        // Fallback Logo Representation if image fails
+        // Fallback Logo Representation (Colored Bars) if image fails
         doc.setFillColor(224, 155, 96);
         doc.rect(15, 15, 8, 2, 'F');
         doc.setFillColor(191, 161, 47);
@@ -297,6 +296,16 @@ export const Views = () => {
         doc.setFontSize(28);
         doc.text("SOMA", 30, 25);
       }
+      
+      // Vertical Company Name
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text("SOCIÉTÉ", 70, 18);
+      doc.text("MINIÈRE", 70, 22);
+      doc.text("AFRICAINE", 70, 26);
+      doc.setLineWidth(0.5);
+      doc.line(65, 15, 65, 28); // Vertical line
 
       // Title
       doc.setFillColor(255, 249, 230); // #fff9e6
@@ -482,8 +491,9 @@ export const Views = () => {
       const doc = new jsPDF();
       
       // Header Branding - Use Logo Image
+      const logoUrl = `${window.location.origin}/spec/logo_soma.jpg`;
       try {
-        const logoImg = await loadImage(SOMA_LOGO_URL);
+        const logoImg = await loadImage(logoUrl);
         doc.addImage(logoImg, 'JPEG', 15, 10, 50, 20);
       } catch (e) {
         // Fallback if image fails
@@ -579,6 +589,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
 
   const fullPrintBL = (item: BonLivraisonView) => {
       const trailerStr = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
+      const logoUrl = `${window.location.origin}/spec/logo_soma.jpg`;
       const printContent = `
       <!DOCTYPE html>
       <html>
@@ -600,7 +611,8 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
               box-sizing: border-box;
             }
             .header-container { display: flex; align-items: center; margin-bottom: 15px; }
-            .header-container img { height: 60px; width: auto; object-fit: contain; }
+            .header-container img { height: 60px; width: auto; object-fit: contain; margin-right: 15px; }
+            .company-name-vertical { border-left: 2px dotted #999; padding-left: 12px; font-weight: 700; text-transform: uppercase; font-size: 14px; line-height: 1.1; color: #000; margin-left: 15px; }
             .main-title-box { background-color: #fff9e6; padding: 10px; margin-top: 10px; margin-bottom: 15px; border-left: 5px solid #d97706; }
             .main-title { font-size: 24px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 1px; }
             .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
@@ -627,7 +639,8 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
         <body>
           <div class="watermark">SOMA</div>
           <div class="header-container">
-             <img src="${SOMA_LOGO_URL}" alt="Logo SOMA" id="logo" />
+             <img src="${logoUrl}" alt="Logo SOMA" id="logo" />
+             <div class="company-name-vertical">SOCIÉTÉ<br/>MINIÈRE<br/>AFRICAINE</div>
           </div>
           <div class="main-title-box"><div class="main-title">BON DE LIVRAISON</div></div>
           <div class="grid-container">
@@ -680,6 +693,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
   };
 
   const fullPrintFC = (item: FinDeCessionView) => {
+    const logoUrl = `${window.location.origin}/spec/logo_soma.jpg`;
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -710,7 +724,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
         <body>
           <div class="watermark">SOMA</div>
           <div class="header-container">
-             <img src="${SOMA_LOGO_URL}" alt="Logo SOMA" id="logo" />
+             <img src="${logoUrl}" alt="Logo SOMA" id="logo" />
           </div>
           <div class="date-line">Date : ${new Date().toLocaleDateString('fr-FR')}</div>
           <div class="doc-title"><h2>Procès Verbal de Réception des Intrants Agricoles</h2><p>CAMPAGNE AGRICOLE 2025-2026</p></div>
