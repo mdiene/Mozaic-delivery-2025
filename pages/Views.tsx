@@ -474,13 +474,13 @@ export const Views = () => {
     try {
       const doc = new jsPDF();
       
-      // Header Branding (consistent with BL)
-      doc.setFillColor(224, 155, 96); doc.rect(15, 15, 8, 2, 'F');
-      doc.setFillColor(191, 161, 47); doc.rect(15, 18, 9, 2, 'F');
-      doc.setFillColor(114, 140, 40); doc.rect(15, 21, 8.5, 2, 'F');
-      doc.setFont("helvetica", "bold"); doc.setFontSize(28); doc.text("SOMA", 30, 25);
-      doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.text("SOCIÉTÉ", 70, 18); doc.text("MINIÈRE", 70, 22); doc.text("AFRICAINE", 70, 26);
-      doc.setLineWidth(0.5); doc.line(65, 15, 65, 28);
+      // Header Branding - Use Logo Image
+      try {
+        doc.addImage('spec/logo_soma.jpg', 'JPEG', 15, 10, 50, 20);
+      } catch (e) {
+        // Fallback if image fails
+        doc.setFont("helvetica", "bold"); doc.setFontSize(28); doc.text("SOMA", 30, 25);
+      }
 
       // Document Title
       doc.setFillColor(255, 249, 230); doc.rect(15, 35, 180, 10, 'F');
@@ -521,31 +521,36 @@ export const Views = () => {
       });
 
       const nextY = (doc as any).lastAutoTable.finalY + 15;
-      const concludingText = doc.splitTextToSize(
-        `La commission de réception des engrais du point de réception de la commune de ${item.commune} du Département de ${item.department} de la région de ${item.region}. 
+      
+      doc.setFont("helvetica", "normal");
+      const introText = `La commission de réception des engrais du point de réception de la commune de ${item.commune} du Département de ${item.department} de la région de ${item.region}. 
         
-Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré ${item.total_tonnage} tonnes à l’opérateur.`,
-        180
-      );
-      doc.text(concludingText, 15, nextY);
+Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré ${item.total_tonnage} tonnes à l’opérateur :`;
+      
+      const lines = doc.splitTextToSize(introText, 180);
+      doc.text(lines, 15, nextY);
+      
+      const boldTextY = nextY + (lines.length * 5.5);
+      doc.setFont("helvetica", "bold");
+      doc.text(item.operator_coop_name || item.operator_name, 15, boldTextY);
 
       // Signatures
       doc.setFont("helvetica", "bold");
-      doc.text("Ont signé :", 15, nextY + 40);
+      doc.text("Ont signé :", 15, boldTextY + 25);
       
       doc.setFontSize(9);
-      doc.text("Prénom et nom", 15, nextY + 50);
-      doc.text("Téléphone", 80, nextY + 50);
-      doc.text("Signature", 140, nextY + 50);
+      doc.text("Prénom et nom", 15, boldTextY + 35);
+      doc.text("Téléphone", 80, boldTextY + 35);
+      doc.text("Signature", 140, boldTextY + 35);
       
       doc.setLineWidth(0.2);
-      doc.line(15, nextY + 65, 70, nextY + 65);
-      doc.line(80, nextY + 65, 130, nextY + 65);
-      doc.line(140, nextY + 65, 190, nextY + 65);
+      doc.line(15, boldTextY + 50, 70, boldTextY + 50);
+      doc.line(80, boldTextY + 50, 130, boldTextY + 50);
+      doc.line(140, boldTextY + 50, 190, boldTextY + 50);
       
       doc.setFont("helvetica", "normal");
-      doc.text(item.operator_name, 15, nextY + 60);
-      doc.text(item.operator_phone || '', 80, nextY + 60);
+      doc.text(item.operator_name, 15, boldTextY + 45);
+      doc.text(item.operator_phone || '', 80, boldTextY + 45);
 
       // Professional Footer
       doc.setFontSize(7);
@@ -676,18 +681,8 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
           <style>
             @page { size: A4; margin: 2cm; }
             body { font-family: 'Lato', sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 20px; background: white; }
-            .header-container { display: flex; align-items: center; margin-bottom: 20px; }
-            .logo-container { display: flex; align-items: center; gap: 10px; }
-            .logo-graphic { width: 50px; height: 40px; display: flex; flex-direction: column; gap: 3px; }
-            .logo-bar { height: 10px; border-radius: 20px 0 20px 0; width: 100%; }
-            .logo-bar.top { background-color: #e09b60; width: 80%; align-self: flex-start; }
-            .logo-bar.mid { background-color: #bfa12f; width: 90%; }
-            .logo-bar.bot { background-color: #728c28; width: 85%; border-radius: 0 20px 0 20px; align-self: flex-end; }
-            .logo-divider { width: 4px; height: 45px; background-color: #ff8c00; margin: 0 10px; }
-            .logo-text { font-family: sans-serif; font-weight: 900; font-size: 50px; letter-spacing: -2px; line-height: 1; }
-            .logo-text .dot-o { position: relative; display: inline-block; }
-            .logo-text .dot-o::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: black; border-radius: 50%; }
-            .company-name-vertical { border-left: 2px dotted #999; padding-left: 10px; font-weight: 700; text-transform: uppercase; font-size: 14px; line-height: 1.1; color: #000; margin-left: 15px; }
+            .header-container { display: flex; align-items: center; margin-bottom: 20px; justify-content: center; }
+            .header-container img { height: 80px; width: auto; object-fit: contain; }
             .date-line { margin-bottom: 30px; font-weight: bold; }
             .doc-title { text-align: center; background: #fffbeb; border: 1px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 40px; }
             .doc-title h2 { margin: 0; font-size: 20px; text-transform: uppercase; color: #92400e; letter-spacing: 1px; }
@@ -707,15 +702,14 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
         <body>
           <div class="watermark">SOMA</div>
           <div class="header-container">
-             <div class="logo-container"><div class="logo-graphic"><div class="logo-bar top"></div><div class="logo-bar mid"></div><div class="logo-bar bot"></div></div><div class="logo-divider"></div><div class="logo-text">S<span class="dot-o">O</span>MA</div></div>
-             <div class="company-name-vertical">SOCIÉTÉ<br/>MINIÈRE<br/>AFRICAINE</div>
+             <img src="spec/logo_soma.jpg" alt="Logo SOMA" />
           </div>
           <div class="date-line">Date : ${new Date().toLocaleDateString('fr-FR')}</div>
           <div class="doc-title"><h2>Procès Verbal de Réception des Intrants Agricoles</h2><p>CAMPAGNE AGRICOLE 2025-2026</p></div>
           <div class="content-block"><strong>COMMUNE DE : <span style="text-transform: uppercase; border-bottom: 1px dotted #000;">${item.commune}</span></strong></div>
           <div class="content-block">Suite à la notification de mise à disposition d’engrais N° 394/MASAE/DA faite à la société minière africaine et selon le planning de la lettre N° 0971/DA/BRAFS de mise en place phosphate naturel.</div>
           <table><thead><tr><th>Coopérative / GIE</th><th>Représentant</th><th>Produit</th><th>Quantité / Tonnes</th></tr></thead><tbody><tr><td>${item.operator_coop_name || item.operator_name}</td><td>${item.operator_name}</td><td>Phosphate naturel</td><td>${item.total_tonnage}</td></tr></tbody></table>
-          <div class="content-block">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage}</strong> tonnes à l’opérateur : <strong>${item.operator_coop_name}</strong>.</div>
+          <div class="content-block">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage}</strong> tonnes à l’opérateur : <strong>${item.operator_coop_name || item.operator_name}</strong>.</div>
           <div class="signatures"><p><strong>Ont signé :</strong></p><table class="sig-table"><tr><td width="40%" class="sig-header">Prénom et nom</td><td width="30%" class="sig-header">Téléphone</td><td width="30%" class="sig-header">Signature</td></tr><tr><td class="sig-line" style="vertical-align: bottom;">${item.operator_name}</td><td class="sig-line" style="vertical-align: bottom;">${item.operator_phone || ''}</td><td class="sig-line"></td></tr></table></div>
           <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
         </body>

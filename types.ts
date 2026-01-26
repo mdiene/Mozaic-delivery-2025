@@ -282,24 +282,37 @@ export interface FinDeCessionView {
   total_tonnage: number;
 }
 
+/**
+ * Fix: Corrected GlobalHierarchy type definition to match the structure returned by the database service.
+ * The hierarchy follows the structure: Region -> Department -> Commune -> Operator -> Allocation -> Delivery.
+ */
 export type GlobalHierarchy = Array<{
   id: string;
   name: string;
   departments: Array<{
     id: string;
     name: string;
-    target: number;
-    delivered: number;
     communes: Array<{
       id: string;
       name: string;
-      delivered: number;
-      deliveries: Array<{
+      operators: Array<{
         id: string;
-        bl_number: string;
-        tonnage: number;
-        truck_plate: string;
-        driver_name: string;
+        name: string;
+        is_coop: boolean;
+        allocations: Array<{
+          id: string;
+          allocation_key: string;
+          target: number;
+          delivered: number;
+          deliveries: Array<{
+            id: string;
+            bl_number: string;
+            date: string;
+            truck_plate: string;
+            driver_name: string;
+            tonnage: number;
+          }>
+        }>
       }>
     }>
   }>
