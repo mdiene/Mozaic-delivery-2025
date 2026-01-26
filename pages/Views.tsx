@@ -476,11 +476,16 @@ export const Views = () => {
       
       // Header Branding - Use Logo Image
       try {
-        doc.addImage('spec/logo_soma.jpg', 'JPEG', 15, 10, 50, 20);
+        doc.addImage('spec/logo soma.jpg', 'JPEG', 15, 12, 45, 18);
       } catch (e) {
         // Fallback if image fails
         doc.setFont("helvetica", "bold"); doc.setFontSize(28); doc.text("SOMA", 30, 25);
       }
+
+      doc.setFontSize(10); doc.setTextColor(0, 0, 0); 
+      doc.setFont("helvetica", "bold");
+      doc.text("SOCIÉTÉ", 70, 18); doc.text("MINIÈRE", 70, 22); doc.text("AFRICAINE", 70, 26);
+      doc.setLineWidth(0.5); doc.line(65, 15, 65, 28);
 
       // Document Title
       doc.setFillColor(255, 249, 230); doc.rect(15, 35, 180, 10, 'F');
@@ -629,8 +634,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
         <body>
           <div class="watermark">SOMA</div>
           <div class="header-container">
-             <div class="logo-container"><div class="logo-graphic"><div class="logo-bar top"></div><div class="logo-bar mid"></div><div class="logo-bar bot"></div></div><div class="logo-divider"></div><div class="logo-text">S<span class="dot-o">O</span>MA</div></div>
-             <div class="company-name-vertical">SOCIÉTÉ<br/>MINIÈRE<br/>AFRICAINE</div>
+             <img src="../spec/logo_soma.jpg" alt="Logo SOMA" />
           </div>
           <div class="main-title-box"><div class="main-title">BON DE LIVRAISON</div></div>
           <div class="grid-container">
@@ -681,8 +685,9 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
           <style>
             @page { size: A4; margin: 2cm; }
             body { font-family: 'Lato', sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 20px; background: white; }
-            .header-container { display: flex; align-items: center; margin-bottom: 20px; justify-content: center; }
-            .header-container img { height: 80px; width: auto; object-fit: contain; }
+            .header-container { display: flex; align-items: center; margin-bottom: 20px; }
+            .header-container img { height: 60px; width: auto; object-fit: contain; margin-right: 15px; }
+            .company-name-vertical { border-left: 2px dotted #999; padding-left: 10px; font-weight: 700; text-transform: uppercase; font-size: 14px; line-height: 1.1; color: #000; margin-left: 15px; }
             .date-line { margin-bottom: 30px; font-weight: bold; }
             .doc-title { text-align: center; background: #fffbeb; border: 1px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 40px; }
             .doc-title h2 { margin: 0; font-size: 20px; text-transform: uppercase; color: #92400e; letter-spacing: 1px; }
@@ -702,7 +707,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
         <body>
           <div class="watermark">SOMA</div>
           <div class="header-container">
-             <img src="spec/logo_soma.jpg" alt="Logo SOMA" />
+             <img src="../spec/logo_soma.jpg" alt="Logo SOMA" />
           </div>
           <div class="date-line">Date : ${new Date().toLocaleDateString('fr-FR')}</div>
           <div class="doc-title"><h2>Procès Verbal de Réception des Intrants Agricoles</h2><p>CAMPAGNE AGRICOLE 2025-2026</p></div>
