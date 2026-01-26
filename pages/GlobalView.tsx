@@ -528,7 +528,8 @@ export const GlobalView = () => {
               <Column title="Communes" stats={communeColumnStats} isScrollable={geoMode === 'split'}>
                 {communes.map(commune => {
                   const cStats = calculateNodeStats(commune, 'commune');
-                  return <ListItem key={commune.id} label={commune.name} icon={MapPin} selected={selectedCommuneId === commune.id} onClick={() => handleCommuneSelect(commune.id)} rightInfo={<span className="text-[10px] font-mono text-muted-foreground">{cStats.totalDelivered.toLocaleString()} / {cStats.totalTarget.toLocaleString()} T</span>} progress={{ target: dStats.totalTarget, delivered: dStats.totalDelivered }} />;
+                  // Fix: Changed dStats to cStats for progress prop in Communes column to resolve 'Cannot find name dStats' error.
+                  return <ListItem key={commune.id} label={commune.name} icon={MapPin} selected={selectedCommuneId === commune.id} onClick={() => handleCommuneSelect(commune.id)} rightInfo={<span className="text-[10px] font-mono text-muted-foreground">{cStats.totalDelivered.toLocaleString()} / {cStats.totalTarget.toLocaleString()} T</span>} progress={{ target: cStats.totalTarget, delivered: cStats.totalDelivered }} />;
                 })}
               </Column>
             )}
@@ -619,6 +620,7 @@ export const GlobalView = () => {
                                 <History size={14} className="text-blue-500" /> Historique des Livraisons ({selectedDriver.deliveries.length})
                              </h5>
                              <div className="space-y-3">
+                                {/* Fix: Changed a.date to a.delivery_date to match DeliveryView type in driver history sort */}
                                 {selectedDriver.deliveries.sort((a,b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime()).map((del) => (
                                    <div key={del.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all group">
                                       <div className="flex items-center gap-4">

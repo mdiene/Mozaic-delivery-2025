@@ -8,6 +8,17 @@ import autoTable from 'jspdf-autotable';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
+// Helper to load image for jsPDF
+const loadImage = (url: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load image at ${url}`));
+    img.src = url;
+  });
+};
+
 export const Views = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -263,33 +274,29 @@ export const Views = () => {
     }
   };
 
+  const SOMA_LOGO_URL = 'http://soma.sn/wp-content/uploads/2025/09/WhatsApp-Image-2025-08-23-at-22.12.34.jpeg';
+
   // PDF Download Handler (using jsPDF)
-  const downloadBLPdf = (item: BonLivraisonView) => {
+  const downloadBLPdf = async (item: BonLivraisonView) => {
     setDownloadingId(item.bl_number);
     try {
       const doc = new jsPDF();
       
-      // Header Logo Representation (Colored Bars)
-      doc.setFillColor(224, 155, 96); // #e09b60 (Top)
-      doc.rect(15, 15, 8, 2, 'F');
-      doc.setFillColor(191, 161, 47); // #bfa12f (Mid)
-      doc.rect(15, 18, 9, 2, 'F');
-      doc.setFillColor(114, 140, 40); // #728c28 (Bot)
-      doc.rect(15, 21, 8.5, 2, 'F');
-      
-      // Logo Text "SOMA"
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(28);
-      doc.text("SOMA", 30, 25);
-      
-      // Vertical Company Name
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      doc.text("SOCIÉTÉ", 70, 18);
-      doc.text("MINIÈRE", 70, 22);
-      doc.text("AFRICAINE", 70, 26);
-      doc.setLineWidth(0.5);
-      doc.line(65, 15, 65, 28); // Vertical line
+      try {
+        const logoImg = await loadImage(SOMA_LOGO_URL);
+        doc.addImage(logoImg, 'JPEG', 15, 10, 50, 20);
+      } catch (e) {
+        // Fallback Logo Representation if image fails
+        doc.setFillColor(224, 155, 96);
+        doc.rect(15, 15, 8, 2, 'F');
+        doc.setFillColor(191, 161, 47);
+        doc.rect(15, 18, 9, 2, 'F');
+        doc.setFillColor(114, 140, 40);
+        doc.rect(15, 21, 8.5, 2, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(28);
+        doc.text("SOMA", 30, 25);
+      }
 
       // Title
       doc.setFillColor(255, 249, 230); // #fff9e6
@@ -467,7 +474,7 @@ export const Views = () => {
   };
 
   // PDF Download Handler for Fin de Cession
-  const downloadFCPdf = (item: FinDeCessionView) => {
+  const downloadFCPdf = async (item: FinDeCessionView) => {
     const uniqueId = `FC-PH${item.project_phase}-${item.operator_id.slice(0, 4)}`;
     setDownloadingId(uniqueId);
     
@@ -476,16 +483,12 @@ export const Views = () => {
       
       // Header Branding - Use Logo Image
       try {
-        doc.addImage('spec/logo soma.jpg', 'JPEG', 15, 12, 45, 18);
+        const logoImg = await loadImage(SOMA_LOGO_URL);
+        doc.addImage(logoImg, 'JPEG', 15, 10, 50, 20);
       } catch (e) {
         // Fallback if image fails
         doc.setFont("helvetica", "bold"); doc.setFontSize(28); doc.text("SOMA", 30, 25);
       }
-
-      doc.setFontSize(10); doc.setTextColor(0, 0, 0); 
-      doc.setFont("helvetica", "bold");
-      doc.text("SOCIÉTÉ", 70, 18); doc.text("MINIÈRE", 70, 22); doc.text("AFRICAINE", 70, 26);
-      doc.setLineWidth(0.5); doc.line(65, 15, 65, 28);
 
       // Document Title
       doc.setFillColor(255, 249, 230); doc.rect(15, 35, 180, 10, 'F');
@@ -597,17 +600,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
               box-sizing: border-box;
             }
             .header-container { display: flex; align-items: center; margin-bottom: 15px; }
-            .logo-container { display: flex; align-items: center; gap: 8px; }
-            .logo-graphic { width: 50px; height: 40px; display: flex; flex-direction: column; gap: 2px; }
-            .logo-bar { height: 10px; border-radius: 20px 0 20px 0; width: 100%; }
-            .logo-bar.top { background-color: #e09b60; width: 80%; align-self: flex-start; }
-            .logo-bar.mid { background-color: #bfa12f; width: 90%; }
-            .logo-bar.bot { background-color: #728c28; width: 85%; border-radius: 0 20px 0 20px; align-self: flex-end; }
-            .logo-divider { width: 4px; height: 45px; background-color: #ff8c00; margin: 0 12px; }
-            .logo-text { font-family: sans-serif; font-weight: 900; font-size: 50px; letter-spacing: -2px; line-height: 1; }
-            .logo-text .dot-o { position: relative; display: inline-block; }
-            .logo-text .dot-o::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background: black; border-radius: 50%; }
-            .company-name-vertical { border-left: 2px dotted #999; padding-left: 12px; font-weight: 700; text-transform: uppercase; font-size: 14px; line-height: 1.1; color: #000; margin-left: 15px; }
+            .header-container img { height: 60px; width: auto; object-fit: contain; }
             .main-title-box { background-color: #fff9e6; padding: 10px; margin-top: 10px; margin-bottom: 15px; border-left: 5px solid #d97706; }
             .main-title { font-size: 24px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 1px; }
             .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
@@ -634,7 +627,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
         <body>
           <div class="watermark">SOMA</div>
           <div class="header-container">
-             <img src="../spec/logo_soma.jpg" alt="Logo SOMA" />
+             <img src="${SOMA_LOGO_URL}" alt="Logo SOMA" id="logo" />
           </div>
           <div class="main-title-box"><div class="main-title">BON DE LIVRAISON</div></div>
           <div class="grid-container">
@@ -667,7 +660,18 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
              <div class="signature-box" style="text-align: right;"><div class="signature-title">Signature SOMA</div><div class="cachet-box" style="left: auto; right: 0;"><div class="cachet-title">SOCIETE MINIERE AFRICAINE</div><div class="cachet-sub">" SOMA "</div><div class="cachet-addr">11, Rue Alfred Goux<br/>Le Directeur Général</div></div></div>
           </div>
           <div class="doc-footer">SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage<br/>Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 mdiene@gmail.com</div>
-          <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
+          <script>
+            window.onload = () => {
+              const logo = document.getElementById('logo');
+              const finalize = () => setTimeout(() => { window.print(); window.close(); }, 500);
+              if (logo.complete) {
+                finalize();
+              } else {
+                logo.onload = finalize;
+                logo.onerror = finalize;
+              }
+            }
+          </script>
         </body>
       </html>
       `;
@@ -685,9 +689,8 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
           <style>
             @page { size: A4; margin: 2cm; }
             body { font-family: 'Lato', sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 20px; background: white; }
-            .header-container { display: flex; align-items: center; margin-bottom: 20px; }
-            .header-container img { height: 60px; width: auto; object-fit: contain; margin-right: 15px; }
-            .company-name-vertical { border-left: 2px dotted #999; padding-left: 10px; font-weight: 700; text-transform: uppercase; font-size: 14px; line-height: 1.1; color: #000; margin-left: 15px; }
+            .header-container { display: flex; align-items: center; margin-bottom: 20px; justify-content: center; }
+            .header-container img { height: 80px; width: auto; object-fit: contain; }
             .date-line { margin-bottom: 30px; font-weight: bold; }
             .doc-title { text-align: center; background: #fffbeb; border: 1px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 40px; }
             .doc-title h2 { margin: 0; font-size: 20px; text-transform: uppercase; color: #92400e; letter-spacing: 1px; }
@@ -707,7 +710,7 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
         <body>
           <div class="watermark">SOMA</div>
           <div class="header-container">
-             <img src="../spec/logo_soma.jpg" alt="Logo SOMA" />
+             <img src="${SOMA_LOGO_URL}" alt="Logo SOMA" id="logo" />
           </div>
           <div class="date-line">Date : ${new Date().toLocaleDateString('fr-FR')}</div>
           <div class="doc-title"><h2>Procès Verbal de Réception des Intrants Agricoles</h2><p>CAMPAGNE AGRICOLE 2025-2026</p></div>
@@ -716,7 +719,18 @@ Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La 
           <table><thead><tr><th>Coopérative / GIE</th><th>Représentant</th><th>Produit</th><th>Quantité / Tonnes</th></tr></thead><tbody><tr><td>${item.operator_coop_name || item.operator_name}</td><td>${item.operator_name}</td><td>Phosphate naturel</td><td>${item.total_tonnage}</td></tr></tbody></table>
           <div class="content-block">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage}</strong> tonnes à l’opérateur : <strong>${item.operator_coop_name || item.operator_name}</strong>.</div>
           <div class="signatures"><p><strong>Ont signé :</strong></p><table class="sig-table"><tr><td width="40%" class="sig-header">Prénom et nom</td><td width="30%" class="sig-header">Téléphone</td><td width="30%" class="sig-header">Signature</td></tr><tr><td class="sig-line" style="vertical-align: bottom;">${item.operator_name}</td><td class="sig-line" style="vertical-align: bottom;">${item.operator_phone || ''}</td><td class="sig-line"></td></tr></table></div>
-          <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
+          <script>
+            window.onload = () => {
+              const logo = document.getElementById('logo');
+              const finalize = () => setTimeout(() => { window.print(); window.close(); }, 500);
+              if (logo.complete) {
+                finalize();
+              } else {
+                logo.onload = finalize;
+                logo.onerror = finalize;
+              }
+            }
+          </script>
         </body>
       </html>
     `;
