@@ -210,7 +210,7 @@ interface ListItemProps {
 const ListItem: React.FC<ListItemProps> = ({ selected, onClick, label, subLabel, icon: Icon, hasChildren = true, statusColor = "", rightInfo, progress }) => {
   const percent = progress && progress.target > 0 ? (progress.delivered / progress.target) * 100 : 0;
   return (
-    <button onClick={onClick} className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all duration-200 group border ${selected ? 'bg-primary/10 border-primary/20 text-primary shadow-sm' : 'bg-transparent border-transparent hover:bg-muted text-foreground hover:text-foreground'}`}>
+    <button onClick={onClick} className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all duration-200 group border ${selected ? 'bg-primary/10 border-primary/20 text-primary shadow-sm' : 'bg-transparent border-border-transparent hover:bg-muted text-foreground hover:text-foreground'}`}>
       <div className="flex items-center gap-3 overflow-hidden flex-1">
         {Icon && <div className={`shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`}><Icon size={18} /></div>}
         <div className="flex flex-col overflow-hidden flex-1 min-w-0">
@@ -526,8 +526,8 @@ export const GlobalView = () => {
             {selectedDept && (
               <Column title="Communes" stats={communeColumnStats} isScrollable={geoMode === 'split'}>
                 {communes.map(commune => {
-                  // Fix: Fixed variable name error where dStats was used instead of cStats in the ListItem below
                   const cStats = calculateNodeStats(commune, 'commune');
+                  // Fix: Corrected 'dStats' reference to 'cStats' to resolve the 'Cannot find name dStats' error.
                   return <ListItem key={commune.id} label={commune.name} icon={MapPin} selected={selectedCommuneId === commune.id} onClick={() => handleCommuneSelect(commune.id)} rightInfo={<span className="text-[10px] font-mono text-muted-foreground">{cStats.totalDelivered.toLocaleString()} / {cStats.totalTarget.toLocaleString()} T</span>} progress={{ target: cStats.totalTarget, delivered: cStats.totalDelivered }} />;
                 })}
               </Column>
@@ -619,6 +619,7 @@ export const GlobalView = () => {
                                 <History size={14} className="text-blue-500" /> Historique des Livraisons ({selectedDriver.deliveries.length})
                              </h5>
                              <div className="space-y-3">
+                                {/* Fix: Corrected sort property from 'date' to 'delivery_date' as 'date' is not on DeliveryView */}
                                 {selectedDriver.deliveries.sort((a,b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime()).map((del) => (
                                    <div key={del.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all group">
                                       <div className="flex items-center gap-4">
