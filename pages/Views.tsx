@@ -17,7 +17,7 @@ const SOMA_LOGO_STYLES = `
     display: inline-flex;
     align-items: center;
     font-family: 'Arial Black', 'Helvetica', sans-serif;
-    gap: 15px;
+    gap: 10px;
     padding: 10px 0;
   }
   .leaf-stack { display: flex; flex-direction: column; gap: 4px; }
@@ -45,7 +45,7 @@ const SOMA_LOGO_HTML = `
       <div class="leaf green"></div>
     </div>
     <div class="divider"></div>
-    <div class="main-text">S<span class="o-dot">O</span>MA</div>
+    <div class="main-text">SOMA</div>
     <div class="tagline">SOCIÉTÉ<br>MINIÈRE<br>AFRICAINE</div>
   </div>
 `;
@@ -280,9 +280,9 @@ export const Views = () => {
           <title>PV Réception - ${item.operator_name}</title>
           <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700|Prata" rel="stylesheet">
           <style>
-            @page { size: A4; margin: 2cm; }
+            @page { size: A4; margin: 0.5cm; }
             body { font-family: 'Lato', sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 20px; background: white; font-size: 14px; line-height: 1.6; }
-            .header-container { display: flex; align-items: center; margin-bottom: 20px; }
+            .header-container { display: flex; align-items: center; margin-bottom: 5px; }
             ${SOMA_LOGO_STYLES}
             .date-line { margin-bottom: 30px; font-weight: bold; }
             .doc-title { text-align: center; background: #fffbeb; border: 1px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 40px; }
