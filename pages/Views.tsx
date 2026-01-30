@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo, Fragment, useRef } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView, Project } from '../types';
 import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -17,7 +19,7 @@ const SOMA_LOGO_STYLES = `
     display: inline-flex;
     align-items: center;
     font-family: 'Arial Black', 'Helvetica', sans-serif;
-    gap: 10px;
+    gap: 15px;
     padding: 10px 0;
   }
   .leaf-stack { display: flex; flex-direction: column; gap: 4px; }
@@ -33,6 +35,7 @@ const SOMA_LOGO_STYLES = `
   @media print { 
     .leaf, .divider { -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
     .o-dot::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .fc-page { page-break-after: always; position: relative; }
   }
 `;
 
@@ -45,10 +48,56 @@ const SOMA_LOGO_HTML = `
       <div class="leaf green"></div>
     </div>
     <div class="divider"></div>
-    <div class="main-text">SOMA</div>
+    <div class="main-text">S<span class="o-dot">O</span>MA</div>
     <div class="tagline">SOCIÉTÉ<br>MINIÈRE<br>AFRICAINE</div>
   </div>
 `;
+
+/**
+ * Procedural drawing of the SOMA logo for jsPDF to match the SOMA_LOGO_HTML design perfectly
+ */
+const drawSomaHeaderOnPdf = (doc: jsPDF, x: number, y: number) => {
+  const leafWidth = 10;
+  const leafHeight = 4;
+  const leafGap = 1;
+  
+  // Three colored leaves
+  doc.setFillColor(240, 162, 67); // Orange
+  doc.roundedRect(x, y, leafWidth, leafHeight, 1.5, 1.5, 'F');
+  
+  doc.setFillColor(201, 176, 55); // Gold
+  doc.roundedRect(x, y + leafHeight + leafGap, leafWidth, leafHeight, 1.5, 1.5, 'F');
+  
+  doc.setFillColor(126, 179, 68); // Green
+  doc.roundedRect(x, y + 2 * (leafHeight + leafGap), leafWidth, leafHeight, 1.5, 1.5, 'F');
+  
+  // Orange divider line
+  doc.setFillColor(240, 162, 67);
+  doc.rect(x + leafWidth + 3, y, 1, 15, 'F');
+  
+  // SOMA Text
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(26, 26, 27);
+  const textX = x + leafWidth + 8;
+  doc.text("SOMA", textX, y + 11);
+  
+  // The dot in the 'O'
+  doc.setFillColor(26, 26, 27);
+  doc.circle(textX + 11.5, y + 6.5, 1, 'F');
+  
+  // Tagline
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(80, 80, 80);
+  doc.setDrawColor(204, 204, 204);
+  doc.setLineWidth(0.1);
+  doc.line(textX + 32, y, textX + 32, y + 15);
+  
+  doc.text("SOCIÉTÉ", textX + 35, y + 4.5);
+  doc.text("MINIÈRE", textX + 35, y + 9);
+  doc.text("AFRICAINE", textX + 35, y + 13.5);
+};
 
 export const Views = () => {
   const { user } = useAuth();
@@ -196,145 +245,279 @@ export const Views = () => {
     }
   };
 
-  const fullPrintBL = (item: BonLivraisonView) => {
+  /**
+   * Helper to build BL HTML Template
+   */
+  const getBLTemplate = (item: BonLivraisonView) => {
     const trailerStr = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
-    const printContent = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>${item.bl_number} - ${item.operator_name}</title>
-        <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,900" rel="stylesheet">
-        <style>
-          @page { size: A4; margin: 0.8cm; }
-          body { font-family: 'Lato', sans-serif; color: #000; margin: 0 auto; background: white; font-size: 11px; line-height: 1.3; position: relative; min-height: 100vh; width: 100%; box-sizing: border-box; }
-          .header-container { display: flex; align-items: center; margin-bottom: 15px; }
-          ${SOMA_LOGO_STYLES}
-          .main-title-box { background-color: #fff9e6; padding: 10px; margin-top: 10px; margin-bottom: 15px; border-left: 5px solid #d97706; }
-          .main-title { font-size: 24px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 1px; }
-          .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-          .info-label { font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px; }
-          .sender-info { font-size: 11px; margin-bottom: 15px; color: #333; }
-          .modalites-box { border: 1px solid #ddd; padding: 12px; margin: 30px 0 20px 0; background: #f9fafb; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { text-align: left; background-color: #fff9e6; padding: 8px 6px; font-weight: bold; text-transform: uppercase; font-size: 10px; border-bottom: 2px solid #ddd; }
-          td { padding: 18px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
-          .total-row td { background-color: #f0fdf4; font-weight: bold; border-top: 2px solid #ddd; }
-          .signature-box { width: 45%; position: relative; min-height: 120px; }
-          .cachet-box { border: 3px solid #1e3a8a; border-radius: 8px; padding: 5px 10px; color: #1e3a8a; font-family: 'Courier New', Courier, monospace; font-weight: 900; text-align: center; transform: rotate(-2deg); position: absolute; top: 30px; left: 10px; background: rgba(255, 255, 255, 0.85); font-size: 12px; }
-          .doc-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; color: #333; border-top: 1px solid #ccc; padding-top: 8px; padding-bottom: 8px; background: white; }
-        </style>
-      </head>
-      <body>
-        <div class="header-container">
+    return `
+      <div class="bl-page" style="page-break-after: always; min-height: 100vh; position: relative; padding: 20px;">
+        <div class="header-container" style="display: flex; align-items: center; margin-bottom: 15px;">
            ${SOMA_LOGO_HTML}
         </div>
-        <div class="main-title-box"><div class="main-title">BON DE LIVRAISON</div></div>
-        <div class="grid-container">
+        <div style="background-color: #fff9e6; padding: 10px; margin-top: 10px; margin-bottom: 15px; border-left: 5px solid #d97706;">
+           <div style="font-size: 24px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 1px;">BON DE LIVRAISON</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
            <div>
-              <div class="sender-info"><strong>SOCIETE MINIERE AFRICAINE</strong><br/>11 rue Alfred goux<br/>Apt N1 1er Etage Dakar Plateau Sénégal<br/>TEL : 77 260 95 67</div>
-              <div style="margin-top: 15px;"><div class="info-label">Programme</div><div style="background:#f9f9f9; padding:6px; font-weight:bold;">MASAE campagne agricole 2025/2026</div></div>
+              <div style="font-size: 11px; margin-bottom: 15px; color: #333;"><strong>SOCIETE MINIERE AFRICAINE</strong><br/>11 rue Alfred goux<br/>Apt N1 1er Etage Dakar Plateau Sénégal<br/>TEL : 77 260 95 67</div>
+              <div style="margin-top: 15px;"><div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Programme</div><div style="background:#f9f9f9; padding:6px; font-weight:bold;">MASAE campagne agricole 2025/2026</div></div>
            </div>
            <div style="text-align: right;">
               <div style="margin-bottom: 10px;"><span style="font-weight:bold; margin-right: 10px;">DATE DE LIVRAISON</span><span style="border-bottom: 1px dotted #000; padding: 0 10px; font-family: monospace; font-size: 12px;">${new Date(item.delivery_date).toLocaleDateString('fr-FR')}</span></div>
               <div style="margin-bottom: 10px;"><span style="font-weight:bold; margin-right: 10px;">NUMERO BL</span><span style="background: #eee; padding: 4px 8px; font-family: monospace; font-weight:bold; font-size: 13px;">${item.bl_number}</span></div>
               <div style="text-align: left; margin-top: 15px; border: 1px solid #ccc; padding: 8px;">
-                 <div class="info-label">DESTINATAIRE</div><div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${item.operator_name}</div>
-                 <div class="info-label" style="margin-top:8px;">EXPÉDIEZ À</div><div>${item.region} / ${item.department}</div><div style="font-weight:bold;">${item.commune}</div>
+                 <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">DESTINATAIRE</div><div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${item.operator_name}</div>
+                 <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-top:8px;">EXPÉDIEZ À</div><div>${item.region} / ${item.department}</div><div style="font-weight:bold;">${item.commune}</div>
               </div>
            </div>
         </div>
-        <div class="modalites-box">
-          <div class="info-label">Modalités</div>
+        <div style="border: 1px solid #ddd; padding: 12px; margin: 30px 0 20px 0; background: #f9fafb;">
+          <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Modalités</div>
           <div style="margin-top: 4px; font-size: 12px;">
             <span style="margin-right: 20px;">Camion: <strong>${item.truck_plate_number || '________________'}${trailerStr}</strong></span>
             <span>Chauffeur: <strong>${item.driver_name || '________________'}</strong></span>
           </div>
         </div>
-        <table>
-           <thead><tr><th width="70%">DESCRIPTION</th><th width="30%" style="text-align:right;">Quantité / Tonnes</th></tr></thead>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+           <thead><tr><th width="70%" style="text-align: left; background-color: #fff9e6; padding: 8px 6px; font-weight: bold; text-transform: uppercase; font-size: 10px; border-bottom: 2px solid #ddd;">DESCRIPTION</th><th width="30%" style="text-align:right; background-color: #fff9e6; padding: 8px 6px; font-weight: bold; text-transform: uppercase; font-size: 10px; border-bottom: 2px solid #ddd;">Quantité / Tonnes</th></tr></thead>
            <tbody>
-              <tr><td><strong>Engrais à base de phosphate naturel</strong><br/><span>Sac de 50 kg – Campagne agricole 2025-2026</span><br/><span>Projet Phase ${item.numero_phase} (Bon N° ${item.project_num_bon})</span></td><td style="text-align:right; font-size:14px; font-weight:bold;">${item.tonnage_loaded}</td></tr>
-              <tr class="total-row"><td style="text-align:right; padding-right: 20px;">SOUS-TOTAL</td><td style="text-align:right;">${item.tonnage_loaded}</td></tr>
+              <tr><td style="padding: 18px 8px; border-bottom: 1px solid #eee; vertical-align: top;"><strong>Engrais à base de phosphate naturel</strong><br/><span>Sac de 50 kg – Campagne agricole 2025-2026</span><br/><span>Projet Phase ${item.numero_phase} (Bon N° ${item.project_num_bon})</span></td><td style="text-align:right; font-size:14px; font-weight:bold; padding: 18px 8px; border-bottom: 1px solid #eee; vertical-align: top;">${item.tonnage_loaded}</td></tr>
+              <tr style="background-color: #f0fdf4; font-weight: bold;"><td style="text-align:right; padding-right: 20px; border-top: 2px solid #ddd; padding: 18px 8px;">SOUS-TOTAL</td><td style="text-align:right; border-top: 2px solid #ddd; padding: 18px 8px;">${item.tonnage_loaded}</td></tr>
            </tbody>
         </table>
         <div style="margin-top: 60px; display: flex; justify-content: space-between;">
-           <div class="signature-box"><strong>Réceptionnaire</strong><br/>${item.operator_name}</div>
-           <div class="signature-box" style="text-align: right;"><strong>Signature SOMA</strong><div class="cachet-box" style="right: 0;">SOCIETE MINIERE AFRICAINE<br/>" SOMA "<br/>Le Directeur Général</div></div>
+           <div style="width: 45%; position: relative; min-height: 120px;"><strong>Réceptionnaire</strong><br/>${item.operator_name}</div>
+           <div style="width: 45%; position: relative; min-height: 120px; text-align: right;">
+              <strong>Signature SOMA</strong>
+              <div style="border: 3px solid #1e3a8a; border-radius: 8px; padding: 5px 10px; color: #1e3a8a; font-family: 'Courier New', Courier, monospace; font-weight: 900; text-align: center; transform: rotate(-2deg); position: absolute; top: 30px; right: 0; background: rgba(255, 255, 255, 0.85); font-size: 12px;">SOCIETE MINIERE AFRICAINE<br/>" SOMA "<br/>Le Directeur Général</div>
+           </div>
         </div>
-        <div class="doc-footer">SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage<br/>Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 mdiene@gmail.com</div>
-        <script>
-          window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }
-        </script>
-      </body>
-    </html>
+        <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 9px; color: #333; border-top: 1px solid #ccc; padding-top: 8px;">SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage<br/>Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 mdiene@gmail.com</div>
+      </div>
     `;
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(printContent); win.document.close(); }
   };
 
-  const fullPrintFC = (item: FinDeCessionView) => {
-    const printContent = `
+  /**
+   * Helper to build FC HTML Template with Watermark Leaf (SOMA text removed)
+   */
+  const getFCTemplate = (item: FinDeCessionView) => {
+    return `
+      <div class="fc-page" style="page-break-after: always; min-height: 100vh; position: relative; padding: 20px;">
+        <div class="watermark" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); opacity: 0.1; z-index: -1; pointer-events: none; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 40px; width: 100%; justify-content: center;">
+          <div class="leaf-stack" style="transform: scale(6);">
+            <div class="leaf orange"></div>
+            <div class="leaf gold"></div>
+            <div class="leaf green"></div>
+          </div>
+        </div>
+        <div class="header-container" style="display: flex; align-items: center; margin-bottom: 20px;">
+           ${SOMA_LOGO_HTML}
+        </div>
+        <div style="margin-bottom: 30px; font-weight: bold;">Date : ${new Date().toLocaleDateString('fr-FR')}</div>
+        <div style="text-align: center; background: #fffbeb; border: 1px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 40px;">
+           <h2 style="margin: 0; font-size: 20px; text-transform: uppercase; color: #92400e; letter-spacing: 1px;">Procès Verbal de Réception des Intrants Agricoles</h2>
+           <p style="margin: 8px 0 0; font-weight: bold; font-size: 14px;">CAMPAGNE AGRICOLE 2025-2026</p>
+        </div>
+        <div style="margin-bottom: 25px; line-height: 1.6; text-align: justify; font-size: 14px;"><strong>COMMUNE DE : <span style="text-transform: uppercase; border-bottom: 1px dotted #000;">${item.commune}</span></strong></div>
+        <div style="margin-bottom: 25px; line-height: 1.6; text-align: justify; font-size: 14px;">Suite à la notification de mise à disposition d’engrais N° 394/MASAE/DA faite à la société minière africaine et selon le planning de la lettre N° 0971/DA/BRAFS de mise en place phosphate naturel.</div>
+        <table style="width: 100%; border-collapse: collapse; margin: 30px 0;">
+          <thead>
+            <tr>
+              <th style="background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase;">Coopérative / GIE</th>
+              <th style="background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase;">Représentant</th>
+              <th style="background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase;">Produit</th>
+              <th style="background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase;">Quantité / Tonnes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px;">${item.operator_coop_name || item.operator_name}</td>
+              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px;">${item.operator_name}</td>
+              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px;">Phosphate naturel</td>
+              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px;">${item.total_tonnage.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-bottom: 25px; line-height: 1.6; text-align: justify; font-size: 14px;">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage.toFixed(2)}</strong> tonnes à l’opérateur : <strong>${item.operator_coop_name || item.operator_name}</strong>.</div>
+        <div style="margin-top: 60px; page-break-inside: avoid;">
+           <p><strong>Ont signé :</strong></p>
+           <table style="width: 100%; border: none;">
+              <tr><td width="40%" style="font-weight: bold; font-size: 13px; padding-bottom: 10px; border: none; text-align: left;">Prénom et nom</td><td width="30%" style="font-weight: bold; font-size: 13px; padding-bottom: 10px; border: none; text-align: left;">Téléphone</td><td width="30%" style="font-weight: bold; font-size: 13px; padding-bottom: 10px; border: none; text-align: left;">Signature</td></tr>
+              <tr><td style="border-bottom: 1px solid #000 !important; height: 40px; vertical-align: bottom; border: none; text-align: left;">${item.operator_name}</td><td style="border-bottom: 1px solid #000 !important; height: 40px; vertical-align: bottom; border: none; text-align: left;">${item.operator_phone || ''}</td><td style="border-bottom: 1px solid #000 !important; height: 40px; border: none; text-align: left;"></td></tr>
+           </table>
+        </div>
+        <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 9px; color: #333; border-top: 1px solid #ccc; padding-top: 8px;">SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage Dakar Plateau<br/>Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 – email: mdiene@gmail.com</div>
+      </div>
+    `;
+  };
+
+  /**
+   * Generalized Print Window function
+   */
+  const openPrintWindow = (htmlContent: string, title: string) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return alert("Le bloqueur de fenêtres contextuelles empêche l'impression.");
+    
+    printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>PV Réception - ${item.operator_name}</title>
-          <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700|Prata" rel="stylesheet">
+          <title>${title}</title>
+          <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,900" rel="stylesheet">
           <style>
-            @page { size: A4; margin: 0.5cm; }
-            body { font-family: 'Lato', sans-serif; color: #111; max-width: 800px; margin: 0 auto; padding: 20px; background: white; font-size: 14px; line-height: 1.6; }
-            .header-container { display: flex; align-items: center; margin-bottom: 5px; }
+            @page { size: A4; margin: 1cm; }
+            body { font-family: 'Lato', sans-serif; color: #000; margin: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             ${SOMA_LOGO_STYLES}
-            .date-line { margin-bottom: 30px; font-weight: bold; }
-            .doc-title { text-align: center; background: #fffbeb; border: 1px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 40px; }
-            .doc-title h2 { margin: 0; font-size: 20px; text-transform: uppercase; color: #92400e; letter-spacing: 1px; }
-            .doc-title p { margin: 8px 0 0; font-weight: bold; font-size: 14px; }
-            .content-block { margin-bottom: 25px; text-align: justify; }
-            table { width: 100%; border-collapse: collapse; margin: 30px 0; }
-            th { background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase; }
-            td { border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px; }
-            .signatures { margin-top: 60px; page-break-inside: avoid; }
-            .sig-table { width: 100%; border: none; }
-            .sig-table td { border: none; text-align: left; padding: 5px; }
-            .sig-line { border-bottom: 1px solid #000 !important; height: 40px; }
-            .sig-header { font-weight: bold; font-size: 13px; padding-bottom: 10px; }
-            .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 100px; color: rgba(234, 179, 8, 0.05); font-weight: bold; z-index: -1; pointer-events: none; }
-            .doc-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; color: #333; border-top: 1px solid #ccc; padding-top: 8px; padding-bottom: 8px; background: white; }
+            .bl-page, .fc-page { width: 100%; box-sizing: border-box; }
           </style>
         </head>
         <body>
-          <div class="watermark">SOMA</div>
-          <div class="header-container">
-             ${SOMA_LOGO_HTML}
-          </div>
-          <div class="date-line">Date : ${new Date().toLocaleDateString('fr-FR')}</div>
-          <div class="doc-title"><h2>Procès Verbal de Réception des Intrants Agricoles</h2><p>CAMPAGNE AGRICOLE 2025-2026</p></div>
-          <div class="content-block"><strong>COMMUNE DE : <span style="text-transform: uppercase; border-bottom: 1px dotted #000;">${item.commune}</span></strong></div>
-          <div class="content-block">Suite à la notification de mise à disposition d’engrais N° 394/MASAE/DA faite à la société minière africaine et selon le planning de la lettre N° 0971/DA/BRAFS de mise en place phosphate naturel.</div>
-          <table><thead><tr><th>Coopérative / GIE</th><th>Représentant</th><th>Produit</th><th>Quantité / Tonnes</th></tr></thead><tbody><tr><td>${item.operator_coop_name || item.operator_name}</td><td>${item.operator_name}</td><td>Phosphate naturel</td><td>${item.total_tonnage.toFixed(2)}</td></tr></tbody></table>
-          <div class="content-block">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage.toFixed(2)}</strong> tonnes à l’opérateur : <strong>${item.operator_coop_name || item.operator_name}</strong>.</div>
-          <div class="signatures"><p><strong>Ont signé :</strong></p><table class="sig-table"><tr><td width="40%" class="sig-header">Prénom et nom</td><td width="30%" class="sig-header">Téléphone</td><td width="30%" class="sig-header">Signature</td></tr><tr><td class="sig-line" style="vertical-align: bottom;">${item.operator_name}</td><td class="sig-line" style="vertical-align: bottom;">${item.operator_phone || ''}</td><td class="sig-line"></td></tr></table></div>
-          <div class="doc-footer">SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage Dakar Plateau<br/>Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 – email: mdiene@gmail.com</div>
+          ${htmlContent}
           <script>
-            window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }
+            window.onload = () => { 
+              setTimeout(() => { 
+                window.print(); 
+                window.close(); 
+              }, 800); 
+            }
           </script>
         </body>
       </html>
-    `;
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(printContent); win.document.close(); }
+    `);
+    printWindow.document.close();
   };
 
-  const handleDownloadBL = (item: BonLivraisonView) => {
+  const handlePrintSingleBL = (item: BonLivraisonView) => {
+    openPrintWindow(getBLTemplate(item), `BL_${item.bl_number}`);
+  };
+
+  const handlePrintSingleFC = (item: FinDeCessionView) => {
+    openPrintWindow(getFCTemplate(item), `PV_Cession_${item.operator_name}`);
+  };
+
+  const handlePrintAll = () => {
+    if (activeTab === 'bon_livraison') {
+      if (!filteredBlData.length) return alert('Aucun BL à imprimer');
+      const content = filteredBlData.map(item => getBLTemplate(item)).join('');
+      openPrintWindow(content, `Batch_BL_Ph${selectedPhaseFilter}`);
+    } else {
+      if (!filteredFcData.length) return alert('Aucun PV à imprimer');
+      const content = filteredFcData.map(item => getFCTemplate(item)).join('');
+      openPrintWindow(content, `Batch_FC_Ph${selectedPhaseFilter}`);
+    }
+  };
+
+  /**
+   * Generates a direct PDF for Bon de Livraison using jsPDF
+   */
+  const downloadBLPdf = async (item: BonLivraisonView) => {
+    const fileName = `BL_${item.bl_number}_${item.operator_name.replace(/\s+/g, '_')}.pdf`;
     setDownloadingId(item.bl_number);
-    fullPrintBL(item);
-    setTimeout(() => setDownloadingId(null), 1000);
+    try {
+      const doc = new jsPDF();
+      drawSomaHeaderOnPdf(doc, 15, 10);
+
+      doc.setFillColor(255, 249, 230); doc.rect(15, 35, 180, 10, 'F');
+      doc.setDrawColor(217, 119, 6); doc.setLineWidth(1.5); doc.line(15, 35, 15, 45);
+      doc.setFontSize(16); doc.setTextColor(60, 60, 60); doc.text("BON DE LIVRAISON", 20, 42);
+
+      doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+      doc.text("SOCIETE MINIERE AFRICAINE", 15, 55);
+      doc.setFont("helvetica", "normal"); doc.text("11 rue Alfred goux", 15, 60);
+      doc.text("Apt N1 1er Etage Dakar Plateau Sénégal", 15, 65); doc.text("TEL : 77 260 95 67", 15, 70);
+
+      doc.setFont("helvetica", "bold"); doc.text("DATE DE LIVRAISON:", 120, 55);
+      doc.setFont("helvetica", "normal"); doc.text(new Date(item.delivery_date).toLocaleDateString('fr-FR'), 165, 55);
+      doc.setFont("helvetica", "bold"); doc.text("NUMÉRO BL:", 120, 62);
+      doc.setFont("courier", "bold"); doc.text(item.bl_number, 165, 62);
+
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.1); doc.rect(120, 70, 75, 25);
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.text("DESTINATAIRE", 122, 74);
+      doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+      doc.text(item.operator_name, 122, 80); doc.setFontSize(9); doc.setFont("helvetica", "normal");
+      doc.text(`${item.commune}, ${item.region}`, 122, 86);
+
+      autoTable(doc, {
+        startY: 105,
+        head: [['DESCRIPTION DES MARCHANDISES', 'QUANTITÉ / TONNES']],
+        body: [
+          [`Phosphate naturel enrichi - Campagne 2025/2026\nPROJET PHASE ${item.numero_phase}\nBON N° ${item.project_num_bon}`, { content: `${item.tonnage_loaded}`, styles: { halign: 'right', fontStyle: 'bold' } }],
+          ['', ''],
+          [{ content: 'TOTAL GÉNÉRAL', styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 253, 244] } }, { content: `${item.tonnage_loaded}`, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 253, 244] } }]
+        ],
+        theme: 'plain',
+        headStyles: { fillColor: [255, 249, 230], textColor: [0, 0, 0], fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 5, lineWidth: { bottom: 0.1 } }
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY + 30;
+      doc.setFont("helvetica", "bold"); doc.text("LE RÉCEPTIONNAIRE", 15, finalY);
+      doc.text("SIGNATURE & CACHET SOMA", 140, finalY); doc.setLineWidth(0.5);
+      doc.line(15, finalY + 2, 60, finalY + 2); doc.line(140, finalY + 2, 185, finalY + 2);
+      
+      doc.save(fileName);
+    } catch (e) {
+      console.error(e);
+      alert("Erreur lors de la génération du PDF.");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
-  const handleDownloadFC = (item: FinDeCessionView) => {
+  /**
+   * Generates a direct PDF for Fin de Cession using jsPDF with Watermark (SOMA text removed)
+   */
+  const downloadFCPdf = async (item: FinDeCessionView) => {
+    const fileName = `PV_Cession_PH${item.project_phase}_${item.operator_name.replace(/\s+/g, '_')}.pdf`;
     const fcUniqueId = `FC-PH${item.project_phase}-${item.operator_id.slice(0, 4)}`;
     setDownloadingId(fcUniqueId);
-    fullPrintFC(item);
-    setTimeout(() => setDownloadingId(null), 1000);
+    try {
+      const doc = new jsPDF();
+
+      // Watermark Leaf design only
+      doc.saveGraphicsState();
+      const gState = new (doc as any).GState({opacity: 0.1});
+      doc.setGState(gState);
+      
+      // Draw watermark leaf stack
+      const wx = 105; const wy = 150;
+      doc.setFillColor(240, 162, 67); doc.roundedRect(wx - 25, wy - 30, 50, 20, 5, 5, 'F');
+      doc.setFillColor(201, 176, 55); doc.roundedRect(wx - 25, wy - 5, 50, 20, 5, 5, 'F');
+      doc.setFillColor(126, 179, 68); doc.roundedRect(wx - 25, wy + 20, 50, 20, 5, 5, 'F');
+      
+      doc.restoreGraphicsState();
+
+      drawSomaHeaderOnPdf(doc, 15, 10);
+
+      doc.setFillColor(255, 251, 235); doc.setDrawColor(234, 179, 8); doc.setLineWidth(0.3);
+      doc.roundedRect(15, 35, 180, 20, 2, 2, 'FD'); doc.setFontSize(14); doc.setTextColor(146, 64, 14);
+      doc.setFont("helvetica", "bold"); doc.text("PROCÈS VERBAL DE RÉCEPTION DES INTRANTS AGRICOLES", 105, 45, { align: 'center' });
+      doc.setFontSize(10); doc.text(`CAMPAGNE AGRICOLE 2025-2026 - PHASE ${item.project_phase}`, 105, 51, { align: 'center' });
+
+      doc.setTextColor(0, 0, 0); doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text(`Date d'émission : ${new Date().toLocaleDateString('fr-FR')}`, 15, 65);
+      doc.setFont("helvetica", "bold"); const locationText = `COMMUNE DE : ${item.commune.toUpperCase()}`;
+      doc.text(locationText, 15, 75); doc.setLineWidth(0.1); doc.line(15, 76, 15 + doc.getTextWidth(locationText), 76);
+
+      const introText = doc.splitTextToSize("La commission de réception certifie que le tonnage suivant a été effectivement mis en place :", 180);
+      doc.setFont("helvetica", "normal"); doc.text(introText, 15, 85);
+
+      autoTable(doc, {
+        startY: 95,
+        head: [['COOPÉRATIVE / BÉNÉFICIAIRE', 'REPRÉSENTANT', 'PRODUIT', 'TOTAL LIVRÉ (T)']],
+        body: [[item.operator_coop_name || item.operator_name, item.operator_name, 'Phosphate Naturel', { content: `${item.total_tonnage.toFixed(2)}`, styles: { fontStyle: 'bold', halign: 'center' } }]],
+        theme: 'grid',
+        headStyles: { fillColor: [254, 243, 199], textColor: [146, 64, 14], fontStyle: 'bold', halign: 'center' }
+      });
+
+      doc.save(fileName);
+    } catch (e) {
+      console.error(e);
+      alert("Erreur lors de la génération du PDF.");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   if (loading && projects.length === 0) return <div className="p-8 text-center text-muted-foreground animate-pulse">Chargement des rapports...</div>;
@@ -393,9 +576,12 @@ export const Views = () => {
             )}
          </div>
 
-         <div className="ml-auto pl-4 border-l border-border">
+         <div className="ml-auto pl-4 border-l border-border flex items-center gap-2">
             <button onClick={handleExportCSV} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
                <FileSpreadsheet size={16} /> <span className="hidden sm:inline">Exporter CSV</span>
+            </button>
+            <button onClick={handlePrintAll} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+               <Printer size={16} /> <span className="hidden sm:inline">Imprimer Tout</span>
             </button>
          </div>
       </div>
@@ -433,10 +619,10 @@ export const Views = () => {
                             <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
                             <td className="px-4 py-3 text-center">
                                <div className="flex items-center justify-center gap-2">
-                                  <button onClick={() => handleDownloadBL(item)} disabled={downloadingId === item.bl_number} className={`btn btn-text btn-sm text-blue-500 hover:bg-blue-50 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2 ${downloadingId === item.bl_number ? 'opacity-50 cursor-wait' : ''}`} title="Enregistrer PDF">
+                                  <button onClick={() => downloadBLPdf(item)} disabled={downloadingId === item.bl_number} className={`btn btn-text btn-sm text-blue-500 hover:bg-blue-50 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2 ${downloadingId === item.bl_number ? 'opacity-50 cursor-wait' : ''}`} title="Enregistrer PDF">
                                      {downloadingId === item.bl_number ? <RefreshCw size={14} className="animate-spin" /> : <Download size={16} />}
                                   </button>
-                                  <button onClick={() => fullPrintBL(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer BL"><Printer size={16} /></button>
+                                  <button onClick={() => handlePrintSingleBL(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer BL"><Printer size={16} /></button>
                                </div>
                             </td>
                           </tr>
@@ -482,14 +668,14 @@ export const Views = () => {
                               <td className="px-4 py-3 text-center">
                                 <div className="flex items-center justify-center gap-2">
                                   <button 
-                                    onClick={() => handleDownloadFC(item)} 
+                                    onClick={() => downloadFCPdf(item)} 
                                     disabled={downloadingId === fcUniqueId} 
                                     className={`btn btn-circle btn-text btn-sm text-blue-500 hover:bg-blue-50 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2 ${downloadingId === fcUniqueId ? 'opacity-50 cursor-wait' : ''}`} 
                                     title="Enregistrer PDF"
                                   >
                                     {downloadingId === fcUniqueId ? <RefreshCw size={14} className="animate-spin" /> : <Download size={16} />}
                                   </button>
-                                  <button onClick={() => fullPrintFC(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer PV"><Printer size={16} /></button>
+                                  <button onClick={() => handlePrintSingleFC(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer PV"><Printer size={16} /></button>
                                 </div>
                               </td>
                             </tr>
