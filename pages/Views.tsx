@@ -657,7 +657,6 @@ export const Views = () => {
                           <tr className="bg-muted/30"><td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">Région: {group.key} ({group.items.length}) - Total: {group.total} T</td></tr>
                         )}
                         {group.items.map((item, idx) => {
-                          const fcUniqueId = `FC-PH${item.project_phase}-${item.operator_id.slice(0, 4)}`;
                           return (
                             <tr key={idx}>
                               <td className="px-4 py-3"><div className="flex flex-col"><span className="text-sm font-medium text-foreground">{item.operator_name}</span>{item.operator_coop_name && <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>}</div></td>
@@ -667,14 +666,6 @@ export const Views = () => {
                               <td className="px-4 py-3 text-right font-mono font-medium text-primary">{item.total_tonnage.toFixed(2)} T</td>
                               <td className="px-4 py-3 text-center">
                                 <div className="flex items-center justify-center gap-2">
-                                  <button 
-                                    onClick={() => downloadFCPdf(item)} 
-                                    disabled={downloadingId === fcUniqueId} 
-                                    className={`btn btn-circle btn-text btn-sm text-blue-500 hover:bg-blue-50 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2 ${downloadingId === fcUniqueId ? 'opacity-50 cursor-wait' : ''}`} 
-                                    title="Enregistrer PDF"
-                                  >
-                                    {downloadingId === fcUniqueId ? <RefreshCw size={14} className="animate-spin" /> : <Download size={16} />}
-                                  </button>
                                   <button onClick={() => handlePrintSingleFC(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer PV"><Printer size={16} /></button>
                                 </div>
                               </td>
