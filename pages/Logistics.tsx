@@ -1,8 +1,7 @@
-
 import { useEffect, useState, useMemo, Fragment, FormEvent } from 'react';
 import { db } from '../services/db';
 import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
-import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight, Receipt } from 'lucide-react';
+import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight, Receipt, Info, Target, Activity } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 import { useAuth } from '../contexts/AuthContext';
@@ -456,6 +455,41 @@ export const Logistics = () => {
                   </div>
                   <label className="block text-sm font-medium text-foreground mb-1">Sélectionner Allocation</label>
                   <AdvancedSelect options={allocationOptions} value={formData.allocation_id || ''} onChange={(val) => setFormData({...formData, allocation_id: val})} placeholder="Rechercher par Nom, Région..." required />
+                  
+                  {/* Allocation Status Info Card */}
+                  {formData.allocation_id && selectedAllocation && (
+                    <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 dark:bg-blue-900/10 space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                      <h4 className="text-xs font-black uppercase text-blue-700 dark:text-blue-400 tracking-widest flex items-center gap-2">
+                         <Info size={14} /> État de l'Allocation
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                         <div>
+                            <p className="text-[10px] text-blue-600/70 uppercase font-bold tracking-tight">Cible Totale</p>
+                            <p className="text-lg font-black text-blue-900 dark:text-blue-100 font-mono leading-none mt-1">
+                               {selectedAllocation.target_tonnage.toLocaleString()} T
+                            </p>
+                         </div>
+                         <div>
+                            <p className="text-[10px] text-blue-600/70 uppercase font-bold tracking-tight">Livré à ce jour</p>
+                            <p className="text-lg font-black text-emerald-600 font-mono leading-none mt-1">
+                               {selectedAllocation.delivered_tonnage.toLocaleString()} T
+                            </p>
+                         </div>
+                         <div className="col-span-2 pt-2 border-t border-blue-100/50">
+                            <div className="flex justify-between items-center mb-1">
+                               <p className="text-[10px] text-blue-600/70 uppercase font-bold tracking-tight">Reliquat (Reste à livrer)</p>
+                               <span className="text-[10px] font-black text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full border border-blue-200">
+                                  {Math.min(100, Math.round((selectedAllocation.delivered_tonnage / (selectedAllocation.target_tonnage || 1)) * 100))}%
+                               </span>
+                            </div>
+                            <p className="text-2xl font-black text-primary font-mono tracking-tighter">
+                               {Math.max(0, selectedAllocation.target_tonnage - selectedAllocation.delivered_tonnage).toFixed(2)} T
+                            </p>
+                         </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="p-4 bg-muted/50 rounded-lg border border-border"><div className="flex justify-between items-center mb-2"><span className="text-sm font-medium text-foreground">Numéro BL</span></div><input type="text" required className="w-full border border-input rounded-lg p-2 text-lg font-mono font-bold bg-background text-foreground tracking-wide" value={formData.bl_number || ''} onChange={(e) => setFormData({...formData, bl_number: e.target.value.toUpperCase()})} /></div>
                 </div>
                 <div className="space-y-4">
