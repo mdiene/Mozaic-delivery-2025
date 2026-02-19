@@ -78,7 +78,10 @@ export const Logistics = () => {
         const allocId = params.get('allocationId');
         if (allocId) {
            const targetAlloc = loadedAllocations.find(a => a.id === allocId);
-           if (targetAlloc) initialData.allocation_id = targetAlloc.id;
+           if (targetAlloc) {
+             initialData.allocation_id = targetAlloc.id;
+             setModalPhaseFilter(targetAlloc.project_id);
+           }
         }
 
         const truckId = params.get('truckId');
@@ -119,14 +122,15 @@ export const Logistics = () => {
         ...delivery,
         delivery_date: delivery.delivery_date ? new Date(delivery.delivery_date).toISOString().split('T')[0] : ''
       });
+      if (delivery.project_id) setModalPhaseFilter(delivery.project_id);
     } else {
       setFormData({
         bl_number: generateBL(),
         delivery_date: new Date().toISOString().split('T')[0],
         tonnage_loaded: 0
       });
+      setModalPhaseFilter('all');
     }
-    setModalPhaseFilter('all');
     setIsModalOpen(true);
   };
 
@@ -207,6 +211,14 @@ export const Logistics = () => {
       driver_id: selectedTruck?.driver_id || prev.driver_id
     }));
   };
+
+  const handleAllocationChange = (val: string) => {
+    const selectedAlloc = allocations.find(a => a.id === val);
+    setFormData({ ...formData, allocation_id: val });
+    if (selectedAlloc && selectedAlloc.project_id) {
+      setModalPhaseFilter(selectedAlloc.project_id);
+    }
+  };
   
   const visibleProjects = useMemo(() => projects.filter(p => p.project_visibility !== false), [projects]);
 
@@ -271,7 +283,6 @@ export const Logistics = () => {
   }, [deliveries, groupBy, mainPhaseFilter, searchTerm]);
 
   const selectedAllocation = allocations.find(a => a.id === formData.allocation_id);
-  const targetTonnage = selectedAllocation?.target_tonnage || 0;
 
   const allocationOptions: Option[] = useMemo(() => {
     return allocations
@@ -454,9 +465,28 @@ export const Logistics = () => {
                      </select>
                   </div>
                   <label className="block text-sm font-medium text-foreground mb-1">Sélectionner Allocation</label>
-                  <AdvancedSelect options={allocationOptions} value={formData.allocation_id || ''} onChange={(val) => setFormData({...formData, allocation_id: val})} placeholder="Rechercher par Nom, Région..." required />
+                  <AdvancedSelect 
+                    options={allocationOptions} 
+                    value={formData.allocation_id || ''} 
+                    onChange={handleAllocationChange} 
+                    placeholder="Rechercher par Nom, Région..." 
+                    required 
+                  />
                   
-                  {/* Allocation Status Info Card */}
+                  <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-foreground">Numéro BL</span>
+                    </div>
+                    <input 
+                      type="text" 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-lg font-mono font-bold bg-background text-foreground tracking-wide" 
+                      value={formData.bl_number || ''} 
+                      onChange={(e) => setFormData({...formData, bl_number: e.target.value.toUpperCase()})} 
+                    />
+                  </div>
+
+                  {/* Allocation Status Info Card - Moved Below Numéro BL */}
                   {formData.allocation_id && selectedAllocation && (
                     <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 dark:bg-blue-900/10 space-y-3 animate-in fade-in zoom-in-95 duration-200">
                       <h4 className="text-xs font-black uppercase text-blue-700 dark:text-blue-400 tracking-widest flex items-center gap-2">
@@ -489,8 +519,6 @@ export const Logistics = () => {
                       </div>
                     </div>
                   )}
-
-                  <div className="p-4 bg-muted/50 rounded-lg border border-border"><div className="flex justify-between items-center mb-2"><span className="text-sm font-medium text-foreground">Numéro BL</span></div><input type="text" required className="w-full border border-input rounded-lg p-2 text-lg font-mono font-bold bg-background text-foreground tracking-wide" value={formData.bl_number || ''} onChange={(e) => setFormData({...formData, bl_number: e.target.value.toUpperCase()})} /></div>
                 </div>
                 <div className="space-y-4">
                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><TruckIcon size={14} /> Transport</h4>
