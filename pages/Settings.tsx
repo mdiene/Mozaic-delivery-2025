@@ -114,6 +114,7 @@ export const Settings = () => {
         payload.tonnage_total = Number(payload.tonnage_total); 
         // Ensure strictly boolean
         payload.project_visibility = !!payload.project_visibility;
+        payload.export_statut = !!payload.export_statut;
         
         // FIX: Remove calculated field 'total_delivered' before saving to DB
         // as it does not exist in the 'project' table schema
@@ -279,6 +280,7 @@ export const Settings = () => {
                   <th>N° Marché</th>
                   <th>Tonnage Total</th>
                   <th>Date</th>
+                  <th>Statut Export</th>
                   <th>Visibilité (Cliquer pour changer)</th>
                   <th className="text-right">Actions</th>
                 </tr>
@@ -304,6 +306,11 @@ export const Settings = () => {
                     <td className="font-mono text-sm">{p.numero_marche || '-'}</td>
                     <td className="font-mono font-bold text-primary">{p.tonnage_total.toLocaleString()} T</td>
                     <td className="text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString('fr-FR') : '-'}</td>
+                    <td>
+                      <span className={`badge badge-soft text-[10px] font-black uppercase ${p.export_statut ? 'badge-warning' : 'badge-info'}`}>
+                        {p.export_statut ? 'Export' : 'Local'}
+                      </span>
+                    </td>
                     <td>
                        <button 
                          onClick={() => handleToggleVisibility(p)}
@@ -572,6 +579,18 @@ export const Settings = () => {
                        />
                        <label htmlFor="project_visibility_modal" className="text-sm font-bold text-foreground cursor-pointer">
                           Afficher cette phase sur le site
+                       </label>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border">
+                       <input 
+                         type="checkbox" 
+                         id="export_statut_modal"
+                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                         checked={!!formData.export_statut}
+                         onChange={e => setFormData({...formData, export_statut: e.target.checked})}
+                       />
+                       <label htmlFor="export_statut_modal" className="text-sm font-bold text-foreground cursor-pointer">
+                          Phase destinée à l'Export
                        </label>
                     </div>
                  </div>

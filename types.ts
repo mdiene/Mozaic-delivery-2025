@@ -41,6 +41,7 @@ export interface Project {
   tonnage_total: number;
   project_visibility: boolean;
   project_description?: string;
+  export_statut?: boolean;
   total_delivered?: number;
 }
 
