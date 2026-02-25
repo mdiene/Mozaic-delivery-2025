@@ -4,6 +4,8 @@ import { db } from '../services/db';
 import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers, Save, Ruler, Info, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { getPhaseColor } from '../lib/colors';
+import { AdvancedSelect } from '../components/AdvancedSelect';
 
 type Tab = 'geographic' | 'projects' | 'operators';
 type GeoTab = 'regions' | 'departments' | 'communes';
@@ -123,6 +125,10 @@ export const Settings = () => {
       if (modalType === 'operator') { 
         payload.operateur_coop_gie = !!payload.is_coop; 
         payload.contact_info = payload.phone;
+        // Clear coop_name if not a coop
+        if (!payload.operateur_coop_gie) {
+          payload.coop_name = null;
+        }
         delete payload.is_coop;
         delete payload.phone;
         delete payload.commune_name;
@@ -282,7 +288,12 @@ export const Settings = () => {
                   <tr key={p.id}>
                     <td>
                       <div className="flex flex-col">
-                        <span className="font-bold">Phase {p.numero_phase}</span>
+                        {(() => {
+                          const phaseColor = getPhaseColor(p.numero_phase);
+                          return (
+                            <span className={`font-bold ${phaseColor.softText}`}>Phase {p.numero_phase}</span>
+                          );
+                        })()}
                         {p.project_description && (
                           <span className="text-[10px] text-muted-foreground italic leading-tight mt-0.5">
                             {p.project_description}
@@ -361,20 +372,24 @@ export const Settings = () => {
                     >
                       Toutes les Phases
                     </button>
-                    {projects.map(p => (
-                      <button 
-                        key={p.id}
-                        onClick={() => setOperatorPhaseFilter(p.id)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border flex flex-col items-start min-w-[120px] ${operatorPhaseFilter === p.id ? 'bg-primary text-white border-primary shadow-md' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
-                      >
-                        <span>Phase {p.numero_phase}</span>
-                        {p.project_description && (
-                          <span className={`text-[9px] lowercase italic font-normal truncate w-full ${operatorPhaseFilter === p.id ? 'text-white/80' : 'text-muted-foreground/70'}`}>
-                            {p.project_description}
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                    {projects.map(p => {
+                      const phaseColor = getPhaseColor(p.numero_phase);
+                      const isActive = operatorPhaseFilter === p.id;
+                      return (
+                        <button 
+                          key={p.id}
+                          onClick={() => setOperatorPhaseFilter(p.id)}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border flex flex-col items-start min-w-[120px] ${isActive ? `${phaseColor.bg} ${phaseColor.text} ${phaseColor.border} shadow-md` : `bg-background text-muted-foreground border-border hover:${phaseColor.border}/50`}`}
+                        >
+                          <span>Phase {p.numero_phase}</span>
+                          {p.project_description && (
+                            <span className={`text-[9px] lowercase italic font-normal truncate w-full ${isActive ? 'text-white/80' : 'text-muted-foreground/70'}`}>
+                              {p.project_description}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -415,45 +430,52 @@ export const Settings = () => {
                       return <tr><td colSpan={5} className="p-12 text-center text-muted-foreground italic">Aucun opérateur trouvé.</td></tr>;
                     }
 
-                    return sortedGroups.map(([phaseName, items]) => (
-                      <Fragment key={phaseName}>
-                        <tr className="bg-muted/30">
-                          <td colSpan={5} className="px-6 py-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-black uppercase tracking-widest text-primary">{phaseName}</span>
-                              {projects.find(p => `Phase ${p.numero_phase}` === phaseName)?.project_description && (
-                                <span className="text-[10px] text-muted-foreground italic">
-                                  — {projects.find(p => `Phase ${p.numero_phase}` === phaseName)?.project_description}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                        {items.map(op => (
-                          <tr key={op.id} className="hover:bg-muted/10 transition-colors">
-                            <td>
-                               <div className="flex flex-col">
-                                  <span className="font-bold text-foreground">{op.name}</span>
-                                  <span className="text-[10px] text-muted-foreground font-mono">{op.phone || 'Sans téléphone'}</span>
-                               </div>
-                            </td>
-                            <td>
-                               <span className={`badge badge-soft text-[10px] font-black uppercase ${op.is_coop ? 'badge-primary' : 'badge-secondary'}`}>
-                                  {op.is_coop ? 'Coopérative / GIE' : 'Individuel'}
-                               </span>
-                            </td>
-                            <td className="text-sm text-muted-foreground">{communes.find(c => c.id === op.commune_id)?.name || '-'}</td>
-                            <td><span className="badge badge-soft badge-secondary text-[10px] font-bold">Phase {projects.find(p => p.id === op.projet_id)?.numero_phase || '-'}</span></td>
-                            <td className="text-right">
-                              <div className="flex justify-end gap-1">
-                                <button onClick={() => openModal('operator', op)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                                <button onClick={() => handleDelete('operators', op.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                    return sortedGroups.map(([phaseName, items]) => {
+                      const phaseNum = phaseName.replace('Phase ', '');
+                      const phaseColor = getPhaseColor(phaseNum);
+                      return (
+                        <Fragment key={phaseName}>
+                          <tr className={`${phaseColor.soft}/30`}>
+                            <td colSpan={5} className="px-6 py-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-black uppercase tracking-widest ${phaseColor.softText}`}>{phaseName}</span>
+                                {projects.find(p => `Phase ${p.numero_phase}` === phaseName)?.project_description && (
+                                  <span className="text-[10px] text-muted-foreground italic">
+                                    — {projects.find(p => `Phase ${p.numero_phase}` === phaseName)?.project_description}
+                                  </span>
+                                )}
                               </div>
                             </td>
                           </tr>
-                        ))}
-                      </Fragment>
-                    ));
+                          {items.map(op => (
+                            <tr key={op.id} className="hover:bg-muted/10 transition-colors">
+                              <td>
+                                 <div className="flex flex-col">
+                                    <span className="font-bold text-foreground">{op.name}</span>
+                                    {op.is_coop && op.coop_name && (
+                                      <span className={`text-[10px] ${phaseColor.softText} font-medium italic leading-tight`}>{op.coop_name}</span>
+                                    )}
+                                    <span className="text-[10px] text-muted-foreground font-mono">{op.phone || 'Sans téléphone'}</span>
+                                 </div>
+                              </td>
+                              <td>
+                                 <span className={`badge badge-soft text-[10px] font-black uppercase ${op.is_coop ? phaseColor.badge : 'badge-secondary'}`}>
+                                    {op.is_coop ? 'Coopérative / GIE' : 'Individuel'}
+                                 </span>
+                              </td>
+                              <td className="text-sm text-muted-foreground">{communes.find(c => c.id === op.commune_id)?.name || '-'}</td>
+                              <td><span className={`badge badge-soft ${phaseColor.badge} text-[10px] font-bold`}>Phase {projects.find(p => p.id === op.projet_id)?.numero_phase || '-'}</span></td>
+                              <td className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <button onClick={() => openModal('operator', op)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                  <button onClick={() => handleDelete('operators', op.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      );
+                    });
                   })()}
                 </tbody>
               </table>
@@ -574,6 +596,18 @@ export const Settings = () => {
                          </select>
                        </div>
                     </div>
+                    {formData.is_coop && (
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                        <label className="block text-sm font-medium mb-1">Nom de la Coopérative / GIE</label>
+                        <input 
+                          required 
+                          className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" 
+                          value={formData.coop_name || ''} 
+                          onChange={e => setFormData({...formData, coop_name: e.target.value})} 
+                          placeholder="Ex: GIE des Maraîchers de Thiès" 
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium mb-1">Commune Siège</label>
                       <select required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.commune_id || ''} onChange={e => setFormData({...formData, commune_id: e.target.value})}>
@@ -583,10 +617,20 @@ export const Settings = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">Phase Projet</label>
-                      <select required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.projet_id || ''} onChange={e => setFormData({...formData, projet_id: e.target.value})}>
-                         <option value="">Sélectionner...</option>
-                         {projects.map(p => <option key={p.id} value={p.id}>Phase {p.numero_phase}{p.project_description ? ` - ${p.project_description}` : ''}</option>)}
-                      </select>
+                      <AdvancedSelect 
+                        options={projects.map(p => {
+                          const phaseColor = getPhaseColor(p.numero_phase);
+                          return {
+                            value: p.id,
+                            label: `Phase ${p.numero_phase}`,
+                            subLabel: p.project_description || undefined,
+                            extraInfo: <div className={`h-2 w-2 rounded-full ${phaseColor.bg}`} />
+                          };
+                        })}
+                        value={formData.projet_id || ''}
+                        onChange={val => setFormData({...formData, projet_id: val})}
+                        placeholder="Sélectionner une phase..."
+                      />
                     </div>
                  </div>
                )}

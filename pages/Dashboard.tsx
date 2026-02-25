@@ -15,6 +15,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
 import { ProductionView, DeliveryView } from '../types';
+import { getPhaseColor } from '../lib/colors';
 
 // Aquiry Palette
 const COLORS = [
@@ -349,7 +350,11 @@ export const Dashboard = () => {
                   {prodChartType === 'pie' ? (
                     <PieChart>
                       <Pie data={productionByPhaseData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value" nameKey="name" stroke="none" cornerRadius={4}>
-                        {productionByPhaseData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                        {productionByPhaseData.map((entry, index) => {
+                          const phaseNum = entry.name.replace('Phase ', '');
+                          const phaseColor = getPhaseColor(phaseNum);
+                          return <Cell key={`cell-${index}`} fill={phaseColor.hex} />;
+                        })}
                       </Pie>
                       <Tooltip content={<CustomTooltip chartType="pie" />} />
                       <Legend verticalAlign="bottom" height={36} iconType="circle" />

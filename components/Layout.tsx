@@ -39,6 +39,7 @@ import {
 import { db } from '../services/db';
 import { Project } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { getPhaseColor } from '../lib/colors';
 
 // Context for sharing Project state between Header and Dashboard
 interface ProjectContextType {
@@ -312,17 +313,20 @@ const Header = () => {
                checked={selectedProject === 'all'}
                onChange={() => setSelectedProject('all')}
              />
-             {visibleProjects.map(p => (
-               <input
-                 key={p.id}
-                 className="btn h-8 min-h-0 px-3 text-xs" 
-                 type="radio" 
-                 name="header-phase" 
-                 aria-label={`Phase ${p.numero_phase}`}
-                 checked={selectedProject === p.id}
-                 onChange={() => setSelectedProject(p.id)}
-               />
-             ))}
+             {visibleProjects.map(p => {
+               const phaseColor = getPhaseColor(p.numero_phase);
+               return (
+                 <input
+                   key={p.id}
+                   className={`btn h-8 min-h-0 px-3 text-xs ${selectedProject === p.id ? `${phaseColor.bg} ${phaseColor.text} border-none` : ''}`} 
+                   type="radio" 
+                   name="header-phase" 
+                   aria-label={`Phase ${p.numero_phase}`}
+                   checked={selectedProject === p.id}
+                   onChange={() => setSelectedProject(p.id)}
+                 />
+               );
+             })}
           </form>
         </div>
       </div>

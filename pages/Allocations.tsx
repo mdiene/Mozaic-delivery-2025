@@ -13,6 +13,7 @@ import { useProject } from '../components/Layout';
 import { AdvancedSelect } from '../components/AdvancedSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { getPhaseColor } from '../lib/colors';
 
 export const Allocations = () => {
   const navigate = useNavigate();
@@ -341,9 +342,20 @@ export const Allocations = () => {
               <form className="filter">
                 <input className="btn btn-square" type="reset" value="×" onClick={() => setSelectedProject('all')} />
                 <input className="btn" type="radio" name="allocation-phase" aria-label="Toutes" checked={selectedProject === 'all'} onChange={() => setSelectedProject('all')} />
-                {visibleProjects.map(p => (
-                  <input key={p.id} className="btn" type="radio" name="allocation-phase" aria-label={`Phase ${p.numero_phase}`} checked={selectedProject === p.id} onChange={() => setSelectedProject(p.id)} />
-                ))}
+                {visibleProjects.map(p => {
+                  const phaseColor = getPhaseColor(p.numero_phase);
+                  return (
+                    <input 
+                      key={p.id} 
+                      className={`btn ${selectedProject === p.id ? `${phaseColor.bg} ${phaseColor.text} border-none` : ''}`} 
+                      type="radio" 
+                      name="allocation-phase" 
+                      aria-label={`Phase ${p.numero_phase}`} 
+                      checked={selectedProject === p.id} 
+                      onChange={() => setSelectedProject(p.id)} 
+                    />
+                  );
+                })}
               </form>
             </div>
           </div>
@@ -367,15 +379,17 @@ export const Allocations = () => {
          {groupedAllocations.length === 0 && <div className="p-8 text-center text-muted-foreground bg-card rounded-xl border border-border">Aucune allocation trouvée.</div>}
          {groupedAllocations.map(([phase, items]) => {
             const isOpen = expandedGroups.has(phase);
+            const phaseNum = phase.replace('Phase ', '');
+            const phaseColor = getPhaseColor(phaseNum);
             const totalTarget = items.reduce((sum, item) => sum + item.target_tonnage, 0);
             const totalDelivered = items.reduce((sum, item) => sum + item.delivered_tonnage, 0);
             const progress = totalTarget > 0 ? (totalDelivered / totalTarget) * 100 : 0;
             return (
                <div key={phase} className="accordion-item shadow-sm hover:shadow-md transition-shadow duration-200">
-                  <button onClick={() => toggleGroup(phase)} className="accordion-toggle bg-card hover:bg-muted/50 transition-colors duration-200 py-4">
+                  <button onClick={() => toggleGroup(phase)} className={`accordion-toggle ${isOpen ? phaseColor.soft : 'bg-card'} hover:bg-muted/50 transition-colors duration-200 py-4`}>
                      <div className="flex items-center gap-4">
-                        <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90 text-primary' : 'text-muted-foreground'}`}><ChevronRight size={20} /></span>
-                        <div className="flex flex-col"><span className="text-lg font-bold text-foreground">{phase}</span><span className="text-xs text-muted-foreground font-medium">{items.length} Allocations</span></div>
+                        <span className={`transition-transform duration-300 ${isOpen ? `rotate-90 ${phaseColor.softText}` : 'text-muted-foreground'}`}><ChevronRight size={20} /></span>
+                        <div className="flex flex-col"><span className={`text-lg font-bold ${isOpen ? phaseColor.softText : 'text-foreground'}`}>{phase}</span><span className="text-xs text-muted-foreground font-medium">{items.length} Allocations</span></div>
                      </div>
                      <div className="flex items-center gap-8 mr-4">
                         <div className="text-right hidden sm:block"><p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Cible Total</p><p className="font-mono font-bold text-base">{totalTarget.toLocaleString()} T</p></div>
@@ -423,7 +437,7 @@ export const Allocations = () => {
                                        <td className="px-4 py-3">
                                           <div className="flex flex-col">
                                             <span className="text-sm font-bold text-foreground">{alloc.coop_name || 'Individuel'}</span>
-                                            <span className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">{alloc.project_phase || '-'}</span>
+                                            <span className={`text-[10px] font-bold ${phaseColor.softText} uppercase tracking-tighter`}>{alloc.project_phase || '-'}</span>
                                           </div>
                                        </td>
                                        <td className="px-4 py-3 w-64">
@@ -473,7 +487,23 @@ export const Allocations = () => {
                 {/* Main Form Section */}
                 <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-4">
-                      <div><label className="block text-sm font-medium text-foreground mb-1">Projet</label><select required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.project_id || ''} onChange={e => setFormData({ ...formData, project_id: e.target.value, operator_id: '', region_id: '', department_id: '', commune_id: '' })}><option value="">Sélectionner un Projet...</option>{visibleProjects.map(p => (<option key={p.id} value={p.id}>Phase {p.numero_phase}{p.project_description ? ` - ${p.project_description}` : ''}</option>))}</select></div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1">Projet</label>
+                        <AdvancedSelect 
+                          options={visibleProjects.map(p => {
+                            const phaseColor = getPhaseColor(p.numero_phase);
+                            return {
+                              value: p.id,
+                              label: `Phase ${p.numero_phase}`,
+                              subLabel: p.project_description || undefined,
+                              extraInfo: <div className={`h-2 w-2 rounded-full ${phaseColor.bg}`} />
+                            };
+                          })}
+                          value={formData.project_id || ''}
+                          onChange={val => setFormData({ ...formData, project_id: val, operator_id: '', region_id: '', department_id: '', commune_id: '' })}
+                          placeholder="Sélectionner un Projet..."
+                        />
+                      </div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Région</label><select required disabled={!formData.project_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.region_id || ''} onChange={e => setFormData({...formData, region_id: e.target.value, department_id: '', commune_id: ''})}><option value="">Sélectionner...</option>{regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Département</label><select required disabled={!formData.region_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.department_id || ''} onChange={e => setFormData({...formData, department_id: e.target.value, commune_id: ''})}><option value="">Sélectionner...</option>{filteredDepartments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Commune</label><select required disabled={!formData.department_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.commune_id || ''} onChange={e => setFormData({...formData, commune_id: e.target.value})}><option value="">Sélectionner...</option>{filteredCommunes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>

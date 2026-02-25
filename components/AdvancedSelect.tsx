@@ -133,15 +133,20 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
                   onClick={() => handleSelect(option.value)}
                   className={`advance-select-option ${value === option.value ? 'selected' : ''}`}
                 >
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="truncate" data-title>{option.label}</span>
-                    {option.subLabel && (
-                      <span className="text-xs text-muted-foreground truncate">{option.subLabel}</span>
-                    )}
+                  <div className="flex items-center justify-between w-full overflow-hidden">
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="truncate" data-title>{option.label}</span>
+                      {option.subLabel && (
+                        <span className="text-xs text-muted-foreground truncate">{option.subLabel}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      {option.extraInfo}
+                      {value === option.value && (
+                        <Check size={16} className="text-primary" />
+                      )}
+                    </div>
                   </div>
-                  {value === option.value && (
-                    <Check size={16} className="text-primary shrink-0 ml-2" />
-                  )}
                 </div>
               ))
             ) : (
