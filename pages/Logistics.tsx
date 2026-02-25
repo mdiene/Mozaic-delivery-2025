@@ -436,7 +436,19 @@ export const Logistics = () => {
                               {subGroup.items.map((del) => (
                                 <tr key={del.id} className="hover:bg-muted/50 transition-colors">
                                   <td className="px-4 py-3"><span className="font-bold font-mono text-foreground text-sm">{del.bl_number}</span></td>
-                                  <td className="px-4 py-3"><div className="flex flex-col"><span className="text-sm font-medium text-foreground">{del.operator_name}</span><span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin size={10} /> {del.commune_name}, {del.region_name}</span></div></td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium text-foreground">{del.operator_name}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin size={10} /> {del.commune_name}, {del.region_name}</span>
+                                        {del.declaration_code && (
+                                          <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 uppercase">
+                                            {del.declaration_code}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
                                   <td className="px-4 py-3"><div className="flex flex-col"><p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'Aucun'}</p><p className="text-xs text-muted-foreground">{del.driver_name || 'Aucun'}</p></div></td>
                                   <td className="px-4 py-3"><span className="text-sm font-bold text-foreground bg-muted px-2 py-1 rounded">{del.tonnage_loaded} T</span></td>
                                   <td className="px-4 py-3 text-sm text-muted-foreground">{del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}</td>

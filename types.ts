@@ -51,6 +51,7 @@ export interface Truck {
   capacity_tonnes: number;
   status: 'AVAILABLE' | 'IN_TRANSIT' | 'MAINTENANCE' | 'ON_SITE';
   trailer_number?: string;
+  chassis_camion?: string | null;
   owner_type?: boolean; // true = internal, false/null = external
   driver_id?: string;
   driver_name?: string;

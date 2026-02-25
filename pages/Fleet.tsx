@@ -221,12 +221,13 @@ export const Fleet = () => {
           {activeTab === 'trucks' ? (
             <table className="table table-striped">
               <thead className="bg-primary/5 border-b-2 border-primary/20">
-                <tr><th>Immatriculation</th><th>Capacité</th><th>Chauffeur Assigné</th><th>Statut</th><th className="text-right">Actions</th></tr>
+                <tr><th>Immatriculation</th><th>N° Châssis</th><th>Capacité</th><th>Chauffeur Assigné</th><th>Statut</th><th className="text-right">Actions</th></tr>
               </thead>
               <tbody>
                 {trucks.map(truck => (
                   <tr key={truck.id}>
                     <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="p-2 bg-muted rounded-lg"><Truck size={18} /></div><div><p className="font-mono font-medium">{truck.plate_number}</p></div></div></td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{truck.chassis_camion || '-'}</td>
                     <td className="px-4 py-3 text-sm">{truck.capacity_tonnes} T</td>
                     <td className="px-4 py-3">{truck.driver_name || <span className="text-xs italic">Non assigné</span>}</td>
                     <td className="px-4 py-3"><span className={`badge badge-soft text-xs ${truck.status === 'AVAILABLE' ? 'badge-success' : 'badge-warning'}`}>{truck.status}</span></td>
@@ -301,12 +302,79 @@ export const Fleet = () => {
                   </div>
                 </div>
               ) : activeTab === 'trucks' ? (
-                <>
-                  <label className="block text-sm font-medium">Immatriculation</label>
-                  <input required className="w-full border border-input rounded-lg p-2 text-sm uppercase bg-background" value={truckSearch} onChange={(e) => { setTruckSearch(e.target.value.toUpperCase()); setFormData({ ...formData, plate_number: e.target.value.toUpperCase() }); }} />
-                  <label className="block text-sm font-medium">Capacité (T)</label>
-                  <input type="number" required className="w-full border border-input rounded-lg p-2 text-sm bg-background" value={formData.capacity_tonnes || ''} onChange={e => setFormData({...formData, capacity_tonnes: e.target.value})} />
-                </>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Immatriculation</label>
+                    <input 
+                      required 
+                      className="w-full border border-input rounded-lg p-2 text-sm uppercase bg-background" 
+                      value={truckSearch} 
+                      onChange={(e) => { 
+                        setTruckSearch(e.target.value.toUpperCase()); 
+                        setFormData({ ...formData, plate_number: e.target.value.toUpperCase() }); 
+                      }} 
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Capacité (T)</label>
+                      <input 
+                        type="number" 
+                        required 
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background" 
+                        value={formData.capacity_tonnes || ''} 
+                        onChange={e => setFormData({...formData, capacity_tonnes: e.target.value})} 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Statut</label>
+                      <select 
+                        className="w-full border border-input rounded-lg p-2 text-sm bg-background" 
+                        value={formData.status || 'AVAILABLE'} 
+                        onChange={e => setFormData({...formData, status: e.target.value})}
+                      >
+                        <option value="AVAILABLE">Disponible</option>
+                        <option value="IN_TRANSIT">En Transit</option>
+                        <option value="MAINTENANCE">Maintenance</option>
+                        <option value="ON_SITE">Sur Site</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">N° Châssis</label>
+                    <input 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background font-mono" 
+                      value={formData.chassis_camion || ''} 
+                      onChange={e => setFormData({...formData, chassis_camion: e.target.value})} 
+                      placeholder="Ex: 1HGCM82633A..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">N° Remorque</label>
+                    <input 
+                      className="w-full border border-input rounded-lg p-2 text-sm bg-background font-mono uppercase" 
+                      value={formData.trailer_number || ''} 
+                      onChange={e => setFormData({...formData, trailer_number: e.target.value.toUpperCase()})} 
+                      placeholder="Ex: R-1234-A"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+                    <input 
+                      type="checkbox" 
+                      id="owner_type"
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      checked={formData.owner_type !== false}
+                      onChange={e => setFormData({...formData, owner_type: e.target.checked})}
+                    />
+                    <label htmlFor="owner_type" className="text-sm font-bold text-foreground cursor-pointer">
+                       Camion Interne (Masae)
+                    </label>
+                  </div>
+                </div>
               ) : (
                 <>
                   <label className="block text-sm font-medium">Nom Complet</label>

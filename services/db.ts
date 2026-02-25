@@ -654,7 +654,8 @@ export const db = {
           operator_contact_info: op?.contact_info || '', 
           operator_coop_name: op?.coop_name,
           truck_plate_number: d.truck_plate,
-          truck_trailer_number: d.truck_id ? truckMap[d.truck_id]?.trailer_number : ''
+          truck_trailer_number: d.truck_id ? truckMap[d.truck_id]?.trailer_number : '',
+          declaration_code: d.declaration_code
        } as BonLivraisonView;
     });
   },
