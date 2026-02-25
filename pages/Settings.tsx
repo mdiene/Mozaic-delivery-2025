@@ -18,6 +18,8 @@ export const Settings = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [usedProjectIds, setUsedProjectIds] = useState<Set<string>>(new Set());
   const [operators, setOperators] = useState<Operator[]>([]);
+  const [operatorSearch, setOperatorSearch] = useState('');
+  const [operatorPhaseFilter, setOperatorPhaseFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   
@@ -322,56 +324,140 @@ export const Settings = () => {
       )}
 
       {activeTab === 'operators' && (
-        <div className="bg-card rounded-2xl border border-border shadow-soft-xl overflow-hidden">
-          <div className="p-6 border-b border-border flex justify-between items-center bg-muted/10">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-               <Users size={20} className="text-primary" /> Annuaire Opérateurs
-            </h2>
-            <button 
-              onClick={() => openModal('operator')} 
-              disabled={isVisitor}
-              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium shadow-sm transition-all disabled:opacity-50"
-            >
-              <Plus size={18} /> Ajouter un Opérateur
-            </button>
-          </div>
-          <div className="w-full overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nom</th>
-                  <th>Type</th>
-                  <th>Commune</th>
-                  <th>Phase Projet</th>
-                  <th className="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {operators.map(op => (
-                  <tr key={op.id}>
-                    <td>
-                       <div className="flex flex-col">
-                          <span className="font-bold text-foreground">{op.name}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono">{op.phone || 'Sans téléphone'}</span>
-                       </div>
-                    </td>
-                    <td>
-                       <span className={`badge badge-soft text-[10px] font-black uppercase ${op.is_coop ? 'badge-primary' : 'badge-secondary'}`}>
-                          {op.is_coop ? 'Coopérative / GIE' : 'Individuel'}
-                       </span>
-                    </td>
-                    <td className="text-sm text-muted-foreground">{communes.find(c => c.id === op.commune_id)?.name || '-'}</td>
-                    <td><span className="badge badge-soft badge-secondary text-[10px] font-bold">Phase {projects.find(p => p.id === op.projet_id)?.numero_phase || '-'}</span></td>
-                    <td className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => openModal('operator', op)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('operators', op.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
+        <div className="space-y-4">
+          <div className="bg-card rounded-2xl border border-border shadow-soft-xl overflow-hidden">
+            <div className="p-6 border-b border-border bg-muted/10 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                   <Users size={20} className="text-primary" /> Annuaire Opérateurs
+                </h2>
+                <button 
+                  onClick={() => openModal('operator')} 
+                  disabled={isVisitor}
+                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium shadow-sm transition-all disabled:opacity-50"
+                >
+                  <Plus size={18} /> Ajouter un Opérateur
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Filtrer par nom ou commune..."
+                    value={operatorSearch}
+                    onChange={(e) => setOperatorSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Filtrer par Phase:</span>
+                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                    <button 
+                      onClick={() => setOperatorPhaseFilter('all')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${operatorPhaseFilter === 'all' ? 'bg-primary text-white border-primary shadow-md' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+                    >
+                      Toutes les Phases
+                    </button>
+                    {projects.map(p => (
+                      <button 
+                        key={p.id}
+                        onClick={() => setOperatorPhaseFilter(p.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border flex flex-col items-start min-w-[120px] ${operatorPhaseFilter === p.id ? 'bg-primary text-white border-primary shadow-md' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+                      >
+                        <span>Phase {p.numero_phase}</span>
+                        {p.project_description && (
+                          <span className={`text-[9px] lowercase italic font-normal truncate w-full ${operatorPhaseFilter === p.id ? 'text-white/80' : 'text-muted-foreground/70'}`}>
+                            {p.project_description}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Nom</th>
+                    <th>Type</th>
+                    <th>Commune</th>
+                    <th>Phase Projet</th>
+                    <th className="text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const filtered = operators.filter(op => {
+                      const communeName = communes.find(c => c.id === op.commune_id)?.name || '';
+                      const matchesSearch = op.name.toLowerCase().includes(operatorSearch.toLowerCase()) || 
+                                            communeName.toLowerCase().includes(operatorSearch.toLowerCase());
+                      const matchesPhase = operatorPhaseFilter === 'all' || op.projet_id === operatorPhaseFilter;
+                      return matchesSearch && matchesPhase;
+                    });
+
+                    const groups: Record<string, Operator[]> = {};
+                    filtered.forEach(op => {
+                      const project = projects.find(p => p.id === op.projet_id);
+                      const phaseName = project ? `Phase ${project.numero_phase}` : 'Sans Phase';
+                      if (!groups[phaseName]) groups[phaseName] = [];
+                      groups[phaseName].push(op);
+                    });
+
+                    const sortedGroups = Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+
+                    if (sortedGroups.length === 0) {
+                      return <tr><td colSpan={5} className="p-12 text-center text-muted-foreground italic">Aucun opérateur trouvé.</td></tr>;
+                    }
+
+                    return sortedGroups.map(([phaseName, items]) => (
+                      <Fragment key={phaseName}>
+                        <tr className="bg-muted/30">
+                          <td colSpan={5} className="px-6 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black uppercase tracking-widest text-primary">{phaseName}</span>
+                              {projects.find(p => `Phase ${p.numero_phase}` === phaseName)?.project_description && (
+                                <span className="text-[10px] text-muted-foreground italic">
+                                  — {projects.find(p => `Phase ${p.numero_phase}` === phaseName)?.project_description}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                        {items.map(op => (
+                          <tr key={op.id} className="hover:bg-muted/10 transition-colors">
+                            <td>
+                               <div className="flex flex-col">
+                                  <span className="font-bold text-foreground">{op.name}</span>
+                                  <span className="text-[10px] text-muted-foreground font-mono">{op.phone || 'Sans téléphone'}</span>
+                               </div>
+                            </td>
+                            <td>
+                               <span className={`badge badge-soft text-[10px] font-black uppercase ${op.is_coop ? 'badge-primary' : 'badge-secondary'}`}>
+                                  {op.is_coop ? 'Coopérative / GIE' : 'Individuel'}
+                               </span>
+                            </td>
+                            <td className="text-sm text-muted-foreground">{communes.find(c => c.id === op.commune_id)?.name || '-'}</td>
+                            <td><span className="badge badge-soft badge-secondary text-[10px] font-bold">Phase {projects.find(p => p.id === op.projet_id)?.numero_phase || '-'}</span></td>
+                            <td className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <button onClick={() => openModal('operator', op)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDelete('operators', op.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -499,7 +585,7 @@ export const Settings = () => {
                       <label className="block text-sm font-medium mb-1">Phase Projet</label>
                       <select required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.projet_id || ''} onChange={e => setFormData({...formData, projet_id: e.target.value})}>
                          <option value="">Sélectionner...</option>
-                         {projects.map(p => <option key={p.id} value={p.id}>Phase {p.numero_phase}</option>)}
+                         {projects.map(p => <option key={p.id} value={p.id}>Phase {p.numero_phase}{p.project_description ? ` - ${p.project_description}` : ''}</option>)}
                       </select>
                     </div>
                  </div>
