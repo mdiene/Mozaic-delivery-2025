@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, Fragment, FormEvent } from 'react';
 import { db } from '../services/db';
-import { DeliveryView, Truck, Driver, AllocationView, Project } from '../types';
-import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight, Receipt, Info, Target, Activity } from 'lucide-react';
+import { DeliveryView, Truck, Driver, AllocationView, Project, Region, Department } from '../types';
+import { Plus, Search, FileText, MapPin, Truck as TruckIcon, Edit2, Trash2, RefreshCw, X, Save, Calendar, User, Layers, Filter, ChevronDown, ChevronRight, Receipt, Info, Target, Activity, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,6 +17,8 @@ export const Logistics = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [allocations, setAllocations] = useState<AllocationView[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   
   const [loading, setLoading] = useState(true);
   const isVisitor = user?.role === 'VISITOR';
@@ -41,18 +43,22 @@ export const Logistics = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [del, tr, dr, al, proj] = await Promise.all([
+      const [del, tr, dr, al, proj, reg, dep] = await Promise.all([
         db.getDeliveriesView(),
         db.getTrucks(),
         db.getDrivers(),
         db.getAllocationsView(),
-        db.getProjects()
+        db.getProjects(),
+        db.getRegions(),
+        db.getDepartments()
       ]);
       setDeliveries(del);
       setTrucks(tr);
       setDrivers(dr);
       setAllocations(al); 
       setProjects(proj);
+      setRegions(reg);
+      setDepartments(dep);
       return { allocations: al, projects: proj, trucks: tr };
     } catch (e) {
       console.error(e);
@@ -168,7 +174,8 @@ export const Logistics = () => {
         truck_id: formData.truck_id || null, 
         driver_id: formData.driver_id || null,
         tonnage_loaded: Number(formData.tonnage_loaded),
-        delivery_date: formData.delivery_date
+        delivery_date: formData.delivery_date,
+        declaration_code: isExportProject ? declarationCode : null
       };
 
       if (formData.id) {
@@ -283,6 +290,16 @@ export const Logistics = () => {
   }, [deliveries, groupBy, mainPhaseFilter, searchTerm]);
 
   const selectedAllocation = allocations.find(a => a.id === formData.allocation_id);
+  const selectedProjectObj = useMemo(() => projects.find(p => p.id === selectedAllocation?.project_id), [projects, selectedAllocation]);
+  const isExportProject = selectedProjectObj?.export_statut === true;
+
+  const declarationCode = useMemo(() => {
+    if (!selectedAllocation || !isExportProject) return null;
+    const reg = regions.find(r => r.id === selectedAllocation.region_id);
+    const dep = departments.find(d => d.id === selectedAllocation.department_id);
+    if (!reg || !dep) return null;
+    return `${reg.code}-${dep.code}`;
+  }, [selectedAllocation, isExportProject, regions, departments]);
 
   const allocationOptions: Option[] = useMemo(() => {
     return allocations
@@ -525,6 +542,29 @@ export const Logistics = () => {
                    <label className="block text-sm font-medium text-foreground mb-1">Camion</label>
                    <AdvancedSelect options={truckOptions} value={formData.truck_id || ''} onChange={(val) => handleTruckChange(val)} placeholder="Rechercher Camion..." />
                    <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-foreground mb-1">Charge (T)</label><input type="number" required min="0.1" step="0.01" className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.tonnage_loaded || ''} onChange={(e) => setFormData({...formData, tonnage_loaded: e.target.value})} /></div><div><label className="block text-sm font-medium text-foreground mb-1">Date</label><input type="date" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.delivery_date || ''} onChange={(e) => setFormData({...formData, delivery_date: e.target.value})} /></div></div>
+
+                   {/* NEW SECTION: Export Declaration Details */}
+                   {formData.allocation_id && isExportProject && (
+                     <div className="p-4 rounded-xl border border-amber-100 bg-amber-50/50 dark:bg-amber-900/10 space-y-3 animate-in fade-in zoom-in-95 duration-200 mt-4">
+                        <h4 className="text-xs font-black uppercase text-amber-700 dark:text-amber-400 tracking-widest flex items-center gap-2">
+                           <ShieldCheck size={14} /> Détails Export
+                        </h4>
+                        <div className="bg-card border border-amber-200/50 rounded-lg p-3 shadow-soft-sm">
+                           <p className="text-[10px] text-amber-600/70 uppercase font-bold tracking-tight mb-1">Code Déclaration</p>
+                           <div className="flex items-center justify-between">
+                              <p className="text-xl font-black text-amber-900 dark:text-amber-100 font-mono">
+                                 {declarationCode || '---'}
+                              </p>
+                              <div className="px-2 py-0.5 bg-amber-100 dark:bg-amber-800 rounded text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase">
+                                 Automatique
+                              </div>
+                           </div>
+                           <p className="text-[10px] text-muted-foreground mt-2 italic">
+                              Généré à partir des codes Région ({regions.find(r => r.id === selectedAllocation?.region_id)?.code}) et Département ({departments.find(d => d.id === selectedAllocation?.department_id)?.code}).
+                           </p>
+                        </div>
+                     </div>
+                   )}
                 </div>
                 <div className="md:col-span-2 flex justify-end gap-2 pt-2 border-t border-border mt-2">
                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-lg text-sm font-medium">Annuler</button>

@@ -110,6 +110,7 @@ export interface Delivery {
   tonnage_delivered?: number | null;
   delivery_date: string;
   created_at: string;
+  declaration_code?: string | null;
 }
 
 export interface DeliveryView extends Delivery {

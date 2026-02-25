@@ -52,6 +52,7 @@ export const db = {
 
       return {
         ...del,
+        declaration_code: del.declaration_code,
         operator_name: alloc?.operators?.name || 'Unknown',
         operator_id: alloc?.operator_id,
         region_name: alloc?.regions?.name || 'Unknown',
@@ -317,16 +318,17 @@ export const db = {
     const { data: projects } = await query;
     if (!projects) return [];
     
-    // Pass false to getDeliveriesView to include all for calculations if needed,
-    // but typically we should only care about visible data.
-    // The requirement says "dont use the project data related to that project phase".
     const deliveries = await db.getDeliveriesView(onlyVisible);
     
     return projects.map((p: any) => {
        const delivered = deliveries
           .filter(d => d.project_id === p.id)
           .reduce((sum, d) => sum + Number(d.tonnage_loaded), 0);
-       return { ...p, total_delivered: delivered };
+       return { 
+         ...p, 
+         total_delivered: delivered,
+         export_statut: !!p.export_statut 
+       };
     });
   },
 
