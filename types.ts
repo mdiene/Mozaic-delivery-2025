@@ -40,6 +40,7 @@ export interface Project {
   date_mise_disposition: string;
   tonnage_total: number;
   project_visibility: boolean;
+  project_description?: string;
   total_delivered?: number;
 }
 

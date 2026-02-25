@@ -278,7 +278,16 @@ export const Settings = () => {
               <tbody>
                 {projects.map(p => (
                   <tr key={p.id}>
-                    <td className="font-bold">Phase {p.numero_phase}</td>
+                    <td>
+                      <div className="flex flex-col">
+                        <span className="font-bold">Phase {p.numero_phase}</span>
+                        {p.project_description && (
+                          <span className="text-[10px] text-muted-foreground italic leading-tight mt-0.5">
+                            {p.project_description}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="font-mono text-sm">{p.numero_marche || '-'}</td>
                     <td className="font-mono font-bold text-primary">{p.tonnage_total.toLocaleString()} T</td>
                     <td className="text-muted-foreground">{p.date_mise_disposition ? new Date(p.date_mise_disposition).toLocaleDateString('fr-FR') : '-'}</td>
@@ -431,6 +440,15 @@ export const Settings = () => {
                     <div>
                       <label className="block text-sm font-medium mb-1">Référence Marché</label>
                       <input className="w-full border border-input rounded-xl p-2.5 text-sm bg-background font-mono" value={formData.numero_marche || ''} onChange={e => setFormData({...formData, numero_marche: e.target.value})} placeholder="Ex: M-2025-001" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Description du Projet</label>
+                      <textarea 
+                        className="w-full border border-input rounded-xl p-2.5 text-sm bg-background min-h-[80px]" 
+                        value={formData.project_description || ''} 
+                        onChange={e => setFormData({...formData, project_description: e.target.value})} 
+                        placeholder="Ex: Campagne de distribution de semences 2025..." 
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">Date mise à dispo</label>
