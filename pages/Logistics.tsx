@@ -40,6 +40,18 @@ export const Logistics = () => {
   // Modal Filter State
   const [modalPhaseFilter, setModalPhaseFilter] = useState<string>('all');
   
+  const getPhaseColorClasses = (phase: number | string) => {
+    const p = Number(phase);
+    switch(p) {
+      case 1: return "border-l-4 border-blue-500 bg-blue-50/30 hover:bg-blue-50/50";
+      case 2: return "border-l-4 border-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/50";
+      case 3: return "border-l-4 border-amber-500 bg-amber-50/30 hover:bg-amber-50/50";
+      case 4: return "border-l-4 border-purple-500 bg-purple-50/30 hover:bg-purple-50/50";
+      case 5: return "border-l-4 border-rose-500 bg-rose-50/30 hover:bg-rose-50/50";
+      default: return "border-l-4 border-slate-300 bg-slate-50/30 hover:bg-slate-50/50";
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -434,7 +446,7 @@ export const Logistics = () => {
                                 </tr>
                               )}
                               {subGroup.items.map((del) => (
-                                <tr key={del.id} className="hover:bg-muted/50 transition-colors">
+                                <tr key={del.id} className={`${getPhaseColorClasses(del.project_phase)} transition-colors`}>
                                   <td className="px-4 py-3"><span className="font-bold font-mono text-foreground text-sm">{del.bl_number}</span></td>
                                   <td className="px-4 py-3">
                                     <div className="flex flex-col">

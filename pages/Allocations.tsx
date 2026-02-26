@@ -419,8 +419,9 @@ export const Allocations = () => {
                                  else if (progress >= 100) { progressColor = 'bg-emerald-500'; textColor = 'text-emerald-500'; StatusIcon = CheckCircle; }
                                  else if (progress >= 70) { progressColor = 'bg-sky-500'; textColor = 'text-sky-500'; StatusIcon = TrendingUp; }
                                  const stepsFilled = Math.min(10, Math.floor(progress / 10));
+                                 const color = getPhaseColor(alloc.project_phase?.replace('Phase ', '') || 0);
                                  return (
-                                    <tr key={alloc.id} className="hover:bg-muted/30 transition-colors">
+                                    <tr key={alloc.id} className={`border-l-4 ${color.border} ${color.soft} hover:bg-opacity-70 transition-colors`}>
                                        <td className="px-4 py-3">
                                           <div className="group relative">
                                              <div className="flex flex-col cursor-help"><span className="font-bold text-foreground text-sm">{alloc.operator_name}</span><span className="text-xs text-muted-foreground font-mono">{alloc.allocation_key}</span></div>

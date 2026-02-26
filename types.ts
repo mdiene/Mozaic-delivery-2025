@@ -121,7 +121,11 @@ export interface DeliveryView extends Delivery {
   commune_name: string;
   project_phase: string;
   truck_plate: string;
+  truck_trailer?: string;
+  truck_chassis?: string;
   driver_name: string;
+  driver_license?: string;
+  driver_phone?: string;
   project_id?: string;
   truck_owner_type?: boolean;
   operator_id?: string;
@@ -266,11 +270,17 @@ export interface BonLivraisonView extends DeliveryView {
   department: string;
   commune: string;
   project_num_bon: string;
+  project_description?: string;
   numero_phase: number;
+  export_statut?: boolean;
   operator_coop_name?: string;
+  operateur_coop_gie?: boolean;
   operator_contact_info?: string;
   truck_plate_number?: string;
   truck_trailer_number?: string;
+  truck_chassis?: string;
+  driver_license?: string;
+  driver_phone?: string;
 }
 
 export interface FinDeCessionView {

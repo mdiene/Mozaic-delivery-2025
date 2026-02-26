@@ -129,8 +129,6 @@ export const Views = () => {
       try {
         const proj = await db.getProjects();
         setProjects(proj);
-        const phase3 = proj.find(p => p.numero_phase === 3 && p.project_visibility !== false);
-        if (phase3) setSelectedPhaseFilter(phase3.numero_phase);
       } catch (e) { console.error("Error loading projects:", e); }
     };
     loadProjects();
@@ -250,6 +248,10 @@ export const Views = () => {
    */
   const getBLTemplate = (item: BonLivraisonView) => {
     const trailerStr = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
+    const destinatireName = item.operateur_coop_gie && item.operator_coop_name 
+      ? `${item.operator_name} / ${item.operator_coop_name}` 
+      : item.operator_name;
+
     return `
       <div class="bl-page" style="page-break-after: always; min-height: 100vh; position: relative; padding: 20px;">
         <div class="header-container" style="display: flex; align-items: center; margin-bottom: 15px;">
@@ -261,22 +263,29 @@ export const Views = () => {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
            <div>
               <div style="font-size: 11px; margin-bottom: 15px; color: #333;"><strong>SOCIETE MINIERE AFRICAINE</strong><br/>11 rue Alfred goux<br/>Apt N1 1er Etage Dakar Plateau Sénégal<br/>TEL : 77 260 95 67</div>
-              <div style="margin-top: 15px;"><div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Programme</div><div style="background:#f9f9f9; padding:6px; font-weight:bold;">MASAE campagne agricole 2025/2026</div></div>
+              <div style="margin-top: 15px;"><div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Programme</div><div style="background:#f9f9f9; padding:6px; font-weight:bold;">${item.project_description || 'MASAE campagne agricole 2025/2026'}</div></div>
            </div>
            <div style="text-align: right;">
               <div style="margin-bottom: 10px;"><span style="font-weight:bold; margin-right: 10px;">DATE DE LIVRAISON</span><span style="border-bottom: 1px dotted #000; padding: 0 10px; font-family: monospace; font-size: 12px;">${new Date(item.delivery_date).toLocaleDateString('fr-FR')}</span></div>
               <div style="margin-bottom: 10px;"><span style="font-weight:bold; margin-right: 10px;">NUMERO BL</span><span style="background: #eee; padding: 4px 8px; font-family: monospace; font-weight:bold; font-size: 13px;">${item.bl_number}</span></div>
               <div style="text-align: left; margin-top: 15px; border: 1px solid #ccc; padding: 8px;">
-                 <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">DESTINATAIRE</div><div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${item.operator_name}</div>
+                 <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">DESTINATAIRE</div><div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${destinatireName}</div>
                  <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-top:8px;">EXPÉDIEZ À</div><div>${item.region} / ${item.department}</div><div style="font-weight:bold;">${item.commune}</div>
               </div>
            </div>
         </div>
         <div style="border: 1px solid #ddd; padding: 12px; margin: 30px 0 20px 0; background: #f9fafb;">
-          <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Modalités</div>
-          <div style="margin-top: 4px; font-size: 12px;">
-            <span style="margin-right: 20px;">Camion: <strong>${item.truck_plate_number || '________________'}${trailerStr}</strong></span>
-            <span>Chauffeur: <strong>${item.driver_name || '________________'}</strong></span>
+          <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 5px;">Modalités de Transport</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 11px;">
+            <div>
+              <p style="margin: 2px 0;">Camion: <strong>${item.truck_plate_number || '---'}${trailerStr}</strong></p>
+              <p style="margin: 2px 0;">Châssis: <strong>${item.truck_chassis || '---'}</strong></p>
+            </div>
+            <div>
+              <p style="margin: 2px 0;">Chauffeur: <strong>${item.driver_name || '---'}</strong></p>
+              <p style="margin: 2px 0;">Tél: <strong>${item.driver_phone || '---'}</strong></p>
+              <p style="margin: 2px 0;">Permis: <strong>${item.driver_license || '---'}</strong></p>
+            </div>
           </div>
         </div>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -353,6 +362,82 @@ export const Views = () => {
   };
 
   /**
+   * Helper to build Feuille de Route HTML Template for Export projects
+   */
+  const getFeuilleDeRouteTemplate = (item: BonLivraisonView) => {
+    const numColis = Math.ceil((item.tonnage_loaded * 1000) / 50);
+    return `
+      <div class="bl-page" style="page-break-after: always; min-height: 100vh; position: relative; padding: 20px;">
+        <div class="header-container" style="display: flex; align-items: center; margin-bottom: 20px;">
+           ${SOMA_LOGO_HTML}
+        </div>
+        <div style="text-align: center; border: 2px solid #000; padding: 10px; margin-bottom: 30px;">
+           <h2 style="margin: 0; font-size: 24px; text-transform: uppercase; font-weight: 900;">FEUILLE DE ROUTE PHOSPHATE</h2>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+           <div style="border: 1px solid #000; padding: 10px;">
+              <p style="margin: 5px 0;"><strong>Numéro Feuille de route :</strong> <span style="font-family: monospace;">FR-${item.bl_number}</span></p>
+              <p style="margin: 5px 0;"><strong>Déclaration :</strong> <span style="font-family: monospace; font-weight: bold; font-size: 16px;">${item.declaration_code || '---'}</span></p>
+              <p style="margin: 5px 0;"><strong>Bureau frontière :</strong> ${item.commune}</p>
+           </div>
+           <div style="border: 1px solid #000; padding: 10px;">
+              <p style="margin: 5px 0;"><strong>Nature produit :</strong> Roche de Phopshate naturelle</p>
+              <p style="margin: 5px 0;"><strong>Nombre de colis :</strong> ${numColis} sacs de 50kg</p>
+              <p style="margin: 5px 0;"><strong>Poids :</strong> ${item.tonnage_loaded} T</p>
+           </div>
+        </div>
+
+        <div style="border: 1px solid #000; padding: 15px; margin-bottom: 30px;">
+           <h3 style="margin: 0 0 15px 0; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase; font-size: 14px;">Informations Transport</h3>
+           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <div>
+                 <p style="margin: 8px 0;"><strong>Camion / marque / modèle :</strong> Camion vrac / bennes / Renault</p>
+                 <p style="margin: 8px 0;"><strong>Immatriculation / châssis :</strong> ${item.truck_plate_number} / ${item.truck_trailer_number || '---'} / ${item.truck_chassis || '---'}</p>
+              </div>
+              <div>
+                 <p style="margin: 8px 0;"><strong>Chauffeur :</strong> ${item.driver_name}</p>
+                 <p style="margin: 8px 0;"><strong>Numéro permis :</strong> ${item.driver_license || '---'}</p>
+                 <p style="margin: 8px 0;"><strong>Téléphone :</strong> ${item.driver_phone || '---'}</p>
+              </div>
+           </div>
+        </div>
+
+        <div style="border: 1px solid #000; padding: 15px; margin-bottom: 30px;">
+           <h3 style="margin: 0 0 15px 0; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase; font-size: 14px;">Itinéraire & Destination</h3>
+           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <div>
+                 <p style="margin: 8px 0;"><strong>Lieu de chargement :</strong> Mine de SOMA à Hamady Ounare</p>
+                 <p style="margin: 8px 0;"><strong>Destination :</strong> ${item.region} / ${item.department} / ${item.commune}</p>
+              </div>
+              <div>
+                 <p style="margin: 8px 0;"><strong>Destinataire :</strong> FOUTA ENTREPRISE LIMITED</p>
+                 <p style="margin: 8px 0;"><strong>Date de sortie frontière :</strong> ____/____/2026</p>
+              </div>
+           </div>
+        </div>
+
+        <div style="margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; text-align: center;">
+           <div style="border: 1px solid #000; padding: 40px 10px 10px 10px; height: 120px;">
+              <p style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Visa Douane (Entrée)</p>
+           </div>
+           <div style="border: 1px solid #000; padding: 40px 10px 10px 10px; height: 120px;">
+              <p style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Visa Douane (Sortie)</p>
+           </div>
+           <div style="border: 1px solid #000; padding: 40px 10px 10px 10px; height: 120px;">
+              <p style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Cachet Transporteur</p>
+           </div>
+        </div>
+
+        <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 9px; color: #333; border-top: 1px solid #ccc; padding-top: 8px;">
+           SOCIÉTÉ MINIÈRE AFRICAINE - Hamady Ounare, Sénégal<br/>
+           Document officiel de transport pour l'exportation de phosphate naturel.
+        </div>
+      </div>
+    `;
+  };
+
+  /**
    * Generalized Print Window function
    */
   const openPrintWindow = (htmlContent: string, title: string) => {
@@ -389,7 +474,11 @@ export const Views = () => {
   };
 
   const handlePrintSingleBL = (item: BonLivraisonView) => {
-    openPrintWindow(getBLTemplate(item), `BL_${item.bl_number}`);
+    let content = getBLTemplate(item);
+    if (item.export_statut) {
+      content += getFeuilleDeRouteTemplate(item);
+    }
+    openPrintWindow(content, `BL_${item.bl_number}`);
   };
 
   const handlePrintSingleFC = (item: FinDeCessionView) => {
@@ -399,7 +488,13 @@ export const Views = () => {
   const handlePrintAll = () => {
     if (activeTab === 'bon_livraison') {
       if (!filteredBlData.length) return alert('Aucun BL à imprimer');
-      const content = filteredBlData.map(item => getBLTemplate(item)).join('');
+      const content = filteredBlData.map(item => {
+        let tpl = getBLTemplate(item);
+        if (item.export_statut) {
+          tpl += getFeuilleDeRouteTemplate(item);
+        }
+        return tpl;
+      }).join('');
       openPrintWindow(content, `Batch_BL_Ph${selectedPhaseFilter}`);
     } else {
       if (!filteredFcData.length) return alert('Aucun PV à imprimer');
@@ -412,6 +507,10 @@ export const Views = () => {
    * Generates a direct PDF for Bon de Livraison using jsPDF
    */
   const downloadBLPdf = async (item: BonLivraisonView) => {
+    const destinatireName = item.operateur_coop_gie && item.operator_coop_name 
+      ? `${item.operator_name} / ${item.operator_coop_name}` 
+      : item.operator_name;
+
     const fileName = `BL_${item.bl_number}_${item.operator_name.replace(/\s+/g, '_')}.pdf`;
     setDownloadingId(item.bl_number);
     try {
@@ -427,7 +526,13 @@ export const Views = () => {
       doc.setFont("helvetica", "normal"); doc.text("11 rue Alfred goux", 15, 60);
       doc.text("Apt N1 1er Etage Dakar Plateau Sénégal", 15, 65); doc.text("TEL : 77 260 95 67", 15, 70);
 
-      doc.setFont("helvetica", "bold"); doc.text("DATE DE LIVRAISON:", 120, 55);
+      // Programme section
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.text("PROGRAMME", 15, 80);
+      doc.setFillColor(249, 249, 249); doc.rect(15, 82, 90, 8, 'F');
+      doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+      doc.text(item.project_description || 'MASAE campagne agricole 2025/2026', 17, 87);
+
+      doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("DATE DE LIVRAISON:", 120, 55);
       doc.setFont("helvetica", "normal"); doc.text(new Date(item.delivery_date).toLocaleDateString('fr-FR'), 165, 55);
       doc.setFont("helvetica", "bold"); doc.text("NUMÉRO BL:", 120, 62);
       doc.setFont("courier", "bold"); doc.text(item.bl_number, 165, 62);
@@ -435,11 +540,23 @@ export const Views = () => {
       doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.1); doc.rect(120, 70, 75, 25);
       doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.text("DESTINATAIRE", 122, 74);
       doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
-      doc.text(item.operator_name, 122, 80); doc.setFontSize(9); doc.setFont("helvetica", "normal");
+      doc.text(destinatireName, 122, 80); doc.setFontSize(9); doc.setFont("helvetica", "normal");
       doc.text(`${item.commune}, ${item.region}`, 122, 86);
 
+      // Modalités section in PDF
+      doc.setDrawColor(220, 220, 220); doc.setFillColor(249, 250, 251); doc.rect(15, 93, 180, 18, 'F');
+      doc.rect(15, 93, 180, 18);
+      doc.setFontSize(7); doc.setTextColor(100, 100, 100); doc.text("MODALITÉS DE TRANSPORT", 17, 96);
+      doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+      const trailerPdf = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
+      doc.text(`Camion: ${item.truck_plate_number || '---'}${trailerPdf}`, 17, 101);
+      doc.text(`Châssis: ${item.truck_chassis || '---'}`, 17, 105);
+      doc.text(`Chauffeur: ${item.driver_name || '---'}`, 100, 101);
+      doc.text(`Tél: ${item.driver_phone || '---'}`, 100, 105);
+      doc.text(`Permis: ${item.driver_license || '---'}`, 150, 105);
+
       autoTable(doc, {
-        startY: 105,
+        startY: 115,
         head: [['DESCRIPTION DES MARCHANDISES', 'QUANTITÉ / TONNES']],
         body: [
           [`Phosphate naturel enrichi - Campagne 2025/2026\nPROJET PHASE ${item.numero_phase}\nBON N° ${item.project_num_bon}`, { content: `${item.tonnage_loaded}`, styles: { halign: 'right', fontStyle: 'bold' } }],
@@ -456,6 +573,53 @@ export const Views = () => {
       doc.text("SIGNATURE & CACHET SOMA", 140, finalY); doc.setLineWidth(0.5);
       doc.line(15, finalY + 2, 60, finalY + 2); doc.line(140, finalY + 2, 185, finalY + 2);
       
+      if (item.export_statut) {
+        doc.addPage();
+        drawSomaHeaderOnPdf(doc, 15, 10);
+        
+        doc.setDrawColor(0); doc.setLineWidth(0.5); doc.rect(15, 35, 180, 15);
+        doc.setFontSize(16); doc.setFont("helvetica", "bold");
+        doc.text("FEUILLE DE ROUTE PHOSPHATE", 105, 45, { align: 'center' });
+        
+        doc.setLineWidth(0.1); doc.rect(15, 55, 90, 25);
+        doc.setFontSize(9); doc.text(`Numéro Feuille de route : FR-${item.bl_number}`, 18, 62);
+        doc.setFontSize(11); doc.text(`Déclaration : ${item.declaration_code || '---'}`, 18, 69);
+        doc.setFontSize(9); doc.text(`Bureau frontière : ${item.commune}`, 18, 76);
+        
+        doc.rect(105, 55, 90, 25);
+        doc.text("Nature produit : Roche de Phopshate naturelle", 108, 62);
+        doc.text(`Nombre de colis : ${Math.ceil((item.tonnage_loaded * 1000) / 50)} sacs de 50kg`, 108, 69);
+        doc.text(`Poids : ${item.tonnage_loaded} T`, 108, 76);
+        
+        doc.rect(15, 85, 180, 40);
+        doc.setFontSize(10); doc.text("INFORMATIONS TRANSPORT", 18, 92);
+        doc.line(15, 94, 195, 94);
+        doc.setFontSize(9);
+        doc.text("Camion / marque / modèle : Camion vrac / bennes / Renault", 18, 102);
+        doc.text(`Immatriculation / châssis : ${item.truck_plate_number} / ${item.truck_trailer_number || '---'} / ${item.truck_chassis || '---'}`, 18, 110);
+        doc.text(`Chauffeur : ${item.driver_name}`, 110, 102);
+        doc.text(`Numéro permis : ${item.driver_license || '---'}`, 110, 110);
+        doc.text(`Téléphone : ${item.driver_phone || '---'}`, 110, 118);
+        
+        doc.rect(15, 130, 180, 40);
+        doc.setFontSize(10); doc.text("ITINÉRAIRE & DESTINATION", 18, 137);
+        doc.line(15, 139, 195, 139);
+        doc.setFontSize(9);
+        doc.text("Lieu de chargement : Mine de SOMA à Hamady Ounare", 18, 147);
+        doc.text(`Destination : ${item.region} / ${item.department} / ${item.commune}`, 18, 155);
+        doc.text("Destinataire : FOUTA ENTREPRISE LIMITED", 110, 147);
+        doc.text("Date de sortie frontière : ____/____/2026", 110, 155);
+        
+        const signY = 180;
+        doc.rect(15, signY, 55, 40); doc.setFontSize(8); doc.text("VISA DOUANE (ENTRÉE)", 18, signY + 5);
+        doc.rect(77.5, signY, 55, 40); doc.text("VISA DOUANE (SORTIE)", 80.5, signY + 5);
+        doc.rect(140, signY, 55, 40); doc.text("CACHET TRANSPORTEUR", 143, signY + 5);
+        
+        doc.setFontSize(7); doc.setTextColor(100);
+        doc.text("SOCIÉTÉ MINIÈRE AFRICAINE - Hamady Ounare, Sénégal", 105, 285, { align: 'center' });
+        doc.text("Document officiel de transport pour l'exportation de phosphate naturel.", 105, 289, { align: 'center' });
+      }
+
       doc.save(fileName);
     } catch (e) {
       console.error(e);

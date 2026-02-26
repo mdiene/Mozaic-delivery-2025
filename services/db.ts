@@ -16,8 +16,8 @@ export const db = {
       .from('deliveries')
       .select(`
         *,
-        trucks:truck_id(plate_number, owner_type),
-        drivers:driver_id(name),
+        trucks:truck_id(plate_number, owner_type, trailer_number, chassis_camion),
+        drivers:driver_id(name, license_number, phone_normalized),
         allocations:allocation_id!inner (
           operator_id,
           region_id,
@@ -61,7 +61,11 @@ export const db = {
         project_phase: phaseStr,
         truck_plate: del.trucks?.plate_number || 'Unknown',
         truck_owner_type: del.trucks?.owner_type,
+        truck_trailer: del.trucks?.trailer_number,
+        truck_chassis: del.trucks?.chassis_camion,
         driver_name: del.drivers?.name || 'Unknown',
+        driver_license: del.drivers?.license_number,
+        driver_phone: del.drivers?.phone_normalized,
         project_id: alloc?.project_id
       };
     });
@@ -650,11 +654,17 @@ export const db = {
           department: d.department_name || 'Unknown',
           commune: d.commune_name,
           project_num_bon: proj?.numero_bon_disposition || 'N/A',
+          project_description: proj?.project_description,
           numero_phase: proj?.numero_phase || 0,
+          export_statut: proj?.export_statut,
           operator_contact_info: op?.contact_info || '', 
           operator_coop_name: op?.coop_name,
+          operateur_coop_gie: op?.operateur_coop_gie,
           truck_plate_number: d.truck_plate,
-          truck_trailer_number: d.truck_id ? truckMap[d.truck_id]?.trailer_number : '',
+          truck_trailer_number: d.truck_trailer || (d.truck_id ? truckMap[d.truck_id]?.trailer_number : ''),
+          truck_chassis: d.truck_chassis || (d.truck_id ? truckMap[d.truck_id]?.chassis_camion : ''),
+          driver_license: d.driver_license,
+          driver_phone: d.driver_phone,
           declaration_code: d.declaration_code
        } as BonLivraisonView;
     });

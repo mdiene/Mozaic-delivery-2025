@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { db } from '../services/db';
 import { Project, ProductionView } from '../types';
+import { getPhaseColor } from '../lib/colors';
 import { 
   Factory, Plus, Search, Calendar, Package, Users, Coins, 
   ChevronRight, Save, X, Edit2, Trash2, TrendingUp, History,
@@ -175,6 +176,11 @@ export const ProductionPage = () => {
     setExpandedPhases(newSet);
   };
 
+  const getPhaseColorClasses = (phase: number | string) => {
+    const color = getPhaseColor(phase);
+    return `border-l-4 ${color.border} ${color.soft} hover:bg-opacity-70 transition-colors`;
+  };
+
   const projectOptions: Option[] = visibleProjects.map(p => ({
     value: p.id,
     label: `Phase ${p.numero_phase}`,
@@ -304,7 +310,7 @@ export const ProductionPage = () => {
                       </thead>
                       <tbody className="divide-y divide-border/50">
                         {items.map(p => (
-                          <tr key={p.id} className="hover:bg-muted/20 transition-colors">
+                          <tr key={p.id} className={getPhaseColorClasses(p.project_phase.replace('Phase ', ''))}>
                             <td className="px-6 py-4">
                                <div className="flex items-center gap-2">
                                   <Calendar size={14} className="text-primary/70" />
