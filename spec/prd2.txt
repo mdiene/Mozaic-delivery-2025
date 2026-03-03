@@ -1,0 +1,83 @@
+# Product Requirements Document (PRD) - MASAE Delivery Tracker
+
+## 1. Project Overview
+**Project Name:** MASAE Delivery Tracker
+**Version:** 2.0.0
+**Status:** Active Development
+**Objective:** A comprehensive logistics and delivery management system designed to track agricultural inputs (fertilizers) from production to final distribution points across multiple geographical regions.
+
+## 2. Target Audience
+- **Managers:** Oversee entire projects, monitor global stats, manage fleet, and validate expenses.
+- **Operators (Cooperatives/GIE):** Manage local allocations, receive deliveries, and track progress.
+- **Drivers:** Execute deliveries and provide real-time status updates.
+
+## 3. Problem Statement
+Agricultural distribution campaigns involve complex logistics: multiple regions, hundreds of trucks, and thousands of tons of fertilizer. Manual tracking via paper leads to:
+- Lack of real-time visibility on delivery progress.
+- Errors in tonnage reporting.
+- Delays in generating "Bon de Livraison" (BL) and "Fin de Cession" (FC) documents.
+- Difficulties in managing truck queues and driver assignments.
+
+## 4. Goals & Success Metrics
+- **Digitization:** 100% of deliveries recorded digitally.
+- **Real-time Tracking:** Instant dashboard updates on tonnage delivered vs. targeted.
+- **Automation:** Reduce document generation time from minutes to seconds.
+- **Fleet Optimization:** Efficient FIFO (First-In-First-Out) management for truck loading.
+
+## 5. Functional Requirements
+
+### 5.1 User Authentication & Roles
+- **Manager (Level 2):** Full access to all modules, including financial data and project settings.
+- **Operator (Level 1):** Access to specific project allocations and delivery views.
+- **Driver (Level 0):** View assigned tasks and delivery history.
+- **Security:** Password-protected access with session management via AuthContext.
+
+### 5.2 Fleet Management
+- **Trucks:** Track plate numbers, trailer details, chassis numbers, and ownership (Internal vs. External).
+- **Drivers:** Manage driver profiles, licenses, and contact info.
+- **Assignment:** Dynamic linking of drivers to trucks.
+- **Status Tracking:** Monitor availability of the fleet.
+
+### 5.3 Project & Allocation Management
+- **Geographical Hierarchy:** Support for Regions -> Departments -> Communes.
+- **Allocations:** Define tonnage targets for specific operators within a project phase.
+- **Visibility:** Toggle project visibility to focus on active campaigns.
+
+### 5.4 Delivery Workflow (FIFO)
+- **Queue Management:** Trucks enter a "Waiting" status and are processed in order.
+- **Loading Interface:** Record tonnage loaded, assign to an allocation, and generate a unique BL number.
+- **QR Code Integration:** Generate unique QR codes for each delivery for verification.
+
+### 5.5 Reporting & Views
+- **Dashboard:** Visual charts (Recharts) showing planned vs. delivered tonnage by region.
+- **Printable Templates:**
+    - **Bon de Livraison (BL):** Official delivery note with SOMA branding.
+    - **Fin de Cession (FC):** Summary of all deliveries for a specific operator/phase.
+    - **Feuille de Route (FR):** Driver instructions and route details.
+- **Exports:** Ability to export data to Excel/CSV for external auditing.
+
+### 5.6 Financial Tracking
+- **Payments:** Track road fees, fuel costs, and loading/unloading expenses per delivery.
+- **Admin Expenses:** Manage general operational costs categorized by type and analytical codes.
+
+## 6. Technical Requirements
+- **Frontend:** React 18, Vite, Tailwind CSS.
+- **Backend:** Supabase (PostgreSQL) for data storage and real-time synchronization.
+- **Icons:** Lucide React.
+- **PDF Engine:** jsPDF with autoTable.
+- **Date Handling:** Flatpickr for advanced range selection.
+
+## 7. Database Schema Design
+- `trucks`: Vehicle metadata and status.
+- `drivers`: Personnel details and truck FK.
+- `project`: Campaign phases and visibility flags.
+- `allocations`: Target tonnage mapping.
+- `deliveries`: Transactional logs for every shipment.
+- `operators`: Recipient entities (Cooperatives/GIE).
+- `payments`: Cost tracking linked to deliveries.
+- `user_preferences`: Role-based access control.
+
+## 8. Future Roadmap
+- **Mobile App:** Dedicated PWA for drivers with offline scanning.
+- **GPS Tracking:** Real-time truck location integration.
+- **Automated Notifications:** SMS/Email alerts for operators upon truck departure.

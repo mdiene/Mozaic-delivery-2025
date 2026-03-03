@@ -57,6 +57,9 @@ export interface Truck {
   driver_name?: string;
   qrcode_content?: string | null;
   updated_at?: string; // Used for FIFO ordering
+  truck_type?: string | null;
+  truck_marque?: string | null;
+  Trucks_proprietaire?: string | null;
 }
 
 export interface Driver {
@@ -279,6 +282,7 @@ export interface BonLivraisonView extends DeliveryView {
   truck_plate_number?: string;
   truck_trailer_number?: string;
   truck_chassis?: string;
+  Trucks_proprietaire?: string;
   driver_license?: string;
   driver_phone?: string;
 }

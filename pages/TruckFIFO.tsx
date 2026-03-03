@@ -376,11 +376,15 @@ export const TruckFIFO = () => {
                                       <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase border border-emerald-200">
                                          Sur Site
                                       </span>
-                                      {truck.owner_type && (
+                                      {truck.owner_type ? (
                                          <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase border border-blue-200">
                                             WAB
                                          </span>
-                                      )}
+                                      ) : truck.Trucks_proprietaire ? (
+                                         <span className="bg-amber-50 text-amber-600 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase border border-amber-200">
+                                            {truck.Trucks_proprietaire}
+                                         </span>
+                                      ) : null}
                                    </div>
                                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
                                       {truck.driver_name && (

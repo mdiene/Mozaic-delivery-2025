@@ -4,163 +4,125 @@
 @tailwind utilities;
 
 :root {
-  /* Aquiry Light Mode (Default - Azia Purple) */
-  --radius: 1.25rem; 
+  /* FlyonUI Light Mode (Soft Theme) */
+  --radius: 1rem; 
 
   /* Backgrounds */
-  --background: #f4f5fa; 
-  --foreground: #3e4b5b;
+  --background: #f8f7fa; 
+  --foreground: #444050;
   
   /* Cards */
   --card: #ffffff;
-  --card-foreground: #3e4b5b;
+  --card-foreground: #444050;
 
   --popover: #ffffff;
-  --popover-foreground: #3e4b5b;
+  --popover-foreground: #444050;
 
-  /* Primary: Default (Azia Purple #6F42C1) */
-  --primary: #6f42c1; 
+  /* Primary: FlyonUI Purple (#8c57ff) */
+  --primary: #8c57ff; 
   --primary-foreground: #ffffff;
+  --primary-light: #8c57ff1a;
 
   /* Secondary */
-  --secondary: #e9ecef;
-  --secondary-foreground: #3e4b5b;
+  --secondary: #f1f0f2;
+  --secondary-foreground: #444050;
 
   /* Muted */
-  --muted: #f4f5fa;
-  --muted-foreground: #99a1b7;
+  --muted: #f1f0f2;
+  --muted-foreground: #a5a3ae;
 
   /* Accent */
-  --accent: #f8f9fa;
-  --accent-foreground: #6f42c1;
+  --accent: #f1f0f2;
+  --accent-foreground: #8c57ff;
 
   /* Destructive */
-  --destructive: #ff5b5c;
+  --destructive: #ff4c51;
   --destructive-foreground: #ffffff;
+
+  /* Success */
+  --success: #28c76f;
+  --success-foreground: #ffffff;
+
+  /* Warning */
+  --warning: #ff9f43;
+  --warning-foreground: #ffffff;
+
+  /* Info */
+  --info: #00bad1;
+  --info-foreground: #ffffff;
 
   /* Borders */
-  --border: #eaedf2;
-  --input: #eaedf2;
-  --ring: #6f42c1;
+  --border: #dbdade;
+  --input: #dbdade;
+  --ring: #8c57ff;
 
   /* Sidebar */
-  --sidebar: #161925; 
-  --sidebar-foreground: #9899ac; 
-  --sidebar-primary: #6f42c1;
+  --sidebar: #ffffff; 
+  --sidebar-foreground: #444050; 
+  --sidebar-primary: #8c57ff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e212d; 
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #202336;
-  --sidebar-ring: #6f42c1;
+  --sidebar-accent: #f8f7fa; 
+  --sidebar-accent-foreground: #8c57ff;
+  --sidebar-border: #dbdade;
+  --sidebar-ring: #8c57ff;
 
   /* Chart Colors */
-  --chart-1: #6f42c1; 
-  --chart-2: #00d25b; 
-  --chart-3: #ffab00; 
-  --chart-4: #ff5b5c; 
-  --chart-5: #0090e7; 
+  --chart-1: #8c57ff; 
+  --chart-2: #28c76f; 
+  --chart-3: #ff9f43; 
+  --chart-4: #ff4c51; 
+  --chart-5: #00bad1; 
 }
-
-/* THEME OVERRIDES based on provided images */
-
-/* Skydash: Indigo #4B49AC */
-.theme-skydash {
-  --primary: #4B49AC;
-  --ring: #4B49AC;
-  --sidebar-primary: #4B49AC;
-  --sidebar-ring: #4B49AC;
-  --accent-foreground: #4B49AC;
-  --chart-1: #4B49AC;
-}
-
-/* StarAdmin: Orange #F29F67 */
-.theme-orange {
-  --primary: #F29F67;
-  --ring: #F29F67;
-  --sidebar-primary: #F29F67;
-  --sidebar-ring: #F29F67;
-  --accent-foreground: #F29F67;
-  --chart-1: #F29F67;
-}
-
-/* Stellar: Green #38CE3C */
-.theme-green {
-  --primary: #38CE3C;
-  --ring: #38CE3C;
-  --sidebar-primary: #38CE3C;
-  --sidebar-ring: #38CE3C;
-  --accent-foreground: #38CE3C;
-  --chart-1: #38CE3C;
-}
-
-/* Breeze: Cyan #00CCCD */
-.theme-cyan {
-  --primary: #00CCCD;
-  --ring: #00CCCD;
-  --sidebar-primary: #00CCCD;
-  --sidebar-ring: #00CCCD;
-  --accent-foreground: #00CCCD;
-  --chart-1: #00CCCD;
-}
-
-/* Pollux: Violet #844FC1 */
-.theme-violet {
-  --primary: #844FC1;
-  --ring: #844FC1;
-  --sidebar-primary: #844FC1;
-  --sidebar-ring: #844FC1;
-  --accent-foreground: #844FC1;
-  --chart-1: #844FC1;
-}
-
 
 .dark {
-  /* Aquiry Dark Mode */
-  --background: #0b0c15;
-  --foreground: #e1e1e6;
+  /* FlyonUI Dark Mode */
+  --background: #25293c;
+  --foreground: #cfd3ec;
   
-  --card: #161925;
-  --card-foreground: #e1e1e6;
+  --card: #2f3349;
+  --card-foreground: #cfd3ec;
 
-  --popover: #161925;
-  --popover-foreground: #e1e1e6;
+  --popover: #2f3349;
+  --popover-foreground: #cfd3ec;
 
-  /* Primary remains vibrant but uses CSS variable to adapt to class */
   --primary-foreground: #ffffff;
 
-  --secondary: #202336;
-  --secondary-foreground: #e1e1e6;
+  --secondary: #35394f;
+  --secondary-foreground: #cfd3ec;
 
-  --muted: #202336;
-  --muted-foreground: #7e8299;
+  --muted: #35394f;
+  --muted-foreground: #7983bb;
 
-  --accent: #202336;
-  --accent-foreground: #8a5cd6;
+  --accent: #35394f;
+  --accent-foreground: #a688fa;
 
-  --destructive: #ff5b5c;
+  --destructive: #ff4c51;
   --destructive-foreground: #ffffff;
 
-  --border: #202336;
-  --input: #202336;
+  --border: #434968;
+  --input: #434968;
   
   /* Sidebar */
-  --sidebar: #0f111a; 
-  --sidebar-foreground: #9899ac;
-  --sidebar-accent: #202336;
+  --sidebar: #2f3349; 
+  --sidebar-foreground: #cfd3ec;
+  --sidebar-accent: #35394f;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #202336;
+  --sidebar-border: #434968;
   
-  --chart-2: #00d25b;
-  --chart-3: #ffab00;
-  --chart-4: #ff5b5c;
-  --chart-5: #0090e7;
+  --chart-1: #8c57ff;
+  --chart-2: #28c76f;
+  --chart-3: #ff9f43;
+  --chart-4: #ff4c51;
+  --chart-5: #00bad1;
 }
 
 /* Global Styles */
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
-  font-family: 'Public Sans', sans-serif;
+  font-family: 'Public Sans', 'Inter', sans-serif;
   letter-spacing: -0.01em;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 /* Glassmorphism utils */
@@ -169,7 +131,7 @@ body {
   backdrop-filter: blur(10px);
 }
 .dark .glass {
-  background: rgba(22, 25, 37, 0.7);
+  background: rgba(47, 51, 73, 0.7);
 }
 
 /* Scrollbar Styling */
@@ -467,6 +429,26 @@ body {
   background-color: #6f42c11a; /* primary/10 */
   color: var(--primary);
   font-weight: 500;
+}
+
+/* Emerald Variant */
+.advance-select-emerald .advance-select-toggle:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+}
+.advance-select-emerald .advance-select-option.selected {
+  background-color: #10b9811a;
+  color: #059669;
+}
+
+/* Amber Variant */
+.advance-select-amber .advance-select-toggle:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1);
+}
+.advance-select-amber .advance-select-option.selected {
+  background-color: #f59e0b1a;
+  color: #d97706;
 }
 
 /* FlyonUI Accordion Support */

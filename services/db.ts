@@ -663,6 +663,7 @@ export const db = {
           truck_plate_number: d.truck_plate,
           truck_trailer_number: d.truck_trailer || (d.truck_id ? truckMap[d.truck_id]?.trailer_number : ''),
           truck_chassis: d.truck_chassis || (d.truck_id ? truckMap[d.truck_id]?.chassis_camion : ''),
+          Trucks_proprietaire: d.truck_id ? truckMap[d.truck_id]?.Trucks_proprietaire : '',
           driver_license: d.driver_license,
           driver_phone: d.driver_phone,
           declaration_code: d.declaration_code

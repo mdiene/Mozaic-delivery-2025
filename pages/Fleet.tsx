@@ -27,6 +27,35 @@ export const Fleet = () => {
   
   const [truckSearch, setTruckSearch] = useState('');
 
+  const TRUCK_TYPES = [
+    'Camion bennes',
+    'Camion 12 roues',
+    'Camion plateau',
+    'Camion vrac'
+  ];
+
+  const TRUCK_BRANDS = [
+    'Volvo Trucks', 'Mercedes-Benz Trucks', 'MAN', 'DAF', 'Renault Trucks', 
+    'Iveco', 'Dongfeng', 'Howo', 'Shacman', 'Foton', 'JAC Motors', 
+    'Kamaz (Russie)', 'Tata Motors'
+  ];
+
+  const truckBrandOptions: Option[] = TRUCK_BRANDS.map(brand => ({
+    value: brand,
+    label: brand
+  }));
+
+  const truckOwnerOptions: Option[] = useMemo(() => {
+    const owners = new Set<string>();
+    trucks.forEach(t => {
+      if (t.Trucks_proprietaire) owners.add(t.Trucks_proprietaire);
+    });
+    return Array.from(owners).sort().map(owner => ({
+      value: owner,
+      label: owner
+    }));
+  }, [trucks]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -108,6 +137,10 @@ export const Fleet = () => {
           delete payload.qrcode_content;
           if (payload.capacity_tonnes) {
             payload.capacity_tonnes = Number(payload.capacity_tonnes);
+          }
+          // Clear owner name if it's an internal truck
+          if (payload.owner_type === true) {
+            payload.Trucks_proprietaire = null;
           }
         }
         
@@ -221,12 +254,25 @@ export const Fleet = () => {
           {activeTab === 'trucks' ? (
             <table className="table table-striped">
               <thead className="bg-primary/5 border-b-2 border-primary/20">
-                <tr><th>Immatriculation</th><th>N° Châssis</th><th>Capacité</th><th>Chauffeur Assigné</th><th>Statut</th><th className="text-right">Actions</th></tr>
+                <tr><th>Immatriculation</th><th>Type / Marque</th><th>N° Châssis</th><th>Capacité</th><th>Chauffeur Assigné</th><th>Statut</th><th className="text-right">Actions</th></tr>
               </thead>
               <tbody>
                 {trucks.map(truck => (
                   <tr key={truck.id}>
                     <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="p-2 bg-muted rounded-lg"><Truck size={18} /></div><div><p className="font-mono font-medium">{truck.plate_number}</p></div></div></td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{truck.truck_type || '-'}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">{truck.truck_marque || '-'}</span>
+                          {truck.owner_type === false && truck.Trucks_proprietaire && (
+                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded font-bold uppercase">
+                              {truck.Trucks_proprietaire}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{truck.chassis_camion || '-'}</td>
                     <td className="px-4 py-3 text-sm">{truck.capacity_tonnes} T</td>
                     <td className="px-4 py-3">{truck.driver_name || <span className="text-xs italic">Non assigné</span>}</td>
@@ -277,9 +323,9 @@ export const Fleet = () => {
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="p-0 space-y-0">
               {modalType === 'assign' ? (
-                <div className="space-y-4">
+                <div className="p-6 space-y-4">
                   <div className="p-3 bg-muted/50 rounded-lg flex items-center gap-3">
                     <User size={20} className="text-primary" />
                     <div>
@@ -302,91 +348,158 @@ export const Fleet = () => {
                   </div>
                 </div>
               ) : activeTab === 'trucks' ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Immatriculation</label>
-                    <input 
-                      required 
-                      className="w-full border border-input rounded-lg p-2 text-sm uppercase bg-background" 
-                      value={truckSearch} 
-                      onChange={(e) => { 
-                        setTruckSearch(e.target.value.toUpperCase()); 
-                        setFormData({ ...formData, plate_number: e.target.value.toUpperCase() }); 
-                      }} 
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="max-h-[70vh] overflow-y-auto no-scrollbar">
+                  {/* Section 1: Truck Information */}
+                  <div className="p-6 bg-blue-50/30 border-b border-blue-100 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                       <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+                       <h4 className="text-xs font-black uppercase tracking-widest text-blue-700">Information Camion</h4>
+                    </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium mb-1">Capacité (T)</label>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-blue-600/70 mb-1 ml-1">Immatriculation</label>
                       <input 
-                        type="number" 
                         required 
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background" 
-                        value={formData.capacity_tonnes || ''} 
-                        onChange={e => setFormData({...formData, capacity_tonnes: e.target.value})} 
+                        className="w-full border border-blue-200 rounded-lg p-2 text-sm uppercase bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                        value={truckSearch} 
+                        onChange={(e) => { 
+                          setTruckSearch(e.target.value.toUpperCase()); 
+                          setFormData({ ...formData, plate_number: e.target.value.toUpperCase() }); 
+                        }} 
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Statut</label>
-                      <select 
-                        className="w-full border border-input rounded-lg p-2 text-sm bg-background" 
-                        value={formData.status || 'AVAILABLE'} 
-                        onChange={e => setFormData({...formData, status: e.target.value})}
-                      >
-                        <option value="AVAILABLE">Disponible</option>
-                        <option value="IN_TRANSIT">En Transit</option>
-                        <option value="MAINTENANCE">Maintenance</option>
-                        <option value="ON_SITE">Sur Site</option>
-                      </select>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-blue-600/70 mb-1 ml-1">N° Remorque</label>
+                        <input 
+                          className="w-full border border-blue-200 rounded-lg p-2 text-sm bg-white font-mono uppercase focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                          value={formData.trailer_number || ''} 
+                          onChange={e => setFormData({...formData, trailer_number: e.target.value.toUpperCase()})} 
+                          placeholder="Ex: R-1234-A"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-blue-600/70 mb-1 ml-1">N° Châssis</label>
+                        <input 
+                          className="w-full border border-blue-200 rounded-lg p-2 text-sm bg-white font-mono focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                          value={formData.chassis_camion || ''} 
+                          onChange={e => setFormData({...formData, chassis_camion: e.target.value})} 
+                          placeholder="Ex: 1HGCM82..."
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">N° Châssis</label>
-                    <input 
-                      className="w-full border border-input rounded-lg p-2 text-sm bg-background font-mono" 
-                      value={formData.chassis_camion || ''} 
-                      onChange={e => setFormData({...formData, chassis_camion: e.target.value})} 
-                      placeholder="Ex: 1HGCM82633A..."
-                    />
+                  {/* Section 2: Truck Caracteristique */}
+                  <div className="p-6 bg-emerald-50/30 border-b border-emerald-100 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                       <div className="w-1.5 h-4 bg-emerald-500 rounded-full"></div>
+                       <h4 className="text-xs font-black uppercase tracking-widest text-emerald-700">Caractéristiques</h4>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-emerald-600/70 mb-1 ml-1">Capacité (T)</label>
+                        <input 
+                          type="number" 
+                          required 
+                          className="w-full border border-emerald-200 rounded-lg p-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                          value={formData.capacity_tonnes || ''} 
+                          onChange={e => setFormData({...formData, capacity_tonnes: e.target.value})} 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-emerald-600/70 mb-1 ml-1">Statut</label>
+                        <select 
+                          className="w-full border border-emerald-200 rounded-lg p-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                          value={formData.status || 'AVAILABLE'} 
+                          onChange={e => setFormData({...formData, status: e.target.value})}
+                        >
+                          <option value="AVAILABLE">Disponible</option>
+                          <option value="IN_TRANSIT">En Transit</option>
+                          <option value="MAINTENANCE">Maintenance</option>
+                          <option value="ON_SITE">Sur Site</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-emerald-600/70 mb-1 ml-1">Type de Camion</label>
+                        <select 
+                          required
+                          className="w-full border border-emerald-200 rounded-lg p-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" 
+                          value={formData.truck_type || ''} 
+                          onChange={e => setFormData({...formData, truck_type: e.target.value})}
+                        >
+                          <option value="">Sélectionner...</option>
+                          {TRUCK_TYPES.map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-emerald-600/70 mb-1 ml-1">Marque</label>
+                        <AdvancedSelect 
+                          options={truckBrandOptions}
+                          value={formData.truck_marque || ''}
+                          onChange={(val) => setFormData({ ...formData, truck_marque: val })}
+                          placeholder="Choisir ou taper..."
+                          creatable={true}
+                          className="advance-select-emerald"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">N° Remorque</label>
-                    <input 
-                      className="w-full border border-input rounded-lg p-2 text-sm bg-background font-mono uppercase" 
-                      value={formData.trailer_number || ''} 
-                      onChange={e => setFormData({...formData, trailer_number: e.target.value.toUpperCase()})} 
-                      placeholder="Ex: R-1234-A"
-                    />
-                  </div>
+                  {/* Section 3: Ownership */}
+                  <div className="p-6 bg-amber-50/30 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                       <div className="w-1.5 h-4 bg-amber-500 rounded-full"></div>
+                       <h4 className="text-xs font-black uppercase tracking-widest text-amber-700">Propriété</h4>
+                    </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
-                    <input 
-                      type="checkbox" 
-                      id="owner_type"
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      checked={formData.owner_type !== false}
-                      onChange={e => setFormData({...formData, owner_type: e.target.checked})}
-                    />
-                    <label htmlFor="owner_type" className="text-sm font-bold text-foreground cursor-pointer">
-                       Camion Interne (Masae)
-                    </label>
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-amber-200 shadow-sm">
+                      <input 
+                        type="checkbox" 
+                        id="owner_type"
+                        className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        checked={formData.owner_type !== false}
+                        onChange={e => setFormData({...formData, owner_type: e.target.checked})}
+                      />
+                      <label htmlFor="owner_type" className="text-sm font-bold text-amber-900 cursor-pointer">
+                         Camion Interne (Masae)
+                      </label>
+                    </div>
+
+                    {!formData.owner_type && (
+                      <div className="animate-in slide-in-from-top-2 duration-200">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-amber-600/70 mb-1 ml-1">Nom du Propriétaire</label>
+                        <AdvancedSelect 
+                          options={truckOwnerOptions}
+                          value={formData.Trucks_proprietaire || ''}
+                          onChange={(val) => setFormData({ ...formData, Trucks_proprietaire: val })}
+                          placeholder="Choisir ou taper le nom du propriétaire..."
+                          creatable={true}
+                          className="advance-select-amber"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
-                <>
+                <div className="p-6 space-y-4">
                   <label className="block text-sm font-medium">Nom Complet</label>
                   <input required className="w-full border border-input rounded-lg p-2 text-sm bg-background" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
                   <label className="block text-sm font-medium">Téléphone</label>
                   <input required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} />
                   <label className="block text-sm font-medium">N° Permis</label>
                   <input required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background font-mono" value={formData.license_number || ''} onChange={e => setFormData({...formData, license_number: e.target.value})} />
-                </>
+                </div>
               )}
-              <div className="pt-4 flex justify-end gap-2 border-t border-border mt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground">Annuler</button>
+              <div className="px-6 py-4 flex justify-end gap-2 border-t border-border bg-muted/10">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors">Annuler</button>
                 <button type="submit" className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-bold shadow-soft-xl flex items-center gap-2 active:scale-95 transition-all">
                   <Save size={18} /> {modalType === 'assign' ? 'Confirmer' : 'Enregistrer'}
                 </button>

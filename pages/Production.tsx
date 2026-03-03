@@ -1,12 +1,13 @@
 
 import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../services/db';
 import { Project, ProductionView } from '../types';
-import { getPhaseColor } from '../lib/colors';
 import { 
   Factory, Plus, Search, Calendar, Package, Users, Coins, 
   ChevronRight, Save, X, Edit2, Trash2, TrendingUp, History,
-  LayoutList, FileText, Banknote, ChevronDown, UserCircle, Scissors
+  LayoutList, FileText, Banknote, ChevronDown, UserCircle, Scissors,
+  ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter
 } from 'lucide-react';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 import { useAuth } from '../contexts/AuthContext';
@@ -176,11 +177,6 @@ export const ProductionPage = () => {
     setExpandedPhases(newSet);
   };
 
-  const getPhaseColorClasses = (phase: number | string) => {
-    const color = getPhaseColor(phase);
-    return `border-l-4 ${color.border} ${color.soft} hover:bg-opacity-70 transition-colors`;
-  };
-
   const projectOptions: Option[] = visibleProjects.map(p => ({
     value: p.id,
     label: `Phase ${p.numero_phase}`,
@@ -190,349 +186,366 @@ export const ProductionPage = () => {
   if (loading && projects.length === 0) return <div className="p-8 text-center text-muted-foreground">Chargement...</div>;
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-6"
+    >
+      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Saisie de Production</h1>
-          <p className="text-muted-foreground text-sm">Suivi journalier de l'ensachage et des ressources sur site.</p>
+          <h1 className="text-2xl font-bold text-foreground">Production & Ensachage</h1>
+          <p className="text-muted-foreground">Suivi des volumes ensachés et des coûts de main-d'œuvre.</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          disabled={isVisitor}
-          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium shadow-soft-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Plus size={18} /> Nouvelle Production
-        </button>
+        {!isVisitor && (
+          <button 
+            onClick={() => handleOpenModal()}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+          >
+            <Plus size={20} />
+            Nouvelle Production
+          </button>
+        )}
       </div>
 
-      {/* KPI Stats Ribbon */}
+      {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-card p-5 rounded-2xl border border-border shadow-soft-xl flex items-center gap-4">
-           <div className="p-3 bg-primary/10 text-primary rounded-xl"><Package size={24} /></div>
-           <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">Tonnage Total</p>
-              <p className="text-xl font-bold font-mono">{stats.totalProduced.toFixed(2)} T</p>
-           </div>
+        <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-info/10 text-info flex items-center justify-center">
+            <Package size={24} />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Ensaché</p>
+            <p className="text-2xl font-bold text-foreground">{stats.totalProduced.toFixed(2)} T</p>
+          </div>
         </div>
-        <div className="bg-card p-5 rounded-2xl border border-border shadow-soft-xl flex items-center gap-4">
-           <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-xl"><LayoutList size={24} /></div>
-           <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">Sacs 50kg</p>
-              <p className="text-xl font-bold font-mono">{stats.totalBags.toLocaleString()}</p>
-           </div>
+        <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-success/10 text-success flex items-center justify-center">
+            <TrendingUp size={24} />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Moyenne Journalière</p>
+            <p className="text-2xl font-bold text-foreground">
+              {productions.length > 0 ? (stats.totalProduced / productions.length).toFixed(1) : 0} T
+            </p>
+          </div>
         </div>
-        <div className="bg-card p-5 rounded-2xl border border-border shadow-soft-xl flex items-center gap-4">
-           <div className="p-3 bg-amber-500/10 text-amber-600 rounded-xl"><Coins size={24} /></div>
-           <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">Coût Production</p>
-              <p className="text-xl font-bold font-mono">{stats.totalCost.toLocaleString()} F</p>
-           </div>
+        <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-warning/10 text-warning flex items-center justify-center">
+            <Coins size={24} />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Coût Main d'œuvre</p>
+            <p className="text-2xl font-bold text-foreground">{stats.totalCost.toLocaleString()} F</p>
+          </div>
         </div>
       </div>
 
-      {/* Filters Area */}
-      <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col md:flex-row gap-4 items-center">
+      {/* Filters & Search */}
+      <div className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input 
             type="text" 
-            placeholder="Rechercher notes..."
+            placeholder="Rechercher par note ou date..." 
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:ring-1 focus:ring-primary outline-none"
           />
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
-          <span className="text-xs font-semibold uppercase text-muted-foreground whitespace-nowrap">Projet:</span>
-          <form className="filter bg-muted/30">
-            <input className="btn btn-square" type="reset" value="×" onClick={() => setFilterPhase('all')} />
-            <input className="btn" type="radio" name="prod-phase" aria-label="Tous" checked={filterPhase === 'all'} onChange={() => setFilterPhase('all')} />
-            {visibleProjects.map(p => (
-              <input key={p.id} className="btn" type="radio" name="prod-phase" aria-label={`Ph ${p.numero_phase}`} checked={filterPhase === p.id} onChange={() => setFilterPhase(p.id)} />
-            ))}
-          </form>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Filter size={18} className="text-muted-foreground ml-2" />
+          <select 
+            className="flex-1 md:w-48 py-2.5 px-4 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
+            value={filterPhase}
+            onChange={(e) => setFilterPhase(e.target.value)}
+          >
+            <option value="all">Toutes les Phases</option>
+            {Array.from(new Set(projects.map(p => p.id))).map(id => {
+              const p = projects.find(proj => proj.id === id);
+              return <option key={id} value={id}>Phase {p?.numero_phase}</option>;
+            })}
+          </select>
         </div>
       </div>
 
-      {/* Accordion List */}
-      <div className="accordion flex flex-col gap-4">
-        {groupedProductions.length === 0 ? (
-          <div className="bg-card p-12 text-center text-muted-foreground border border-border rounded-2xl italic shadow-soft-sm">
-             Aucun enregistrement de production trouvé.
+      {/* Production List */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="h-10 w-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <p className="text-muted-foreground font-medium">Chargement des données...</p>
+          </div>
+        ) : groupedProductions.length === 0 ? (
+          <div className="bg-card border border-dashed border-border rounded-2xl p-20 text-center">
+            <div className="h-16 w-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+              <Package size={32} className="text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Aucun enregistrement</h3>
+            <p className="text-muted-foreground mt-1">Commencez par ajouter une nouvelle production.</p>
           </div>
         ) : (
-          groupedProductions.map(([phase, items]) => {
-            const isExpanded = expandedPhases.has(phase);
-            const phaseTonnage = items.reduce((sum, item) => sum + Number(item.tonnage || 0), 0);
-            const phaseCost = items.reduce((sum, item) => sum + Number(item.total_amount || 0), 0);
-
-            return (
-              <div key={phase} className="accordion-item shadow-soft-sm transition-all duration-300 overflow-hidden">
-                <button 
-                  onClick={() => togglePhase(phase)}
-                  className="accordion-toggle px-6 py-4 bg-card hover:bg-muted/30 flex items-center justify-between group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg transition-colors ${isExpanded ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-primary'}`}>
-                      <ChevronRight size={20} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
-                    </div>
-                    <div className="flex flex-col text-left">
-                       <span className="text-lg font-bold text-foreground">{phase}</span>
-                       <span className="text-xs text-muted-foreground font-medium">{items.length} Enregistrements</span>
-                    </div>
+          groupedProductions.map(([phase, phaseProds]: any) => (
+            <div key={phase} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+              <button 
+                onClick={() => togglePhase(phase)}
+                className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+                    {phase}
                   </div>
-                  
-                  <div className="flex items-center gap-8 mr-4 text-right">
-                    <div className="hidden sm:block">
-                       <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-0.5">Tonnage Phase</p>
-                       <p className="font-mono font-bold text-primary">{phaseTonnage.toFixed(2)} T</p>
-                    </div>
-                    <div className="hidden sm:block">
-                       <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-0.5">Coût Phase</p>
-                       <p className="font-mono font-bold text-amber-600">{phaseCost.toLocaleString()} F</p>
-                    </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-foreground">{phase}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {phaseProds.length} enregistrements • {phaseProds.reduce((acc: number, p: any) => acc + Number(p.tonnage || 0), 0).toFixed(1)} T
+                    </p>
                   </div>
-                </button>
+                </div>
+                <ChevronDown className={`text-muted-foreground transition-transform duration-300 ${expandedPhases.has(phase) ? 'rotate-180' : ''}`} />
+              </button>
 
-                <div className={`accordion-content ${!isExpanded ? 'hidden' : 'animate-in slide-in-from-top-2'}`}>
-                  <div className="w-full overflow-x-auto">
-                    <table className="table w-full border-t border-border">
-                      <thead className="bg-primary/5">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Date</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Effectif (Ens/Cout)</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Sacs Déployés</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Prod. Finie (50kg)</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Tonnage</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-widest">Montant MO</th>
-                          <th className="px-6 py-3 text-right text-xs font-bold text-primary uppercase tracking-widest">Actions</th>
+              <AnimatePresence>
+                {expandedPhases.has(phase) && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="border-t border-border overflow-x-auto"
+                  >
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-secondary/30">
+                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Date</th>
+                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sacs</th>
+                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tonnage</th>
+                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Effectif</th>
+                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Coût</th>
+                          <th className="px-6 py-4 text-right"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border/50">
-                        {items.map(p => (
-                          <tr key={p.id} className={getPhaseColorClasses(p.project_phase.replace('Phase ', ''))}>
+                      <tbody className="divide-y divide-border">
+                        {phaseProds.map((prod: ProductionView) => (
+                          <tr key={prod.id} className="hover:bg-secondary/10 transition-colors group">
                             <td className="px-6 py-4">
-                               <div className="flex items-center gap-2">
-                                  <Calendar size={14} className="text-primary/70" />
-                                  <span className="font-medium text-sm">{new Date(p.production_date).toLocaleDateString('fr-FR')}</span>
-                               </div>
-                            </td>
-                            <td className="px-6 py-4">
-                               <div className="flex items-center gap-3">
-                                  <div className="flex items-center gap-1">
-                                    <Users size={14} className="text-muted-foreground" />
-                                    <span className="font-bold text-sm">{p.nombre_elements || 0}</span>
-                                  </div>
-                                  <div className="w-px h-3 bg-border" />
-                                  <div className="flex items-center gap-1">
-                                    <Scissors size={14} className="text-muted-foreground" />
-                                    <span className="font-bold text-sm">{p.equipe_couture || 0}</span>
-                                  </div>
-                               </div>
-                            </td>
-                            <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
-                               {p.bags_deployed} sacs
+                              <div className="flex items-center gap-3">
+                                <Calendar size={16} className="text-primary" />
+                                <span className="text-sm font-medium text-foreground">
+                                  {new Date(prod.production_date).toLocaleDateString('fr-FR')}
+                                </span>
+                              </div>
                             </td>
                             <td className="px-6 py-4">
-                               <div className="flex items-center gap-2">
-                                  <span className="font-bold text-primary text-sm">{p.bags_filled_50kg}</span>
-                                  <span className="text-[10px] text-muted-foreground uppercase font-black">Sacs</span>
-                               </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-foreground">{prod.bags_filled_50kg} sacs</span>
+                                <span className="text-[10px] text-muted-foreground">{prod.bags_deployed} déployés</span>
+                              </div>
                             </td>
                             <td className="px-6 py-4">
-                               <span className="badge badge-soft badge-success font-mono font-bold text-xs">
-                                  {Number(p.tonnage).toFixed(2)} T
-                               </span>
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-info/10 text-info text-xs font-bold">
+                                {Number(prod.tonnage).toFixed(2)} T
+                              </span>
                             </td>
-                            <td className="px-6 py-4 font-mono text-sm text-foreground">
-                               {p.total_amount?.toLocaleString()} <span className="text-[10px] text-muted-foreground">F</span>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <Users size={14} className="text-muted-foreground" />
+                                <span className="text-sm text-foreground">{(prod.nombre_elements || 0) + (prod.equipe_couture || 0)}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-mono font-bold text-foreground">
+                                {prod.total_amount?.toLocaleString()} F
+                              </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <div className="flex justify-end gap-1">
-                                <button onClick={() => handleOpenModal(p)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><Edit2 size={16} /></button>
-                                <button onClick={() => handleDelete(p.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><Trash2 size={16} /></button>
+                              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {!isVisitor && (
+                                  <>
+                                    <button 
+                                      onClick={() => handleOpenModal(prod)}
+                                      className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                                    >
+                                      <Edit2 size={16} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDelete(prod.id)}
+                                      className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
-                </div>
-              </div>
-            );
-          })
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))
         )}
       </div>
 
-      {/* Entry Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border">
-            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
-              <h3 className="font-semibold text-foreground flex items-center gap-2">
-                <Factory size={18} className="text-primary" />
-                {formData.id ? 'Modifier Production' : 'Enregistrer Production'}
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X size={20} /></button>
-            </div>
-            
-            <form onSubmit={handleSave} className="p-6 space-y-6 max-h-[85vh] overflow-y-auto no-scrollbar">
-               
-               {/* Section 1: General Info (Blueish) */}
-               <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/30 dark:bg-blue-900/10 space-y-4">
-                  <h4 className="text-xs font-black uppercase text-blue-700 dark:text-blue-400 tracking-widest flex items-center gap-2 mb-2">
-                     <Calendar size={14} /> Informations Générales
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">Projet (Phase)</label>
-                        <AdvancedSelect 
-                          options={projectOptions}
-                          value={formData.project_id || ''}
-                          onChange={(val) => setFormData({...formData, project_id: val})}
-                          placeholder="Sélectionner le projet..."
-                          required
-                        />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Date de Production</label>
+      {/* Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-card rounded-3xl border border-border shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Factory size={20} />
+                  </div>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {formData.id ? 'Modifier Production' : 'Nouvelle Production'}
+                  </h2>
+                </div>
+                <button 
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-2 rounded-full hover:bg-secondary text-muted-foreground transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date de Production</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                       <input 
-                        type="date"
+                        type="date" 
                         required
-                        className="w-full border border-input rounded-xl p-2.5 text-sm bg-background"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
                         value={formData.production_date || ''}
-                        onChange={e => setFormData({...formData, production_date: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, production_date: e.target.value })}
                       />
                     </div>
                   </div>
-               </div>
 
-               {/* Section 2: Team & Labor (Amber) */}
-               <div className="p-4 rounded-xl border border-amber-100 bg-amber-50/30 dark:bg-amber-900/10 space-y-4">
-                  <h4 className="text-xs font-black uppercase text-amber-700 dark:text-amber-400 tracking-widest flex items-center gap-2 mb-2">
-                     <Users size={14} /> Effectifs & Main d'œuvre
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Ensacheurs & Autres</label>
-                      <div className="relative">
-                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                        <input 
-                            type="number"
-                            required
-                            className="w-full pl-10 pr-4 border border-input rounded-xl p-2.5 text-sm bg-background"
-                            value={formData.nombre_elements || ''}
-                            onChange={e => setFormData({...formData, nombre_elements: e.target.value})}
-                            placeholder="Nombre d'employés"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Équipe de Couture</label>
-                      <div className="relative">
-                        <Scissors className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                        <input 
-                            type="number"
-                            required
-                            className="w-full pl-10 pr-4 border border-input rounded-xl p-2.5 text-sm bg-background"
-                            value={formData.equipe_couture || ''}
-                            onChange={e => setFormData({...formData, equipe_couture: e.target.value})}
-                            placeholder="Nombre de couturiers"
-                        />
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Projet / Site</label>
+                    <AdvancedSelect
+                      options={projectOptions}
+                      value={formData.project_id || ''}
+                      onChange={(val) => setFormData({ ...formData, project_id: val })}
+                      placeholder="Sélectionner un projet"
+                    />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Salaire Journalier (F)</label>
-                      <div className="relative">
-                        <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                        <input 
-                            type="number"
-                            className="w-full pl-10 pr-4 border border-input rounded-xl p-2.5 text-sm bg-background"
-                            value={dailyWage}
-                            onChange={e => setDailyWage(Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Coût Total MO (Auto)</label>
-                      <div className="relative">
-                        <Coins className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                        <input 
-                            type="number"
-                            readOnly
-                            className="w-full pl-10 pr-4 border border-input rounded-xl p-2.5 text-sm bg-amber-100/50 font-bold text-foreground cursor-not-allowed"
-                            value={formData.total_amount || 0}
-                        />
-                      </div>
-                      <p className="text-[10px] text-amber-700/70 mt-1 uppercase font-black tracking-tighter">
-                         Formule: (Ens. + Cout.) × {dailyWage} F
-                      </p>
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sacs Déployés</label>
+                    <input 
+                      type="number" 
+                      required
+                      className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
+                      value={formData.bags_deployed || 0}
+                      onChange={(e) => setFormData({ ...formData, bags_deployed: parseInt(e.target.value) })}
+                    />
                   </div>
-               </div>
 
-               {/* Section 3: Bag Data (Emerald) */}
-               <div className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/30 dark:bg-emerald-900/10 space-y-4">
-                  <h4 className="text-xs font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-widest flex items-center gap-2 mb-2">
-                     <Package size={14} /> Production Journalière
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Sacs Déployés (Consommation)</label>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sacs Remplis (50kg)</label>
+                    <input 
+                      type="number" 
+                      required
+                      className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
+                      value={formData.bags_filled_50kg || 0}
+                      onChange={(e) => setFormData({ ...formData, bags_filled_50kg: parseInt(e.target.value) })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Effectif Éléments</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
+                      value={formData.nombre_elements || 0}
+                      onChange={(e) => setFormData({ ...formData, nombre_elements: parseInt(e.target.value) })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Effectif Couture</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
+                      value={formData.equipe_couture || 0}
+                      onChange={(e) => setFormData({ ...formData, equipe_couture: parseInt(e.target.value) })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Forfait Journalier (F)</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
+                      value={dailyWage}
+                      onChange={(e) => setDailyWage(parseInt(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Montant Total Main d'œuvre</label>
+                    <div className="relative">
+                      <Coins className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
                       <input 
-                        type="number"
-                        required
-                        className="w-full border border-input rounded-xl p-2.5 text-sm bg-background"
-                        value={formData.bags_deployed || ''}
-                        onChange={e => setFormData({...formData, bags_deployed: e.target.value})}
-                        placeholder="Nb de sacs vides utilisés"
+                        type="number" 
+                        readOnly
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/30 border-transparent text-sm font-bold text-primary"
+                        value={formData.total_amount || 0}
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Sacs Ensachés (50kg)</label>
-                      <input 
-                        type="number"
-                        required
-                        className="w-full border border-input rounded-xl p-2.5 text-sm bg-background font-bold text-emerald-700"
-                        value={formData.bags_filled_50kg || ''}
-                        onChange={e => setFormData({...formData, bags_filled_50kg: e.target.value})}
-                        placeholder="Produit fini"
-                      />
-                      <div className="flex justify-between items-center mt-1">
-                        <p className="text-[10px] text-emerald-700/70 uppercase font-black">Equivalent Tonnage</p>
-                        <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-100 px-2 rounded">
-                          {((formData.bags_filled_50kg || 0) / 20).toFixed(2)} T
-                        </span>
-                      </div>
                     </div>
                   </div>
-               </div>
+                </div>
 
-               {/* Section 4: Notes */}
-               <div>
-                  <label className="block text-xs font-black uppercase text-muted-foreground tracking-widest mb-1 ml-1">Notes & Remarques</label>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Notes / Observations</label>
                   <textarea 
-                     className="w-full border border-input rounded-xl p-3 text-sm bg-background min-h-[80px] focus:ring-1 focus:ring-primary outline-none"
-                     value={formData.notes || ''}
-                     onChange={e => setFormData({...formData, notes: e.target.value})}
-                     placeholder="Ex: Conditions météo, pannes machines, incidents équipe..."
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm min-h-[100px]"
+                    value={formData.notes || ''}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   />
-               </div>
+                </div>
 
-               <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-muted-foreground hover:bg-muted rounded-xl text-sm font-bold transition-colors">Annuler</button>
-                  <button type="submit" className="px-8 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-sm font-bold shadow-soft-xl flex items-center gap-2 active:scale-95 transition-all">
-                     <Save size={18} /> {formData.id ? 'Mettre à jour' : 'Enregistrer'}
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="flex-1 px-6 py-3 rounded-xl bg-secondary text-foreground font-bold hover:bg-secondary/80 transition-all"
+                  >
+                    Annuler
                   </button>
-               </div>
-            </form>
+                  <button 
+                    type="submit"
+                    className="flex-1 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Save size={20} />
+                    Enregistrer
+                  </button>
+                </div>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };

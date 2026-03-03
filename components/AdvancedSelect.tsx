@@ -15,6 +15,7 @@ interface AdvancedSelectProps {
   onChange: (value: string) => void;
   placeholder?: string;
   searchable?: boolean;
+  creatable?: boolean;
   className?: string;
   required?: boolean;
   disabled?: boolean;
@@ -27,6 +28,7 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
   onChange,
   placeholder = "Select...",
   searchable = true,
+  creatable = false,
   className = "",
   required = false,
   disabled = false,
@@ -37,7 +39,7 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedOption = options.find(opt => opt.value === value);
+  const selectedOption = options.find(opt => opt.value === value) || (creatable && value ? { value, label: value } : null);
 
   // Close on click outside
   useEffect(() => {
@@ -80,6 +82,13 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
     setIsOpen(false);
   };
 
+  const handleCreate = () => {
+    if (searchTerm.trim()) {
+      onChange(searchTerm.trim());
+      setIsOpen(false);
+    }
+  };
+
   return (
     <div className={`relative w-full ${className}`} ref={containerRef}>
       {/* Trigger Button */}
@@ -120,6 +129,12 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && creatable && filteredOptions.length === 0) {
+                    e.preventDefault();
+                    handleCreate();
+                  }
+                }}
               />
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
@@ -149,6 +164,13 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
                   </div>
                 </div>
               ))
+            ) : creatable && searchTerm.trim() ? (
+              <div 
+                onClick={handleCreate}
+                className="advance-select-option text-primary font-medium"
+              >
+                Ajouter "{searchTerm}"
+              </div>
             ) : (
               <div className="p-3 text-sm text-muted-foreground text-center">
                 Aucun résultat trouvé.

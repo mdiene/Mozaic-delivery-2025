@@ -275,17 +275,13 @@ export const Views = () => {
            </div>
         </div>
         <div style="border: 1px solid #ddd; padding: 12px; margin: 30px 0 20px 0; background: #f9fafb;">
-          <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 5px;">Modalités de Transport</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 11px;">
-            <div>
-              <p style="margin: 2px 0;">Camion: <strong>${item.truck_plate_number || '---'}${trailerStr}</strong></p>
-              <p style="margin: 2px 0;">Châssis: <strong>${item.truck_chassis || '---'}</strong></p>
-            </div>
-            <div>
-              <p style="margin: 2px 0;">Chauffeur: <strong>${item.driver_name || '---'}</strong></p>
-              <p style="margin: 2px 0;">Tél: <strong>${item.driver_phone || '---'}</strong></p>
-              <p style="margin: 2px 0;">Permis: <strong>${item.driver_license || '---'}</strong></p>
-            </div>
+          <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Modalités</div>
+          <div style="margin-top: 4px; font-size: 12px;">
+            <span style="margin-right: 20px;">Camion: <strong>${item.truck_plate_number || '________________'}${trailerStr}</strong></span>
+            {item.Trucks_proprietaire && (
+              <span style="margin-right: 20px;">Propriétaire: <strong>${item.Trucks_proprietaire}</strong></span>
+            )}
+            <span>Chauffeur: <strong>${item.driver_name || '________________'}</strong></span>
           </div>
         </div>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -392,8 +388,10 @@ export const Views = () => {
            <h3 style="margin: 0 0 15px 0; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase; font-size: 14px;">Informations Transport</h3>
            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
               <div>
-                 <p style="margin: 8px 0;"><strong>Camion / marque / modèle :</strong> Camion vrac / bennes / Renault</p>
-                 <p style="margin: 8px 0;"><strong>Immatriculation / châssis :</strong> ${item.truck_plate_number} / ${item.truck_trailer_number || '---'} / ${item.truck_chassis || '---'}</p>
+                 <p style="margin: 8px 0;"><strong>Camion / marque / modèle :</strong> ${item.truck_plate_number} / ${item.truck_trailer_number || '---'} / ${item.truck_chassis || '---'}</p>
+                 {item.Trucks_proprietaire && (
+                   <p style="margin: 8px 0;"><strong>Propriétaire :</strong> ${item.Trucks_proprietaire}</p>
+                 )}
               </div>
               <div>
                  <p style="margin: 8px 0;"><strong>Chauffeur :</strong> ${item.driver_name}</p>
@@ -419,13 +417,13 @@ export const Views = () => {
 
         <div style="margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; text-align: center;">
            <div style="border: 1px solid #000; padding: 40px 10px 10px 10px; height: 120px;">
-              <p style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Visa Douane (Entrée)</p>
+              <p style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Responsable de chargement (Entrée)</p>
            </div>
            <div style="border: 1px solid #000; padding: 40px 10px 10px 10px; height: 120px;">
               <p style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Visa Douane (Sortie)</p>
            </div>
            <div style="border: 1px solid #000; padding: 40px 10px 10px 10px; height: 120px;">
-              <p style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Cachet Transporteur</p>
+              <p style="font-size: 10px; font-weight: bold; text-transform: uppercase;">Cachet réception</p>
            </div>
         </div>
 
@@ -543,20 +541,8 @@ export const Views = () => {
       doc.text(destinatireName, 122, 80); doc.setFontSize(9); doc.setFont("helvetica", "normal");
       doc.text(`${item.commune}, ${item.region}`, 122, 86);
 
-      // Modalités section in PDF
-      doc.setDrawColor(220, 220, 220); doc.setFillColor(249, 250, 251); doc.rect(15, 93, 180, 18, 'F');
-      doc.rect(15, 93, 180, 18);
-      doc.setFontSize(7); doc.setTextColor(100, 100, 100); doc.text("MODALITÉS DE TRANSPORT", 17, 96);
-      doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
-      const trailerPdf = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
-      doc.text(`Camion: ${item.truck_plate_number || '---'}${trailerPdf}`, 17, 101);
-      doc.text(`Châssis: ${item.truck_chassis || '---'}`, 17, 105);
-      doc.text(`Chauffeur: ${item.driver_name || '---'}`, 100, 101);
-      doc.text(`Tél: ${item.driver_phone || '---'}`, 100, 105);
-      doc.text(`Permis: ${item.driver_license || '---'}`, 150, 105);
-
       autoTable(doc, {
-        startY: 115,
+        startY: 105,
         head: [['DESCRIPTION DES MARCHANDISES', 'QUANTITÉ / TONNES']],
         body: [
           [`Phosphate naturel enrichi - Campagne 2025/2026\nPROJET PHASE ${item.numero_phase}\nBON N° ${item.project_num_bon}`, { content: `${item.tonnage_loaded}`, styles: { halign: 'right', fontStyle: 'bold' } }],

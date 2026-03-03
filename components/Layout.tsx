@@ -1,5 +1,4 @@
 
-// Fix: Added React to imports to resolve 'Cannot find name React' error and improved submenu hiding logic
 import React, { useState, useEffect, createContext, useContext, ReactNode, FC, isValidElement } from 'react';
 import { NavLink, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { 
@@ -34,12 +33,15 @@ import {
   HardHat,
   ShoppingCart,
   Database,
-  Briefcase
+  Briefcase,
+  Search
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { getPhaseColor } from '../lib/colors';
+import { motion, AnimatePresence } from 'motion/react';
 
 // Context for sharing Project state between Header and Dashboard
 interface ProjectContextType {
@@ -82,42 +84,46 @@ const SidebarSubmenu = ({
 }) => {
   const location = useLocation();
   const isActive = location.pathname.startsWith(basePath);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(isActive);
 
-  // Filter out non-element children (like false, null, etc) to accurately count visible items
+  useEffect(() => {
+    if (isActive) setIsOpen(true);
+  }, [isActive]);
+
   const validChildren = React.Children.toArray(children).filter(child => isValidElement(child));
-
-  // If no visible children, don't render the submenu at all
   if (validChildren.length === 0) return null;
 
   return (
-    <li 
-       className="flex flex-col"
-       onMouseEnter={() => expanded && setIsOpen(true)}
-       onMouseLeave={() => expanded && setIsOpen(false)}
-    >
+    <li className="flex flex-col">
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer group ${isActive ? 'text-white' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`}
+        className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg transition-all cursor-pointer group ${isActive ? 'bg-primary/10 text-primary' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`}
       >
         <div className="flex items-center gap-3 overflow-hidden">
           <Icon size={20} className="shrink-0" />
-          <span className={`${expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'} whitespace-nowrap`}>
+          <span className={`${expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'} whitespace-nowrap font-medium`}>
             {label}
           </span>
         </div>
         {expanded && (
-           <ChevronRight size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-90' : ''} shrink-0 text-muted-foreground group-hover:text-white`} />
+           <ChevronRight size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-90' : ''} shrink-0 text-muted-foreground`} />
         )}
       </div>
       
-      <div className={`grid transition-all duration-300 ease-in-out ${isOpen && expanded ? 'grid-rows-[1fr] opacity-100 mb-1' : 'grid-rows-[0fr] opacity-0'}`}>
-        <div className="overflow-hidden">
-             <ul className="menu gap-1 pl-4 mt-1 border-l border-sidebar-border/30 ml-3">
-                {children}
-             </ul>
-        </div>
-      </div>
+      <AnimatePresence>
+        {isOpen && expanded && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <ul className="menu gap-1 pl-4 mt-1 border-l border-border/50 ml-6">
+              {children}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </li>
   );
 };
@@ -134,8 +140,8 @@ const Sidebar = ({
   togglePin: () => void
 }) => {
   const { user, logout } = useAuth();
+  const location = useLocation();
   
-  // Sidebar hidden for drivers - they get a mobile-first focused UI
   if (user?.role === 'DRIVER') return null;
 
   const isAdmin = user?.role === 'ADMIN';
@@ -144,22 +150,22 @@ const Sidebar = ({
 
   return (
     <aside 
-      className={`fixed left-0 top-0 z-50 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border shadow-2xl ${expanded ? 'w-64' : 'w-20'}`}
+      className={`fixed left-0 top-0 z-50 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border shadow-sm ${expanded ? 'w-64' : 'w-20'}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Logo Area */}
-      <div className="flex h-20 items-center justify-between px-4 border-b border-sidebar-border/50">
+      <div className="flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sidebar-primary to-white/20 flex items-center justify-center font-bold text-white shadow-glow transition-colors duration-300 shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center font-bold text-white shadow-lg shadow-primary/30 shrink-0">
             M
           </div>
           {expanded && (
             <div className="flex flex-col animate-fade-in whitespace-nowrap overflow-hidden">
-                <span className="font-bold text-lg tracking-tight text-white leading-tight">
+                <span className="font-bold text-lg tracking-tight text-foreground leading-tight">
                 MASAE
                 </span>
-                <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/70">Tracker</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Logistics</span>
             </div>
           )}
         </div>
@@ -168,8 +174,7 @@ const Sidebar = ({
         {expanded && (
            <button 
              onClick={togglePin}
-             className={`p-1.5 rounded-full hover:bg-sidebar-accent transition-colors ${pinned ? 'text-primary' : 'text-sidebar-foreground/50'}`}
-             title={pinned ? "Détacher la barre latérale" : "Épingler la barre latérale"}
+             className={`p-1.5 rounded-full hover:bg-secondary transition-colors ${pinned ? 'text-primary' : 'text-muted-foreground'}`}
            >
               {pinned ? <Pin size={16} className="fill-current" /> : <Circle size={16} />}
            </button>
@@ -177,11 +182,11 @@ const Sidebar = ({
       </div>
 
       {/* Navigation */}
-      <nav className="mt-6 px-2 overflow-y-auto max-h-[calc(100vh-140px)] no-scrollbar">
-        <ul className="menu w-full p-0 gap-1">
+      <nav className="mt-4 px-3 overflow-y-auto h-[calc(100vh-140px)] no-scrollbar">
+        <ul className="flex flex-col gap-1">
           
-          <li className="menu-title text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/50 px-3 mb-1 mt-2">
-             <span className={expanded ? 'opacity-100 transition-opacity' : 'opacity-0'}>Menu Principal</span>
+          <li className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-4 mb-2 mt-4">
+             <span className={expanded ? 'opacity-100 transition-opacity' : 'opacity-0'}>Menu</span>
           </li>
 
           {(isAdmin || isVisitor) && (
@@ -189,11 +194,11 @@ const Sidebar = ({
               <NavLink 
                 to="/" 
                 className={({ isActive }) => 
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+                  `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`
                 }
               >
                 <LayoutDashboard size={20} className="shrink-0" />
-                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Tableau de bord</span>
+                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>Tableau de bord</span>
               </NavLink>
             </li>
           )}
@@ -203,76 +208,76 @@ const Sidebar = ({
               <NavLink 
                 to="/allocations"
                 className={({ isActive }) => 
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`
+                  `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`
                 }
               >
                 <Map size={20} className="shrink-0" />
-                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Allocations</span>
+                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>Allocations</span>
               </NavLink>
             </li>
           )}
 
           {(isAdmin || isManager || isVisitor) && (
             <SidebarSubmenu label="Production" icon={Factory} basePath="/production" expanded={expanded}>
-               <li><NavLink to="/production" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Package size={16} className="shrink-0" /><span className="truncate">Ensachage</span></NavLink></li>
-               <li><NavLink to="/production/purchases" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><ShoppingCart size={16} className="shrink-0" /><span className="truncate">Achats & Dépenses</span></NavLink></li>
-               <li><NavLink to="/production/screening" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Grid size={16} className="shrink-0" /><span className="truncate">Cribblage</span></NavLink></li>
-               <li><NavLink to="/production/excavation" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><HardHat size={16} className="shrink-0" /><span className="truncate">Excavation</span></NavLink></li>
+               <li><NavLink to="/production" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Package size={16} className="shrink-0" /><span className="truncate">Ensachage</span></NavLink></li>
+               <li><NavLink to="/production/purchases" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><ShoppingCart size={16} className="shrink-0" /><span className="truncate">Achats & Dépenses</span></NavLink></li>
+               <li><NavLink to="/production/screening" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Grid size={16} className="shrink-0" /><span className="truncate">Cribblage</span></NavLink></li>
+               <li><NavLink to="/production/excavation" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><HardHat size={16} className="shrink-0" /><span className="truncate">Excavation</span></NavLink></li>
             </SidebarSubmenu>
           )}
 
           <SidebarSubmenu label="Logistique" icon={Package} basePath="/logistics" expanded={expanded}>
-             <li><NavLink to="/logistics/fifo" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><ScanBarcode size={16} className="shrink-0" /><span className="truncate">File d'attente (FIFO)</span></NavLink></li>
-             {(isAdmin || isVisitor) && <li><NavLink to="/logistics/dispatch" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Package size={16} className="shrink-0" /><span className="truncate">Expéditions</span></NavLink></li>}
-             {(isAdmin || isManager || isVisitor) && <li><NavLink to="/logistics/expenses" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Receipt size={16} className="shrink-0" /><span className="truncate">Note de frais</span></NavLink></li>}
+             <li><NavLink to="/logistics/fifo" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><ScanBarcode size={16} className="shrink-0" /><span className="truncate">File d'attente (FIFO)</span></NavLink></li>
+             {(isAdmin || isVisitor) && <li><NavLink to="/logistics/dispatch" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Package size={16} className="shrink-0" /><span className="truncate">Expéditions</span></NavLink></li>}
+             {(isAdmin || isManager || isVisitor) && <li><NavLink to="/logistics/expenses" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Receipt size={16} className="shrink-0" /><span className="truncate">Note de frais</span></NavLink></li>}
           </SidebarSubmenu>
 
           {(isAdmin || isVisitor) && (
             <li>
-              <NavLink to="/fleet" className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? 'bg-gradient-to-r from-sidebar-primary/20 to-transparent text-white active' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'}`}>
+              <NavLink to="/fleet" className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`}>
                 <Truck size={20} className="shrink-0" />
-                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden'}>Parc Auto</span>
+                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>Parc Auto</span>
               </NavLink>
             </li>
           )}
 
-          <SidebarSubmenu label="Vues & Rapports" icon={Eye} basePath="/views" expanded={expanded}>
-              <li><NavLink to="/views?tab=bon_livraison" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><FileText size={16} className="shrink-0" /><span className="truncate">Bon de Livraison</span></NavLink></li>
-              {(isAdmin || isVisitor) && <li><NavLink to="/views?tab=fin_cession" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Gift size={16} className="shrink-0" /><span className="truncate">Fin de Cession</span></NavLink></li>}
+          <SidebarSubmenu label="Rapports" icon={Eye} basePath="/views" expanded={expanded}>
+              <li><NavLink to="/views?tab=bon_livraison" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><FileText size={16} className="shrink-0" /><span className="truncate">Bon de Livraison</span></NavLink></li>
+              {(isAdmin || isVisitor) && <li><NavLink to="/views?tab=fin_cession" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Gift size={16} className="shrink-0" /><span className="truncate">Fin de Cession</span></NavLink></li>}
           </SidebarSubmenu>
 
           <SidebarSubmenu label="Réseau" icon={Network} basePath="/network" expanded={expanded}>
-              {(isAdmin || isVisitor) && <li><NavLink to="/network/map" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Map size={16} className="shrink-0" /><span className="truncate">Carte</span></NavLink></li>}
-              {(isAdmin || isManager || isVisitor) && <li><NavLink to="/network/itinerary" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Navigation size={16} className="shrink-0" /><span className="truncate">Itinéraire</span></NavLink></li>}
-              {(isAdmin || isVisitor) && <li><NavLink to="/network/global" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Globe size={16} className="shrink-0" /><span className="truncate">Vue Globale</span></NavLink></li>}
+              {(isAdmin || isVisitor) && <li><NavLink to="/network/map" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Map size={16} className="shrink-0" /><span className="truncate">Carte</span></NavLink></li>}
+              {(isAdmin || isManager || isVisitor) && <li><NavLink to="/network/itinerary" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Navigation size={16} className="shrink-0" /><span className="truncate">Itinéraire</span></NavLink></li>}
+              {(isAdmin || isVisitor) && <li><NavLink to="/network/global" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Globe size={16} className="shrink-0" /><span className="truncate">Vue Globale</span></NavLink></li>}
           </SidebarSubmenu>
 
           {(isAdmin || isVisitor) && (
             <SidebarSubmenu label="Paramètres" icon={Settings} basePath="/settings" expanded={expanded}>
-               <li><NavLink to="/settings" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Database size={16} className="shrink-0" /><span className="truncate">Système</span></NavLink></li>
-               <li><NavLink to="/settings/admin" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-sidebar-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-white'}`}><Briefcase size={16} className="shrink-0" /><span className="truncate">Administratif</span></NavLink></li>
+               <li><NavLink to="/settings" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Database size={16} className="shrink-0" /><span className="truncate">Système</span></NavLink></li>
+               <li><NavLink to="/settings/admin" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Briefcase size={16} className="shrink-0" /><span className="truncate">Administratif</span></NavLink></li>
             </SidebarSubmenu>
           )}
         </ul>
       </nav>
 
       {/* Footer / User Profile */}
-      <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border/50 bg-sidebar">
-        <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${expanded ? 'bg-sidebar-accent' : ''}`}>
+      <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border/50">
+        <div className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${expanded ? 'bg-sidebar-accent' : ''}`}>
           <div className="relative shrink-0">
-             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-sidebar-primary to-white/20 text-white shadow-lg transition-colors duration-300">
+             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary shadow-sm">
                 <User size={18} />
              </div>
-             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-sidebar-accent"></span>
+             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-sidebar"></span>
           </div>
           {expanded && (
             <div className="flex flex-col overflow-hidden animate-fade-in">
-              <span className="truncate text-sm font-bold text-white">{user?.name}</span>
-              <span className="truncate text-[10px] text-sidebar-foreground uppercase">{user?.role}</span>
+              <span className="truncate text-sm font-bold text-foreground">{user?.name}</span>
+              <span className="truncate text-[10px] text-muted-foreground uppercase font-semibold">{user?.role}</span>
             </div>
           )}
           {expanded && (
-            <button onClick={logout} className="ml-auto text-sidebar-foreground hover:text-white transition-colors" title="Déconnexion">
+            <button onClick={logout} className="ml-auto text-muted-foreground hover:text-destructive transition-colors" title="Déconnexion">
               <LogOut size={16} />
             </button>
           )}
@@ -286,58 +291,72 @@ const Sidebar = ({
 const Header = () => {
   const { selectedProject, setSelectedProject, projects } = useProject();
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   
-  // Strict visibility filtering
   const visibleProjects = projects.filter(p => p.project_visibility !== false);
 
   return (
-    <header className="h-20 bg-card border-b border-border px-8 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md bg-card/80">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-          <div className="px-3 text-muted-foreground">
-            <Filter size={16} />
+    <header className="h-16 bg-card/80 border-b border-border px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
+      <div className="flex items-center gap-4 flex-1">
+        {/* Search Bar Mock */}
+        <div className="relative max-w-md w-full hidden md:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+          <input 
+            type="text" 
+            placeholder="Rechercher... [CTRL + K]" 
+            className="w-full bg-secondary/50 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+          />
+        </div>
+
+        {/* Project Filter */}
+        <div className="flex items-center gap-2 bg-secondary/50 p-1 rounded-lg ml-4">
+          <div className="px-2 text-muted-foreground">
+            <Filter size={14} />
           </div>
-          <form className="filter m-0 p-0 border-none shadow-none bg-transparent flex">
-             <input 
-               className="btn btn-square h-8 w-8 min-h-0" 
-               type="reset" 
-               value="×" 
+          <div className="flex gap-1">
+             <button 
                onClick={() => setSelectedProject('all')}
-               title="Réinitialiser"
-             />
-             <input 
-               className="btn h-8 min-h-0 px-3 text-xs" 
-               type="radio" 
-               name="header-phase" 
-               aria-label="Toutes"
-               checked={selectedProject === 'all'}
-               onChange={() => setSelectedProject('all')}
-             />
-             {visibleProjects.map(p => {
-               const phaseColor = getPhaseColor(p.numero_phase);
-               return (
-                 <input
-                   key={p.id}
-                   className={`btn h-8 min-h-0 px-3 text-xs ${selectedProject === p.id ? `${phaseColor.bg} ${phaseColor.text} border-none` : ''}`} 
-                   type="radio" 
-                   name="header-phase" 
-                   aria-label={`Phase ${p.numero_phase}`}
-                   checked={selectedProject === p.id}
-                   onChange={() => setSelectedProject(p.id)}
-                 />
-               );
-             })}
-          </form>
+               className={`px-3 py-1 text-xs rounded-md transition-all ${selectedProject === 'all' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+             >
+               Toutes
+             </button>
+             {visibleProjects.map(p => (
+               <button
+                 key={p.id}
+                 onClick={() => setSelectedProject(p.id)}
+                 className={`px-3 py-1 text-xs rounded-md transition-all ${selectedProject === p.id ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+               >
+                 Phase {p.numero_phase}
+               </button>
+             ))}
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
-        <div className="flex flex-col items-end hidden sm:flex">
-          <span className="text-sm font-bold text-foreground">{user?.name}</span>
-          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{user?.role}</span>
-        </div>
-        <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
-          <User size={20} />
+      <div className="flex items-center gap-4">
+        {/* Theme Toggle */}
+        <button 
+          onClick={toggleTheme}
+          className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+        >
+          {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+        </button>
+
+        {/* Notifications */}
+        <button className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground relative">
+          <Bell size={20} />
+          <span className="absolute top-2 right-2 h-2 w-2 bg-destructive rounded-full border-2 border-card"></span>
+        </button>
+
+        {/* User Profile */}
+        <div className="flex items-center gap-3 pl-4 border-l border-border">
+          <div className="flex flex-col items-end hidden sm:flex">
+            <span className="text-sm font-bold text-foreground">{user?.name}</span>
+            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{user?.role}</span>
+          </div>
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
+            {user?.name?.charAt(0)}
+          </div>
         </div>
       </div>
     </header>
