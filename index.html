@@ -37,78 +37,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/airbnb.css">
 
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['"Public Sans"', 'sans-serif'],
-            },
-            boxShadow: {
-              'soft-xs': '0 2px 9px -5px rgba(20, 20, 20, 0.08)',
-              'soft-sm': '0 5px 10px 0 rgba(17, 12, 46, 0.05)',
-              'soft-md': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-              'soft-xl': '0 10px 25px -5px rgba(100, 100, 100, 0.05), 0 8px 10px -6px rgba(100, 100, 100, 0.01)',
-              'glow': '0 0 15px rgba(111, 66, 193, 0.3)',
-            },
-            colors: {
-              border: 'var(--border)',
-              input: 'var(--input)',
-              ring: 'var(--ring)',
-              background: 'var(--background)',
-              foreground: 'var(--foreground)',
-              primary: {
-                DEFAULT: 'var(--primary)',
-                foreground: 'var(--primary-foreground)',
-              },
-              secondary: {
-                DEFAULT: 'var(--secondary)',
-                foreground: 'var(--secondary-foreground)',
-              },
-              destructive: {
-                DEFAULT: 'var(--destructive)',
-                foreground: 'var(--destructive-foreground)',
-              },
-              muted: {
-                DEFAULT: 'var(--muted)',
-                foreground: 'var(--muted-foreground)',
-              },
-              accent: {
-                DEFAULT: 'var(--accent)',
-                foreground: 'var(--accent-foreground)',
-              },
-              popover: {
-                DEFAULT: 'var(--popover)',
-                foreground: 'var(--popover-foreground)',
-              },
-              card: {
-                DEFAULT: 'var(--card)',
-                foreground: 'var(--card-foreground)',
-              },
-              sidebar: {
-                DEFAULT: 'var(--sidebar)',
-                foreground: 'var(--sidebar-foreground)',
-                primary: 'var(--sidebar-primary)',
-                'primary-foreground': 'var(--sidebar-primary-foreground)',
-                accent: 'var(--sidebar-accent)',
-                'accent-foreground': 'var(--sidebar-accent-foreground)',
-                border: 'var(--sidebar-border)',
-                ring: 'var(--sidebar-ring)',
-              },
-            },
-            borderRadius: {
-              lg: 'var(--radius)',
-              md: 'calc(var(--radius) - 2px)',
-              sm: 'calc(var(--radius) - 4px)',
-            },
-          }
-        }
-      }
-    </script>
     <script type="importmap">
 {
   "imports": {
@@ -143,7 +71,6 @@
     <script src="https://cdn.flyonui.com/flyonui.js"></script>
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-background text-foreground antialiased font-sans transition-colors duration-300">
     <div id="root"></div>
