@@ -34,7 +34,11 @@ import {
   ShoppingCart,
   Database,
   Briefcase,
-  Search
+  Search,
+  ShieldCheck,
+  AlertTriangle,
+  ClipboardCheck,
+  Wrench
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -253,6 +257,20 @@ const Sidebar = ({
           </SidebarSubmenu>
 
           {(isAdmin || isVisitor) && (
+            <li>
+              <NavLink 
+                to="/hqse"
+                className={({ isActive }) => 
+                  `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`
+                }
+              >
+                <ShieldCheck size={20} className="shrink-0" />
+                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>HQSE</span>
+              </NavLink>
+            </li>
+          )}
+
+          {(isAdmin || isVisitor) && (
             <SidebarSubmenu label="Paramètres" icon={Settings} basePath="/settings" expanded={expanded}>
                <li><NavLink to="/settings" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Database size={16} className="shrink-0" /><span className="truncate">Système</span></NavLink></li>
                <li><NavLink to="/settings/admin" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Briefcase size={16} className="shrink-0" /><span className="truncate">Administratif</span></NavLink></li>
@@ -261,7 +279,7 @@ const Sidebar = ({
         </ul>
       </nav>
 
-      {/* Footer / User Profile */}
+      {/* Footer / User Profile - Removed Logout Section as requested */}
       <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border/50">
         <div className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${expanded ? 'bg-sidebar-accent' : ''}`}>
           <div className="relative shrink-0">
@@ -276,11 +294,6 @@ const Sidebar = ({
               <span className="truncate text-[10px] text-muted-foreground uppercase font-semibold">{user?.role}</span>
             </div>
           )}
-          {expanded && (
-            <button onClick={logout} className="ml-auto text-muted-foreground hover:text-destructive transition-colors" title="Déconnexion">
-              <LogOut size={16} />
-            </button>
-          )}
         </div>
       </div>
     </aside>
@@ -290,7 +303,7 @@ const Sidebar = ({
 // --- Missing Header Component ---
 const Header = () => {
   const { selectedProject, setSelectedProject, projects } = useProject();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   
   const visibleProjects = projects.filter(p => p.project_visibility !== false);
@@ -298,8 +311,25 @@ const Header = () => {
   return (
     <header className="h-16 bg-card/80 border-b border-border px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
       <div className="flex items-center gap-4 flex-1">
+        {/* User Profile & Exit Button - Moved to top left as requested */}
+        <div className="flex items-center gap-3 pr-4 border-r border-border">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
+            {user?.name?.charAt(0)}
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-foreground whitespace-nowrap">{user?.name}</span>
+          </div>
+          <button 
+            onClick={logout} 
+            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors ml-1" 
+            title="Déconnexion"
+          >
+            <LogOut size={18} />
+          </button>
+        </div>
+
         {/* Search Bar Mock */}
-        <div className="relative max-w-md w-full hidden md:block">
+        <div className="relative max-w-xs w-full hidden lg:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input 
             type="text" 
@@ -347,17 +377,6 @@ const Header = () => {
           <Bell size={20} />
           <span className="absolute top-2 right-2 h-2 w-2 bg-destructive rounded-full border-2 border-card"></span>
         </button>
-
-        {/* User Profile */}
-        <div className="flex items-center gap-3 pl-4 border-l border-border">
-          <div className="flex flex-col items-end hidden sm:flex">
-            <span className="text-sm font-bold text-foreground">{user?.name}</span>
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{user?.role}</span>
-          </div>
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
-            {user?.name?.charAt(0)}
-          </div>
-        </div>
       </div>
     </header>
   );

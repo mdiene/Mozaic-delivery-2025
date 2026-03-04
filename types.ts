@@ -335,3 +335,84 @@ export type GlobalHierarchy = Array<{
     }>
   }>
 }>;
+
+// HQSE Types
+export interface EquipmentType {
+  id: string;
+  label: string;
+  code: string;
+  description?: string;
+  icon_name?: string;
+  is_regulatory_subject: boolean;
+  default_frequency_days?: number;
+  created_at: string;
+}
+
+export interface Equipment {
+  id: string;
+  ref_code: string;
+  name: string;
+  category?: string;
+  serial_number?: string;
+  location?: string;
+  commissioning_date?: string;
+  status: 'Actif' | 'Inactif' | 'Maintenance';
+  responsible_user_id?: string;
+  type_id?: string;
+  created_at: string;
+  // Enriched fields
+  type_label?: string;
+  responsible_name?: string;
+}
+
+export interface HQSEInspection {
+  id: string;
+  equipment_id: string;
+  inspector_name?: string;
+  inspection_date: string;
+  verdict: 'OK' | 'NON-CONFORME';
+  report_url?: string;
+  comments?: string;
+  created_at: string;
+  // Enriched fields
+  equipment_name?: string;
+  equipment_ref?: string;
+}
+
+export interface HQSEInspectionPlan {
+  id: string;
+  equipment_id: string;
+  inspection_type: string;
+  frequency_days: number;
+  last_inspection_date?: string;
+  next_due_date?: string;
+  // Enriched fields
+  equipment_name?: string;
+  equipment_ref?: string;
+  equipment_type?: string;
+}
+
+export interface HQSENonConformity {
+  id: string;
+  inspection_id?: string;
+  equipment_id?: string;
+  description: string;
+  severity: 'Mineure' | 'Majeure' | 'Critique';
+  status: 'Ouvert' | 'En cours' | 'Résolu';
+  declared_at: string;
+  // Enriched fields
+  equipment_name?: string;
+}
+
+export interface HQSECorrectiveAction {
+  id: string;
+  nc_id?: string;
+  action_plan: string;
+  assigned_to?: string;
+  target_date?: string;
+  completion_date?: string;
+  status: 'A faire' | 'En cours' | 'Terminé';
+  // Enriched fields
+  nc_description?: string;
+  assigned_person_name?: string;
+}

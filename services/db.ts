@@ -3,7 +3,8 @@ import { supabase } from '../lib/supabaseClient';
 import { 
   DeliveryView, AllocationView, Truck, Driver, Region, Department, Commune, 
   Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference, ProductionView,
-  AdminCategoryDepense, AdminModePaiement, AdminCodeAnalytique, AdminPoste, AdminPersonnel, AdminDepense
+  AdminCategoryDepense, AdminModePaiement, AdminCodeAnalytique, AdminPoste, AdminPersonnel, AdminDepense,
+  EquipmentType, Equipment, HQSEInspection, HQSEInspectionPlan, HQSENonConformity, HQSECorrectiveAction
 } from '../types';
 
 const safeLog = (message: string, ...args: any[]) => {
@@ -769,5 +770,73 @@ export const db = {
       .eq('user_email', email);
     
     if (error) safeLog('Error saving preferences:', error);
+  },
+
+  // HQSE Methods
+  getEquipmentTypes: async (): Promise<EquipmentType[]> => {
+    const { data } = await supabase.from('equipment_types').select('*');
+    return data || [];
+  },
+
+  getEquipments: async (): Promise<Equipment[]> => {
+    const { data } = await supabase.from('equipments').select(`
+      *,
+      equipment_types(label),
+      admin_personnel(nom, prenom)
+    `);
+    return (data || []).map((e: any) => ({
+      ...e,
+      type_label: e.equipment_types?.label,
+      responsible_name: e.admin_personnel ? `${e.admin_personnel.prenom} ${e.admin_personnel.nom}` : '-'
+    }));
+  },
+
+  getHQSEInspections: async (): Promise<HQSEInspection[]> => {
+    const { data } = await supabase.from('hqse_inspections').select(`
+      *,
+      equipments(name, ref_code)
+    `).order('inspection_date', { ascending: false });
+    return (data || []).map((i: any) => ({
+      ...i,
+      equipment_name: i.equipments?.name,
+      equipment_ref: i.equipments?.ref_code
+    }));
+  },
+
+  getHQSEInspectionPlans: async (): Promise<HQSEInspectionPlan[]> => {
+    const { data } = await supabase.from('hqse_inspection_plans').select(`
+      *,
+      equipments(name, ref_code, equipment_types(label))
+    `);
+    return (data || []).map((p: any) => ({
+      ...p,
+      equipment_name: p.equipments?.name,
+      equipment_ref: p.equipments?.ref_code,
+      equipment_type: p.equipments?.equipment_types?.label
+    }));
+  },
+
+  getHQSENonConformities: async (): Promise<HQSENonConformity[]> => {
+    const { data } = await supabase.from('hqse_non_conformities').select(`
+      *,
+      equipments(name)
+    `).order('declared_at', { ascending: false });
+    return (data || []).map((nc: any) => ({
+      ...nc,
+      equipment_name: nc.equipments?.name
+    }));
+  },
+
+  getHQSECorrectiveActions: async (): Promise<HQSECorrectiveAction[]> => {
+    const { data } = await supabase.from('hqse_corrective_actions').select(`
+      *,
+      hqse_non_conformities(description),
+      admin_personnel(nom, prenom)
+    `);
+    return (data || []).map((ca: any) => ({
+      ...ca,
+      nc_description: ca.hqse_non_conformities?.description,
+      assigned_person_name: ca.admin_personnel ? `${ca.admin_personnel.prenom} ${ca.admin_personnel.nom}` : '-'
+    }));
   }
 };

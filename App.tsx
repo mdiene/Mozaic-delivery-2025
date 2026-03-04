@@ -19,6 +19,7 @@ import { ProductionPurchases } from './pages/ProductionPurchases';
 import { ProductionScreening } from './pages/ProductionScreening';
 import { ProductionExcavation } from './pages/ProductionExcavation';
 import { Login } from './pages/Login';
+import { HQSEPage } from './pages/HQSE';
 import { useAuth } from './contexts/AuthContext';
 
 // Protected Route Wrapper
@@ -161,6 +162,12 @@ function App() {
               </ProtectedRoute>
             } />
           </Route>
+
+          <Route path="hqse" element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <HQSEPage />
+            </ProtectedRoute>
+          } />
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />
