@@ -18,20 +18,27 @@ import {
   ChevronRight,
   Filter,
   HardHat,
+  RefreshCw,
+  FileWarning,
   Stethoscope,
   Flame,
   Droplets,
   Zap,
-  FileWarning,
   UserCheck,
   Cpu,
   Truck,
   ArrowRight,
   ChevronDown,
   MoreHorizontal,
-  Globe
+  Globe,
+  X,
+  Info,
+  Edit2,
+  Trash2,
+  Save
 } from 'lucide-react';
 import { db } from '../services/db';
+import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 import { 
   Equipment, 
   EquipmentType, 
@@ -55,35 +62,183 @@ export const HQSEPage = () => {
   const [nonConformities, setNonConformities] = useState<HQSENonConformity[]>([]);
   const [correctiveActions, setCorrectiveActions] = useState<HQSECorrectiveAction[]>([]);
   const [personnel, setPersonnel] = useState<AdminPersonnel[]>([]);
+  const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
+
+  // Modal States
+  const [isEquipmentModalOpen, setIsEquipmentModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
+  const [ticketData, setTicketData] = useState<any>({
+    register: 'sante',
+    category: 'humain',
+    equipment_id: '',
+    severity: 'Majeure',
+    description: ''
+  });
+
+  // Form State
+  const [formData, setFormData] = useState<Partial<Equipment>>({
+    ref_code: '',
+    name: '',
+    category: '',
+    serial_number: '',
+    location: '',
+    commissioning_date: '',
+    status: 'Actif',
+    responsible_user_id: '',
+    type_id: ''
+  });
 
   const isVisitor = user?.role === 'VISITOR';
 
+  const loadHQSEData = async () => {
+    try {
+      setLoading(true);
+      const [eq, plans, insp, nc, ca, pers, types] = await Promise.all([
+        db.getEquipments(),
+        db.getHQSEInspectionPlans(),
+        db.getHQSEInspections(),
+        db.getHQSENonConformities(),
+        db.getHQSECorrectiveActions(),
+        db.getAdminPersonnel(),
+        db.getEquipmentTypes()
+      ]);
+      setEquipments(eq);
+      setInspectionPlans(plans);
+      setInspections(insp);
+      setNonConformities(nc);
+      setCorrectiveActions(ca);
+      setPersonnel(pers);
+      setEquipmentTypes(types);
+    } catch (e) {
+      console.error('Error loading HQSE data:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadHQSEData = async () => {
-      try {
-        setLoading(true);
-        const [eq, plans, insp, nc, ca, pers] = await Promise.all([
-          db.getEquipments(),
-          db.getHQSEInspectionPlans(),
-          db.getHQSEInspections(),
-          db.getHQSENonConformities(),
-          db.getHQSECorrectiveActions(),
-          db.getAdminPersonnel()
-        ]);
-        setEquipments(eq);
-        setInspectionPlans(plans);
-        setInspections(insp);
-        setNonConformities(nc);
-        setCorrectiveActions(ca);
-        setPersonnel(pers);
-      } catch (e) {
-        console.error('Error loading HQSE data:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadHQSEData();
   }, []);
+
+  const handleOpenAddModal = () => {
+    // Generate automatic reference code
+    const prefix = 'EQ-';
+    const existingCodes = equipments
+      .map(e => e.ref_code)
+      .filter(code => code.startsWith(prefix));
+    
+    let nextNum = 1;
+    if (existingCodes.length > 0) {
+      const nums = existingCodes
+        .map(code => parseInt(code.replace(prefix, ''), 10))
+        .filter(num => !isNaN(num));
+      if (nums.length > 0) {
+        nextNum = Math.max(...nums) + 1;
+      }
+    }
+    const generatedRef = `${prefix}${nextNum.toString().padStart(3, '0')}`;
+
+    setModalMode('add');
+    setFormData({
+      ref_code: generatedRef,
+      name: '',
+      category: '',
+      serial_number: '',
+      location: '',
+      commissioning_date: '',
+      status: 'Actif',
+      responsible_user_id: '',
+      type_id: ''
+    });
+    setIsEquipmentModalOpen(true);
+  };
+
+  const handleOpenEditModal = (eq: Equipment) => {
+    setModalMode('edit');
+    setSelectedEquipment(eq);
+    setFormData({
+      ref_code: eq.ref_code,
+      name: eq.name,
+      category: eq.category,
+      serial_number: eq.serial_number,
+      location: eq.location,
+      commissioning_date: eq.commissioning_date,
+      status: eq.status,
+      responsible_user_id: eq.responsible_user_id,
+      type_id: eq.type_id
+    });
+    setIsEquipmentModalOpen(true);
+  };
+
+  const handleOpenDetailModal = (eq: Equipment) => {
+    setSelectedEquipment(eq);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleSaveEquipment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.ref_code || !formData.name) return;
+
+    try {
+      setFormLoading(true);
+      if (modalMode === 'add') {
+        await db.createItem('equipments', formData);
+      } else if (selectedEquipment) {
+        await db.updateItem('equipments', selectedEquipment.id, formData);
+      }
+      setIsEquipmentModalOpen(false);
+      await loadHQSEData();
+    } catch (err) {
+      console.error('Error saving equipment:', err);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleSaveTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticketData.description) return;
+
+    try {
+      setFormLoading(true);
+      await db.createItem('hqse_tickets', {
+        ...ticketData,
+        title: `Signalement ${ticketData.register} - ${new Date().toLocaleDateString()}`,
+        status: 'Ouvert',
+        declared_at: new Date().toISOString()
+      });
+      
+      setTicketData({
+        register: 'sante',
+        category: 'humain',
+        equipment_id: '',
+        severity: 'Majeure',
+        description: ''
+      });
+      
+      alert('Signalement enregistré avec succès.');
+    } catch (e) {
+      console.error('Error saving ticket:', e);
+      alert('Erreur lors de l\'enregistrement du signalement.');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const typeOptions: Option[] = equipmentTypes.map(t => ({
+    value: t.id,
+    label: t.label,
+    subLabel: t.code
+  }));
+
+  const personnelOptions: Option[] = personnel.map(p => ({
+    value: p.id_personnel,
+    label: `${p.prenom} ${p.nom}`,
+    subLabel: p.poste_titre
+  }));
 
   // Helper: Calculate days overdue
   const getDaysOverdue = (dueDate: string) => {
@@ -334,12 +489,14 @@ export const HQSEPage = () => {
                     ].map((item) => (
                       <button 
                         key={item.id}
-                        className="flex flex-col items-center gap-3 p-4 rounded-2xl border border-border hover:border-primary/50 hover:bg-secondary/50 transition-all group"
+                        type="button"
+                        onClick={() => setTicketData({...ticketData, register: item.id})}
+                        className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all group ${ticketData.register === item.id ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50 hover:bg-secondary/50'}`}
                       >
-                        <div className={`h-12 w-12 rounded-xl ${item.bg} ${item.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                        <div className={`h-12 w-12 rounded-xl ${item.bg} ${item.color} flex items-center justify-center group-hover:scale-110 transition-transform ${ticketData.register === item.id ? 'scale-110 shadow-lg' : ''}`}>
                           <item.icon size={24} />
                         </div>
-                        <span className="text-xs font-bold text-foreground">{item.label}</span>
+                        <span className={`text-xs font-bold ${ticketData.register === item.id ? 'text-primary' : 'text-foreground'}`}>{item.label}</span>
                       </button>
                     ))}
                   </div>
@@ -357,22 +514,28 @@ export const HQSEPage = () => {
                     ].map((item) => (
                       <button 
                         key={item.id}
-                        className="flex items-center gap-3 p-4 rounded-2xl border border-border hover:border-primary/50 hover:bg-secondary/50 transition-all group"
+                        type="button"
+                        onClick={() => setTicketData({...ticketData, category: item.id})}
+                        className={`flex items-center gap-3 p-4 rounded-2xl border transition-all group ${ticketData.category === item.id ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50 hover:bg-secondary/50'}`}
                       >
-                        <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
+                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${ticketData.category === item.id ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground group-hover:text-primary'}`}>
                           <item.icon size={20} />
                         </div>
-                        <span className="text-xs font-bold text-foreground">{item.label}</span>
+                        <span className={`text-xs font-bold ${ticketData.category === item.id ? 'text-primary' : 'text-foreground'}`}>{item.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Form Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleSaveTicket} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Équipement concerné</label>
-                    <select className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none">
+                    <select 
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                      value={ticketData.equipment_id || ''}
+                      onChange={e => setTicketData({...ticketData, equipment_id: e.target.value})}
+                    >
                       <option value="">Sélectionner un équipement...</option>
                       {equipments.map(e => <option key={e.id} value={e.id}>{e.ref_code} - {e.name}</option>)}
                     </select>
@@ -381,7 +544,14 @@ export const HQSEPage = () => {
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Gravité</label>
                     <div className="flex gap-2">
                       {['Mineure', 'Majeure', 'Critique'].map(s => (
-                        <button key={s} className="flex-1 py-2 rounded-lg border border-border text-xs font-bold hover:bg-secondary transition-all">{s}</button>
+                        <button 
+                          key={s} 
+                          type="button"
+                          onClick={() => setTicketData({...ticketData, severity: s})}
+                          className={`flex-1 py-2 rounded-lg border text-xs font-bold transition-all ${ticketData.severity === s ? 'bg-primary text-white border-primary shadow-md' : 'border-border hover:bg-secondary'}`}
+                        >
+                          {s}
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -389,17 +559,25 @@ export const HQSEPage = () => {
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Description détaillée</label>
                     <textarea 
                       rows={4}
+                      required
                       placeholder="Décrivez l'incident ou l'anomalie constatée..."
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none"
+                      value={ticketData.description || ''}
+                      onChange={e => setTicketData({...ticketData, description: e.target.value})}
                     ></textarea>
                   </div>
-                </div>
 
-                <div className="flex justify-end pt-4">
-                  <button className="bg-primary text-white px-8 py-3 rounded-xl font-bold text-sm shadow-lg shadow-primary/30 hover:scale-105 transition-all flex items-center gap-2">
-                    <Plus size={18} /> Déclarer le Signalement
-                  </button>
-                </div>
+                  <div className="md:col-span-2 flex justify-end pt-4">
+                    <button 
+                      type="submit"
+                      disabled={formLoading}
+                      className="bg-primary text-white px-8 py-3 rounded-xl font-bold text-sm shadow-lg shadow-primary/30 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {formLoading ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+                      Déclarer le Signalement
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </motion.div>
@@ -445,17 +623,35 @@ export const HQSEPage = () => {
                     </div>
                   </div>
                   <div className="px-6 py-4 bg-muted/30 flex justify-between items-center">
-                    <button className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline">Détails Fiche</button>
-                    <button className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
-                      <Wrench size={16} />
+                    <button 
+                      onClick={() => handleOpenDetailModal(eq)}
+                      className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline"
+                    >
+                      Détails Fiche
                     </button>
+                    <div className="flex items-center gap-1">
+                      {!isVisitor && (
+                        <button 
+                          onClick={() => handleOpenEditModal(eq)}
+                          className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      )}
+                      <button className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
+                        <Wrench size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
               
               {/* Add Equipment Placeholder */}
               {!isVisitor && (
-                <button className="bg-background border-2 border-dashed border-border rounded-3xl p-8 flex flex-col items-center justify-center gap-4 text-muted-foreground hover:border-primary hover:text-primary transition-all group">
+                <button 
+                  onClick={handleOpenAddModal}
+                  className="bg-background border-2 border-dashed border-border rounded-3xl p-8 flex flex-col items-center justify-center gap-4 text-muted-foreground hover:border-primary hover:text-primary transition-all group"
+                >
                   <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                     <Plus size={32} />
                   </div>
@@ -535,6 +731,315 @@ export const HQSEPage = () => {
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Equipment Add/Edit Modal */}
+      <AnimatePresence>
+        {isEquipmentModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEquipmentModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-card rounded-3xl border border-border shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-border flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
+                <h3 className="text-xl font-black text-foreground tracking-tight flex items-center gap-3">
+                  {modalMode === 'add' ? <Plus className="text-primary" size={24} /> : <Edit2 className="text-primary" size={24} />}
+                  {modalMode === 'add' ? 'Ajouter un Équipement' : 'Modifier l\'Équipement'}
+                </h3>
+                <button 
+                  onClick={() => setIsEquipmentModalOpen(false)}
+                  className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEquipment}>
+                <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto no-scrollbar">
+                  {/* Mandatory Caption */}
+                  <div className="flex items-center gap-2 px-4 py-2 bg-warning/10 border border-warning/20 rounded-xl">
+                    <AlertTriangle size={14} className="text-warning" />
+                    <span className="text-[10px] font-bold text-warning uppercase tracking-wider">Les champs marqués d'un <span className="text-destructive">*</span> sont obligatoires</span>
+                  </div>
+
+                  {/* Section 1: Identification */}
+                  <div className="space-y-4 p-6 bg-muted/20 rounded-2xl border border-border/50">
+                    <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                      Identification de l'équipement
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                            Référence <span className="text-destructive">*</span>
+                          </label>
+                          <span className="text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 uppercase tracking-tighter">Auto</span>
+                        </div>
+                        <input 
+                          required
+                          type="text" 
+                          value={formData.ref_code}
+                          onChange={e => setFormData({...formData, ref_code: e.target.value})}
+                          placeholder="Ex: EQ-001" 
+                          className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none font-mono" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                          Nom de l'équipement <span className="text-destructive">*</span>
+                        </label>
+                        <input 
+                          required
+                          type="text" 
+                          value={formData.name}
+                          onChange={e => setFormData({...formData, name: e.target.value})}
+                          placeholder="Ex: Groupe Électrogène" 
+                          className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                          Type d'équipement <span className="text-destructive">*</span>
+                        </label>
+                        <AdvancedSelect 
+                          options={typeOptions}
+                          value={formData.type_id || ''}
+                          onChange={val => setFormData({...formData, type_id: val})}
+                          placeholder="Sélectionner un type..."
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                          Responsable <span className="text-destructive">*</span>
+                        </label>
+                        <AdvancedSelect 
+                          options={personnelOptions}
+                          value={formData.responsible_user_id || ''}
+                          onChange={val => setFormData({...formData, responsible_user_id: val})}
+                          placeholder="Sélectionner un responsable..."
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Détails Techniques */}
+                  <div className="space-y-4 p-6 bg-primary/5 rounded-2xl border border-primary/10">
+                    <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                      Détails Techniques & Localisation
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">N° de Série</label>
+                        <input 
+                          type="text" 
+                          value={formData.serial_number || ''}
+                          onChange={e => setFormData({...formData, serial_number: e.target.value})}
+                          placeholder="Ex: SN-123456" 
+                          className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Localisation</label>
+                        <input 
+                          type="text" 
+                          value={formData.location || ''}
+                          onChange={e => setFormData({...formData, location: e.target.value})}
+                          placeholder="Ex: Zone A - Entrepôt" 
+                          className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Date de mise en service</label>
+                        <input 
+                          type="date" 
+                          value={formData.commissioning_date || ''}
+                          onChange={e => setFormData({...formData, commissioning_date: e.target.value})}
+                          className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Statut</label>
+                        <select 
+                          value={formData.status}
+                          onChange={e => setFormData({...formData, status: e.target.value as any})}
+                          className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                        >
+                          <option value="Actif">Actif</option>
+                          <option value="Maintenance">Maintenance</option>
+                          <option value="Inactif">Inactif</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-8 border-t border-border flex justify-end gap-3 bg-muted/20">
+                  <button 
+                    type="button"
+                    onClick={() => setIsEquipmentModalOpen(false)}
+                    className="px-6 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:bg-secondary transition-all"
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={formLoading}
+                    className="bg-primary text-white px-8 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-primary/30 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {formLoading ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={18} />}
+                    {modalMode === 'add' ? 'Enregistrer' : 'Mettre à jour'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Equipment Detail Modal */}
+      <AnimatePresence>
+        {isDetailModalOpen && selectedEquipment && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDetailModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-xl bg-card rounded-3xl border border-border shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-border flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                    <Info size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg leading-tight">{selectedEquipment.name}</h3>
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{selectedEquipment.ref_code}</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-8 max-h-[80vh] overflow-y-auto no-scrollbar">
+                {/* Section 1: Infos Générales */}
+                <div className="p-6 bg-muted/20 rounded-2xl border border-border/50 space-y-6">
+                  <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                    Informations Générales
+                  </h4>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Type</p>
+                      <p className="text-sm font-bold text-foreground">{selectedEquipment.type_label || 'N/A'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Statut</p>
+                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        selectedEquipment.status === 'Actif' ? 'bg-success/10 text-success' : 
+                        selectedEquipment.status === 'Maintenance' ? 'bg-warning/10 text-warning' : 
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {selectedEquipment.status}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">N° de Série</p>
+                      <p className="text-sm font-medium text-foreground">{selectedEquipment.serial_number || 'N/A'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mise en service</p>
+                      <p className="text-sm font-medium text-foreground">{selectedEquipment.commissioning_date || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Localisation & Responsabilité */}
+                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 space-y-6">
+                  <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                    Localisation & Responsabilité
+                  </h4>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Localisation</p>
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <MapPin size={14} className="text-primary" />
+                        {selectedEquipment.location || 'N/A'}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Responsable</p>
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <User size={14} className="text-primary" />
+                        {selectedEquipment.responsible_name}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Historique */}
+                <div className="p-6 bg-secondary/20 rounded-2xl border border-border/50 space-y-6">
+                  <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                    Derniers Contrôles
+                  </h4>
+                  <div className="space-y-2">
+                    {inspections.filter(i => i.equipment_id === selectedEquipment.id).slice(0, 3).map(insp => (
+                      <div key={insp.id} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${insp.verdict === 'OK' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                            {insp.verdict === 'OK' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold">{insp.inspection_date}</p>
+                            <p className="text-[10px] text-muted-foreground">{insp.inspector_name}</p>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-bold ${insp.verdict === 'OK' ? 'text-success' : 'text-destructive'}`}>{insp.verdict}</span>
+                      </div>
+                    ))}
+                    {inspections.filter(i => i.equipment_id === selectedEquipment.id).length === 0 && (
+                      <p className="text-xs text-muted-foreground italic text-center py-4">Aucun historique de contrôle</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 border-t border-border bg-muted/20 flex justify-end">
+                <button 
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="px-8 py-2.5 rounded-xl bg-primary text-white font-bold text-sm shadow-lg shadow-primary/30 hover:scale-105 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

@@ -345,6 +345,9 @@ export interface EquipmentType {
   icon_name?: string;
   is_regulatory_subject: boolean;
   default_frequency_days?: number;
+  available_stock_quantity: number;
+  total_stock_quantity: number;
+  renewal_cycle_days?: number;
   created_at: string;
 }
 
@@ -415,4 +418,38 @@ export interface HQSECorrectiveAction {
   // Enriched fields
   nc_description?: string;
   assigned_person_name?: string;
+}
+
+export interface EmployeeEndowment {
+  id: string;
+  employee_id: string;
+  equipment_type_id: string;
+  assigned_date: string;
+  expected_renewal_date: string;
+  status: 'Actif' | 'Rendu' | 'Perdu' | 'Détérioré';
+  created_at: string;
+  // Enriched fields
+  employee_name?: string;
+  equipment_type_label?: string;
+}
+
+export interface HQSESafetyAudit {
+  id: string;
+  employee_id: string;
+  auditor_id: string;
+  audit_date: string;
+  equipment_id?: string;
+  number_of_items: number;
+  is_usage_respected: boolean;
+  observation_notes?: string;
+  has_loss_occurred: boolean;
+  has_deteriorated_equipment: boolean;
+  corrective_action_required?: string;
+  sanction_level?: 'RAS' | 'Avertissement' | 'Sanction lourde';
+  report_photo_url?: string;
+  created_at: string;
+  // Enriched fields
+  employee_name?: string;
+  auditor_name?: string;
+  equipment_name?: string;
 }

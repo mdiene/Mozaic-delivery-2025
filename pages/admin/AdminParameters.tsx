@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-type Tab = 'categories' | 'modes' | 'codes' | 'postes' | 'personnel';
+type Tab = 'categories' | 'modes' | 'codes' | 'postes';
 
 export const AdminParameters = () => {
   const { user } = useAuth();
@@ -220,29 +220,6 @@ export const AdminParameters = () => {
             </tbody>
           </table>
         );
-      case 'personnel':
-        return (
-          <table className="table w-full">
-            <thead className="bg-primary/5">
-              <tr><th className="px-4 py-3 text-left">Nom & Prénom</th><th className="px-4 py-3 text-left">Poste</th><th className="px-4 py-3 text-left">Téléphone</th><th className="px-4 py-3 text-right">Actions</th></tr>
-            </thead>
-            <tbody>
-              {personnel.map(p => (
-                <tr key={p.id_personnel} className="hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">{p.prenom} {p.nom}</td>
-                  <td className="px-4 py-3"><span className="text-sm text-muted-foreground">{p.poste_titre}</span></td>
-                  <td className="px-4 py-3 font-mono text-sm">{p.telephone}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => openModal(p)} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(p.id_personnel)} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        );
     }
   };
 
@@ -268,7 +245,6 @@ export const AdminParameters = () => {
           <button onClick={() => setActiveTab('modes')} className={`px-6 py-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 ${activeTab === 'modes' ? 'border-primary text-primary bg-background' : 'border-transparent text-muted-foreground hover:text-foreground'}`}><CreditCard size={14} /> Modes Paiement</button>
           <button onClick={() => setActiveTab('codes')} className={`px-6 py-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 ${activeTab === 'codes' ? 'border-primary text-primary bg-background' : 'border-transparent text-muted-foreground hover:text-foreground'}`}><Code size={14} /> Codes Analytiques</button>
           <button onClick={() => setActiveTab('postes')} className={`px-6 py-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 ${activeTab === 'postes' ? 'border-primary text-primary bg-background' : 'border-transparent text-muted-foreground hover:text-foreground'}`}><Briefcase size={14} /> Postes</button>
-          <button onClick={() => setActiveTab('personnel')} className={`px-6 py-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 ${activeTab === 'personnel' ? 'border-primary text-primary bg-background' : 'border-transparent text-muted-foreground hover:text-foreground'}`}><Users size={14} /> Personnel</button>
         </div>
 
         <div className="flex-1 overflow-x-auto">
@@ -356,40 +332,6 @@ export const AdminParameters = () => {
                             />
                           </div>
                         )}
-                      </div>
-                    </div>
-                 </div>
-               )}
-
-               {activeTab === 'personnel' && (
-                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">Prénom</label>
-                        <input required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.prenom || ''} onChange={e => setFormData({...formData, prenom: e.target.value})} placeholder="Prénom" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">Nom</label>
-                        <input required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.nom || ''} onChange={e => setFormData({...formData, nom: e.target.value})} placeholder="Nom" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Poste (Rôle)</label>
-                      <select 
-                        required 
-                        className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" 
-                        value={formData.id_poste || ''} 
-                        onChange={e => setFormData({...formData, id_poste: e.target.value})}
-                      >
-                        <option value="">Sélectionner un poste...</option>
-                        {postes.map(p => <option key={p.id_poste} value={p.id_poste}>{p.titre_poste}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">Téléphone</label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                        <input className="w-full pl-10 pr-4 border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.telephone || ''} onChange={e => setFormData({...formData, telephone: e.target.value})} placeholder="7x xxx xx xx" />
                       </div>
                     </div>
                  </div>

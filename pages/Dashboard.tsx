@@ -12,11 +12,11 @@ import {
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, ChevronDown, ChevronUp, MoreHorizontal, Maximize2, Minimize2,
   Coins, Factory, Package, CalendarDays, ArrowLeftRight,
-  ArrowUpRight, ArrowDownRight, Search
+  ArrowUpRight, ArrowDownRight, Search, ShieldCheck, AlertTriangle, ClipboardCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
-import { ProductionView, DeliveryView } from '../types';
+import { ProductionView, DeliveryView, HQSEInspection, HQSENonConformity, HQSECorrectiveAction } from '../types';
 import { getPhaseColor } from '../lib/colors';
 
 // FlyonUI Palette
@@ -86,6 +86,7 @@ export const Dashboard = () => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [productionHistory, setProductionHistory] = useState<ProductionView[]>([]);
   const [deliveriesHistory, setDeliveriesHistory] = useState<DeliveryView[]>([]);
+  const [hqseActivities, setHqseActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
@@ -106,11 +107,14 @@ export const Dashboard = () => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [s, c, p, d] = await Promise.all([
+        const [s, c, p, d, insp, nc, ca] = await Promise.all([
           db.getStats(selectedProject),
           db.getChartData(selectedProject),
           db.getProductions(),
-          db.getDeliveriesView()
+          db.getDeliveriesView(),
+          db.getHQSEInspections(),
+          db.getHQSENonConformities(),
+          db.getHQSECorrectiveActions()
         ]);
         setStats(s as any); 
         setChartData(c);
@@ -128,6 +132,14 @@ export const Dashboard = () => {
           : d.filter(item => item.project_id === selectedProject);
         
         setDeliveriesHistory(filteredDels);
+
+        // Combine HQSE activities
+        const combinedHqse = [
+          ...insp.map(i => ({ ...i, type: 'inspection', date: i.inspection_date })),
+          ...nc.map(n => ({ ...n, type: 'nc', date: n.declared_at })),
+          ...ca.map(a => ({ ...a, type: 'ca', date: a.target_date || a.created_at }))
+        ];
+        setHqseActivities(combinedHqse);
       } catch (e: any) {
         console.error('Error loading dashboard data:', e.message || e);
       } finally {
@@ -233,6 +245,62 @@ export const Dashboard = () => {
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [deliveriesHistory]);
+
+  const recentActivities = useMemo(() => {
+    const activities: any[] = [];
+
+    // Add Deliveries
+    deliveriesHistory.slice(0, 10).forEach(d => {
+      activities.push({
+        id: `del-${d.id}`,
+        title: 'Camion expédié',
+        description: `${d.bl_number} • ${d.region_name} → ${d.commune_name}`,
+        date: d.delivery_date || d.created_at,
+        icon: Truck,
+        color: 'text-primary',
+        borderColor: 'border-primary'
+      });
+    });
+
+    // Add HQSE
+    hqseActivities.forEach(a => {
+      if (a.type === 'inspection') {
+        activities.push({
+          id: `insp-${a.id}`,
+          title: 'Contrôle effectué',
+          description: `${a.equipment_name} • Verdict: ${a.verdict}`,
+          date: a.date,
+          icon: ShieldCheck,
+          color: a.verdict === 'OK' ? 'text-success' : 'text-destructive',
+          borderColor: a.verdict === 'OK' ? 'border-success' : 'border-destructive'
+        });
+      } else if (a.type === 'nc') {
+        activities.push({
+          id: `nc-${a.id}`,
+          title: 'Non-conformité déclarée',
+          description: `${a.equipment_name} • Gravité: ${a.severity}`,
+          date: a.date,
+          icon: AlertTriangle,
+          color: 'text-warning',
+          borderColor: 'border-warning'
+        });
+      } else if (a.type === 'ca') {
+        activities.push({
+          id: `ca-${a.id}`,
+          title: 'Action corrective',
+          description: a.action_plan,
+          date: a.date,
+          icon: ClipboardCheck,
+          color: 'text-info',
+          borderColor: 'border-info'
+        });
+      }
+    });
+
+    return activities
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 6);
+  }, [deliveriesHistory, hqseActivities]);
 
   if (loading && projects.length === 0) {
     return (
@@ -351,16 +419,26 @@ export const Dashboard = () => {
             </div>
             <div className="space-y-6 relative">
               <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-border/50"></div>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex gap-4 relative">
-                  <div className="h-5 w-5 rounded-full bg-card border-2 border-primary z-10 shrink-0 mt-0.5 shadow-sm"></div>
-                  <div className="pb-1">
-                    <p className="text-sm font-bold text-foreground">Camion expédié</p>
-                    <p className="text-xs text-muted-foreground mt-1">BL25000{i} • Dakar &rarr; Thiès</p>
-                    <p className="text-[10px] text-muted-foreground/70 mt-1 font-mono">il y a 2h</p>
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity) => (
+                  <div key={activity.id} className="flex gap-4 relative">
+                    <div className={`h-5 w-5 rounded-full bg-card border-2 ${activity.borderColor} z-10 shrink-0 mt-0.5 shadow-sm flex items-center justify-center`}>
+                      <activity.icon size={10} className={activity.color} />
+                    </div>
+                    <div className="pb-1">
+                      <p className="text-sm font-bold text-foreground">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{activity.description}</p>
+                      <p className="text-[10px] text-muted-foreground/70 mt-1 font-mono">
+                        {new Date(activity.date).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-muted-foreground italic">Aucune activité récente</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>

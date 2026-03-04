@@ -4,7 +4,8 @@ import {
   DeliveryView, AllocationView, Truck, Driver, Region, Department, Commune, 
   Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference, ProductionView,
   AdminCategoryDepense, AdminModePaiement, AdminCodeAnalytique, AdminPoste, AdminPersonnel, AdminDepense,
-  EquipmentType, Equipment, HQSEInspection, HQSEInspectionPlan, HQSENonConformity, HQSECorrectiveAction
+  EquipmentType, Equipment, HQSEInspection, HQSEInspectionPlan, HQSENonConformity, HQSECorrectiveAction,
+  EmployeeEndowment, HQSESafetyAudit
 } from '../types';
 
 const safeLog = (message: string, ...args: any[]) => {
@@ -837,6 +838,34 @@ export const db = {
       ...ca,
       nc_description: ca.hqse_non_conformities?.description,
       assigned_person_name: ca.admin_personnel ? `${ca.admin_personnel.prenom} ${ca.admin_personnel.nom}` : '-'
+    }));
+  },
+
+  getEmployeeEndowments: async (): Promise<EmployeeEndowment[]> => {
+    const { data } = await supabase.from('employee_endowments').select(`
+      *,
+      admin_personnel(nom, prenom),
+      equipment_types(label)
+    `);
+    return (data || []).map((e: any) => ({
+      ...e,
+      employee_name: e.admin_personnel ? `${e.admin_personnel.prenom} ${e.admin_personnel.nom}` : '-',
+      equipment_type_label: e.equipment_types?.label
+    }));
+  },
+
+  getHQSESafetyAudits: async (): Promise<HQSESafetyAudit[]> => {
+    const { data } = await supabase.from('hqse_safety_compliance_audits').select(`
+      *,
+      admin_personnel(nom, prenom),
+      user_preferences(user_email),
+      equipments(name)
+    `).order('audit_date', { ascending: false });
+    return (data || []).map((a: any) => ({
+      ...a,
+      employee_name: a.admin_personnel ? `${a.admin_personnel.prenom} ${a.admin_personnel.nom}` : '-',
+      auditor_name: a.user_preferences?.user_email || '-',
+      equipment_name: a.equipments?.name
     }));
   }
 };

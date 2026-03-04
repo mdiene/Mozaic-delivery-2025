@@ -38,7 +38,11 @@ import {
   ShieldCheck,
   AlertTriangle,
   ClipboardCheck,
-  Wrench
+  Wrench,
+  Users,
+  UserCheck,
+  Activity,
+  UserPlus
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -257,17 +261,17 @@ const Sidebar = ({
           </SidebarSubmenu>
 
           {(isAdmin || isVisitor) && (
-            <li>
-              <NavLink 
-                to="/hqse"
-                className={({ isActive }) => 
-                  `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`
-                }
-              >
-                <ShieldCheck size={20} className="shrink-0" />
-                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>HQSE</span>
-              </NavLink>
-            </li>
+            <SidebarSubmenu label="Administration" icon={Users} basePath="/admin" expanded={expanded}>
+               <li><NavLink to="/admin/dashboard" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Activity size={16} className="shrink-0" /><span className="truncate">Tableau de bord</span></NavLink></li>
+               <li><NavLink to="/admin/personnel" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><UserCheck size={16} className="shrink-0" /><span className="truncate">Gestion Personnel</span></NavLink></li>
+            </SidebarSubmenu>
+          )}
+
+          {(isAdmin || isVisitor) && (
+            <SidebarSubmenu label="HQSE" icon={ShieldCheck} basePath="/hqse" expanded={expanded}>
+               <li><NavLink to="/hqse" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Activity size={16} className="shrink-0" /><span className="truncate">Dashboard</span></NavLink></li>
+               <li><NavLink to="/hqse/dotations" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><HardHat size={16} className="shrink-0" /><span className="truncate">Dotations & Contrôle</span></NavLink></li>
+            </SidebarSubmenu>
           )}
 
           {(isAdmin || isVisitor) && (

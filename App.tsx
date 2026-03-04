@@ -20,6 +20,9 @@ import { ProductionScreening } from './pages/ProductionScreening';
 import { ProductionExcavation } from './pages/ProductionExcavation';
 import { Login } from './pages/Login';
 import { HQSEPage } from './pages/HQSE';
+import { HQSEDotations } from './pages/HQSEDotations';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { PersonnelPage } from './pages/admin/Personnel';
 import { useAuth } from './contexts/AuthContext';
 
 // Protected Route Wrapper
@@ -166,6 +169,24 @@ function App() {
           <Route path="hqse" element={
             <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
               <HQSEPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="hqse/dotations" element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <HQSEDotations />
+            </ProtectedRoute>
+          } />
+
+          <Route path="admin/dashboard" element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="admin/personnel" element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <PersonnelPage />
             </ProtectedRoute>
           } />
         </Route>
