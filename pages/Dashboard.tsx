@@ -12,7 +12,7 @@ import {
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, ChevronDown, ChevronUp, MoreHorizontal, Maximize2, Minimize2,
   Coins, Factory, Package, CalendarDays, ArrowLeftRight,
-  ArrowUpRight, ArrowDownRight
+  ArrowUpRight, ArrowDownRight, Search
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
@@ -36,37 +36,40 @@ const CustomTooltip = ({ active, payload, label, chartType }: any) => {
     if (chartType === 'pie') {
       const data = payload[0];
       return (
-        <div className="min-w-[150px] rounded-xl border border-border bg-card px-4 py-3 text-sm shadow-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: data.fill }} />
-            <span className="font-bold text-foreground">{data.name}</span>
+        <div className="min-w-[180px] rounded-2xl border border-border/50 bg-card/80 backdrop-blur-md px-4 py-3 text-sm shadow-soft-xl animate-in fade-in zoom-in duration-200">
+          <div className="flex items-center gap-3 mb-3 pb-2 border-b border-border/30">
+            <span className="h-3 w-3 rounded-full shadow-sm" style={{ backgroundColor: data.fill }} />
+            <span className="font-bold text-foreground truncate">{data.name}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Volume:</span>
-            <span className="font-mono font-bold text-primary">{data.value.toLocaleString()} T</span>
+            <span className="text-muted-foreground font-medium">Volume:</span>
+            <span className="font-mono font-bold text-primary text-base">
+              {Number(data.value).toLocaleString()} <span className="text-[10px] font-sans text-muted-foreground">T</span>
+            </span>
           </div>
         </div>
       );
     }
     return (
-      <div className="min-w-[150px] rounded-xl border border-border bg-card px-4 py-3 text-sm shadow-xl">
-        <div className="mb-2 font-bold text-foreground text-xs uppercase tracking-wider">{label}</div>
-        <div className="grid gap-2">
+      <div className="min-w-[180px] rounded-2xl border border-border/50 bg-card/80 backdrop-blur-md px-4 py-3 text-sm shadow-soft-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="mb-3 font-bold text-foreground text-[10px] uppercase tracking-[0.15em] opacity-60 border-b border-border/30 pb-2">{label}</div>
+        <div className="grid gap-2.5">
           {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
+            <div key={index} className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-2.5">
                 <span 
-                  className="h-2 w-2 rounded-full" 
+                  className="h-2.5 w-2.5 rounded-full shadow-sm" 
                   style={{ backgroundColor: entry.stroke || entry.fill }}
                 />
-                <span className="capitalize text-muted-foreground font-medium text-[10px]">
-                  {entry.name === 'tonnage' ? 'Prod. Tonnage' : 
-                   entry.name === 'deliveryTonnage' ? 'Livré Tonnage' : 
-                   entry.name === 'Planned' ? 'Prévu' : 'Réalisé'}
+                <span className="capitalize text-muted-foreground font-semibold text-[11px] tracking-tight">
+                  {entry.name.toLowerCase() === 'tonnage' ? 'Production' : 
+                   entry.name.toLowerCase() === 'deliverytonnage' ? 'Livraison' : 
+                   entry.name.toLowerCase() === 'planned' ? 'Objectif' : 
+                   entry.name.toLowerCase() === 'delivered' ? 'Réalisé' : entry.name}
                 </span>
               </div>
-              <span className="font-mono font-bold text-foreground">
-                {Number(entry.value).toLocaleString()} T
+              <span className="font-mono font-bold text-foreground tabular-nums">
+                {Number(entry.value).toLocaleString()} <span className="text-[9px] font-sans text-muted-foreground">T</span>
               </span>
             </div>
           ))}
@@ -87,11 +90,12 @@ export const Dashboard = () => {
   
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
   const [prodChartType, setProdChartType] = useState<'area' | 'bar' | 'pie'>('area');
-  const [prodRange, setProdRange] = useState<'15d' | 'all'>('15d');
-  
+  const [prodRange, setProdRange] = useState<'15d' | '30d' | 'all'>('15d');
+  const [prodSearch, setProdSearch] = useState('');
+  const [corrChartType, setCorrChartType] = useState<'composed' | 'bar' | 'area' | 'pie'>('composed');
+  const [corrRange, setCorrRange] = useState<'15d' | '30d' | 'all'>('15d');
+
   const [isMounted, setIsMounted] = useState(false);
-  const [isProdGraphOpen, setIsProdGraphOpen] = useState(true);
-  const [isCorrGraphOpen, setIsCorrGraphOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
@@ -136,54 +140,81 @@ export const Dashboard = () => {
   const completionRate = stats.totalTarget > 0 ? (stats.totalDelivered / stats.totalTarget) * 100 : 0;
 
   const formattedProductionChartData = useMemo(() => {
-    const map: Record<string, number> = {};
-    productionHistory.forEach(p => {
-      const date = new Date(p.production_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-      map[date] = (map[date] || 0) + Number(p.tonnage || 0);
+    const map: Record<string, { tonnage: number, timestamp: number }> = {};
+    const filtered = productionHistory.filter(p => {
+      if (prodSearch) {
+        const lower = prodSearch.toLowerCase();
+        return p.notes?.toLowerCase().includes(lower) || 
+               p.project_phase.toLowerCase().includes(lower);
+      }
+      return true;
+    });
+
+    filtered.forEach(p => {
+      if (!p.production_date) return;
+      const d = new Date(p.production_date);
+      if (isNaN(d.getTime())) return;
+      
+      const dateKey = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      
+      if (!map[dateKey]) {
+        map[dateKey] = { tonnage: 0, timestamp: midnight };
+      }
+      map[dateKey].tonnage += Number(p.tonnage || 0);
     });
 
     const sorted = Object.entries(map)
-      .map(([date, tonnage]) => ({ date, tonnage }))
-      .sort((a, b) => {
-        const [da, ma] = a.date.split('/').map(Number);
-        const [db, mb] = b.date.split('/').map(Number);
-        return ma !== mb ? ma - mb : da - db;
-      });
+      .map(([date, data]) => ({ date, tonnage: data.tonnage, timestamp: data.timestamp }))
+      .sort((a, b) => a.timestamp - b.timestamp);
 
-    return prodRange === '15d' ? sorted.slice(-15) : sorted;
-  }, [productionHistory, prodRange]);
+    if (prodRange === '15d') return sorted.slice(-15);
+    if (prodRange === '30d') return sorted.slice(-30);
+    return sorted;
+  }, [productionHistory, prodRange, prodSearch]);
 
   const correlationChartData = useMemo(() => {
-    const combined: Record<string, { production: number; delivery: number }> = {};
+    const combined: Record<string, { production: number; delivery: number; timestamp: number }> = {};
 
     // Group Production
     productionHistory.forEach(p => {
-      const date = new Date(p.production_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-      if (!combined[date]) combined[date] = { production: 0, delivery: 0 };
-      combined[date].production += Number(p.tonnage || 0);
+      if (!p.production_date) return;
+      const d = new Date(p.production_date);
+      if (isNaN(d.getTime())) return;
+      
+      const dateKey = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      
+      if (!combined[dateKey]) combined[dateKey] = { production: 0, delivery: 0, timestamp: midnight };
+      combined[dateKey].production += Number(p.tonnage || 0);
     });
 
     // Group Deliveries
     deliveriesHistory.forEach(d => {
       if (!d.delivery_date) return;
-      const date = new Date(d.delivery_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-      if (!combined[date]) combined[date] = { production: 0, delivery: 0 };
-      combined[date].delivery += Number(d.tonnage_loaded || 0);
+      const dt = new Date(d.delivery_date);
+      if (isNaN(dt.getTime())) return;
+      
+      const dateKey = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      const midnight = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+      
+      if (!combined[dateKey]) combined[dateKey] = { production: 0, delivery: 0, timestamp: midnight };
+      combined[dateKey].delivery += Number(d.tonnage_loaded || 0);
     });
 
-    return Object.entries(combined)
+    const sorted = Object.entries(combined)
       .map(([date, vals]) => ({ 
         date, 
         tonnage: vals.production, 
-        deliveryTonnage: vals.delivery 
+        deliveryTonnage: vals.delivery,
+        timestamp: vals.timestamp
       }))
-      .sort((a, b) => {
-        const [da, ma] = a.date.split('/').map(Number);
-        const [db, mb] = b.date.split('/').map(Number);
-        return ma !== mb ? ma - mb : da - db;
-      })
-      .slice(-20); // Show last 20 active days for correlation
-  }, [productionHistory, deliveriesHistory]);
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    if (corrRange === '15d') return sorted.slice(-15);
+    if (corrRange === '30d') return sorted.slice(-30);
+    return sorted;
+  }, [productionHistory, deliveriesHistory, corrRange]);
 
   const productionByPhaseData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -193,6 +224,15 @@ export const Dashboard = () => {
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [productionHistory]);
+
+  const deliveryByPhaseData = useMemo(() => {
+    const map: Record<string, number> = {};
+    deliveriesHistory.forEach(d => {
+      const phase = d.project_phase || 'Autres';
+      map[phase] = (map[phase] || 0) + Number(d.tonnage_loaded || 0);
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [deliveriesHistory]);
 
   if (loading && projects.length === 0) {
     return (
@@ -231,11 +271,11 @@ export const Dashboard = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        <KpiCard title="Total Livré" value={`${stats.totalDelivered.toLocaleString()} T`} subValue={`Cible: ${stats.totalTarget.toLocaleString()} T`} icon={CheckCircle} color="purple" trend="up" />
-        <KpiCard title="Réalisation" value={`${completionRate.toFixed(1)}%`} subValue="Progression globale" icon={Activity} color="green" trend="up" />
-        <KpiCard title="Stock Produit" value={`${stats.totalProduced.toLocaleString()} T`} subValue="Prêt pour livraison" icon={Factory} color="cyan" trend="neutral" />
-        <KpiCard title="Camions Actifs" value={stats.activeTrucks} subValue="Disponibles" icon={Truck} color="amber" trend="neutral" />
-        <KpiCard title="Frais & Charges" value={`${stats.totalFees.toLocaleString()} F`} subValue={feeLabel} icon={Coins} color="red" trend="down" />
+        <KpiCard title="Total Livré" value={`${stats.totalDelivered.toLocaleString()} T`} subValue={`Cible: ${stats.totalTarget.toLocaleString()} T`} icon={CheckCircle} color="purple" trend="up" delay={0.1} />
+        <KpiCard title="Réalisation" value={`${completionRate.toFixed(1)}%`} subValue="Progression globale" icon={Activity} color="green" trend="up" delay={0.2} />
+        <KpiCard title="Stock Produit" value={`${stats.totalProduced.toLocaleString()} T`} subValue="Prêt pour livraison" icon={Factory} color="cyan" trend="neutral" delay={0.3} />
+        <KpiCard title="Camions Actifs" value={stats.activeTrucks} subValue="Disponibles" icon={Truck} color="amber" trend="neutral" delay={0.4} />
+        <KpiCard title="Frais & Charges" value={`${stats.totalFees.toLocaleString()} F`} subValue={feeLabel} icon={Coins} color="red" trend="down" delay={0.5} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -327,41 +367,65 @@ export const Dashboard = () => {
       </div>
 
       {/* Production Graph Section */}
-      <div className={`pt-2 transition-all duration-300`}>
-        <div onClick={() => setIsProdGraphOpen(!isProdGraphOpen)} className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer ${isProdGraphOpen ? 'bg-card border-border shadow-sm' : 'bg-card/50 border-transparent hover:bg-card'}`}>
-           <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl transition-colors ${isProdGraphOpen ? 'bg-info/10 text-info' : 'bg-secondary text-muted-foreground'}`}><Package size={24} /></div>
+      <div className="pt-2 space-y-4">
+        <div className="w-full flex flex-col md:flex-row md:items-center justify-between p-6 rounded-2xl border bg-card border-border shadow-soft-sm gap-4">
+           <div className="flex items-center gap-5">
+              <div className="p-3.5 rounded-2xl bg-info/15 text-info shadow-glow">
+                <Package size={26} />
+              </div>
               <div className="text-left">
-                 <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">Performance de Production</h3>
-                 <p className="text-sm text-muted-foreground">Tonnage ensaché {prodChartType === 'pie' ? 'par phase' : 'par jour'}</p>
+                 <h3 className="font-bold text-xl text-foreground">Performance de Production</h3>
+                 <p className="text-sm text-muted-foreground font-medium">Analyse du tonnage ensaché {prodChartType === 'pie' ? 'par phase' : 'temporelle'}</p>
               </div>
            </div>
-           <div className="flex items-center gap-4">
-              <div className="flex bg-secondary/50 p-1 rounded-lg shrink-0">
-                  <button onClick={(e) => {e.stopPropagation(); setProdChartType('area')}} className={`p-2 rounded-md transition-all ${prodChartType === 'area' ? 'bg-card shadow-sm text-info' : 'text-muted-foreground hover:text-foreground'}`}><LineChartIcon size={18} /></button>
-                  <button onClick={(e) => {e.stopPropagation(); setProdChartType('bar')}} className={`p-2 rounded-md transition-all ${prodChartType === 'bar' ? 'bg-card shadow-sm text-info' : 'text-muted-foreground hover:text-foreground'}`}><BarChart3 size={18} /></button>
-                  <button onClick={(e) => {e.stopPropagation(); setProdChartType('pie')}} className={`p-2 rounded-md transition-all ${prodChartType === 'pie' ? 'bg-card shadow-sm text-info' : 'text-muted-foreground hover:text-foreground'}`}><PieChartIcon size={18} /></button>
+           <div className="flex flex-wrap items-center gap-3">
+              <div className="flex bg-secondary/40 p-1 rounded-xl backdrop-blur-sm">
+                  <button onClick={() => setProdChartType('area')} className={`p-2 rounded-lg transition-all ${prodChartType === 'area' ? 'bg-card shadow-soft-xs text-info' : 'text-muted-foreground hover:text-foreground'}`}><LineChartIcon size={18} /></button>
+                  <button onClick={() => setProdChartType('bar')} className={`p-2 rounded-lg transition-all ${prodChartType === 'bar' ? 'bg-card shadow-soft-xs text-info' : 'text-muted-foreground hover:text-foreground'}`}><BarChart3 size={18} /></button>
+                  <button onClick={() => setProdChartType('pie')} className={`p-2 rounded-lg transition-all ${prodChartType === 'pie' ? 'bg-card shadow-soft-xs text-info' : 'text-muted-foreground hover:text-foreground'}`}><PieChartIcon size={18} /></button>
               </div>
-              <div className="flex bg-secondary/50 p-1 rounded-lg shrink-0">
-                  <button onClick={(e) => {e.stopPropagation(); setProdRange('15d')}} className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${prodRange === '15d' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>15 Jours</button>
-                  <button onClick={(e) => {e.stopPropagation(); setProdRange('all')}} className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${prodRange === 'all' ? 'bg-card shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Tout</button>
+              <div className="flex bg-secondary/40 p-1 rounded-xl backdrop-blur-sm">
+                  <button onClick={() => setProdRange('15d')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${prodRange === '15d' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}>15 Jours</button>
+                  <button onClick={() => setProdRange('30d')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${prodRange === '30d' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}>30 Jours</button>
+                  <button onClick={() => setProdRange('all')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${prodRange === 'all' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Tout</button>
               </div>
-              {isProdGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />}
            </div>
         </div>
-        <AnimatePresence>
-          {isProdGraphOpen && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="mt-6 bg-card p-6 rounded-2xl border border-border shadow-sm h-[400px] overflow-hidden"
-            >
-               {formattedProductionChartData.length > 0 ? (
-                 <ResponsiveContainer width="100%" height="100%">
+
+        <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+              <input 
+                type="text" 
+                placeholder="Filtrer par note ou date..."
+                value={prodSearch}
+                onChange={(e) => setProdSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="bg-card p-8 rounded-2xl border border-border/50 h-[450px] overflow-hidden relative">
+             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-info/50 via-info to-info/50 opacity-20"></div>
+             {formattedProductionChartData.length > 0 || (prodChartType === 'pie' && productionByPhaseData.length > 0) ? (
+               <ResponsiveContainer width="100%" height="100%">
                     {prodChartType === 'pie' ? (
                       <PieChart>
-                        <Pie data={productionByPhaseData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value" nameKey="name" stroke="none" cornerRadius={4}>
+                        <Pie 
+                          data={productionByPhaseData} 
+                          cx="50%" 
+                          cy="50%" 
+                          innerRadius={90} 
+                          outerRadius={130} 
+                          paddingAngle={8} 
+                          dataKey="value" 
+                          nameKey="name" 
+                          stroke="none" 
+                          cornerRadius={8}
+                          animationBegin={0}
+                          animationDuration={1500}
+                        >
                           {productionByPhaseData.map((entry, index) => {
                             const phaseNum = entry.name.replace('Phase ', '');
                             const phaseColor = getPhaseColor(phaseNum);
@@ -369,108 +433,285 @@ export const Dashboard = () => {
                           })}
                         </Pie>
                         <Tooltip content={<CustomTooltip chartType="pie" />} />
-                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={40} 
+                          iconType="circle" 
+                          formatter={(value) => <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-2">{value}</span>}
+                        />
                       </PieChart>
                     ) : prodChartType === 'bar' ? (
-                      <BarChart data={formattedProductionChartData}>
-                         <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" opacity={0.6} />
-                         <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={15} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }} />
-                         <YAxis tickLine={false} axisLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
-                         <Tooltip content={<CustomTooltip chartType="bar" />} />
-                         <Bar dataKey="tonnage" name="tonnage" fill="var(--info)" radius={[4, 4, 0, 0]} barSize={prodRange === 'all' ? undefined : 32} />
+                      <BarChart data={formattedProductionChartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                         <defs>
+                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="var(--info)" stopOpacity={1} />
+                              <stop offset="100%" stopColor="var(--info)" stopOpacity={0.6} />
+                            </linearGradient>
+                         </defs>
+                         <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="4 4" opacity={0.4} />
+                         <XAxis 
+                            dataKey="date" 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickMargin={20} 
+                            tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em' }} 
+                         />
+                         <YAxis 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickMargin={10}
+                            tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 500 }} 
+                         />
+                         <Tooltip content={<CustomTooltip chartType="bar" />} cursor={{ fill: 'var(--muted)', opacity: 0.2 }} />
+                         <Bar 
+                            dataKey="tonnage" 
+                            name="tonnage" 
+                            fill="url(#barGradient)" 
+                            radius={[6, 6, 0, 0]} 
+                            barSize={prodRange === 'all' ? undefined : 40} 
+                            animationDuration={2000}
+                         />
                       </BarChart>
                     ) : (
-                      <AreaChart data={formattedProductionChartData}>
-                        <defs><linearGradient id="fillProd" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--info)" stopOpacity={0.3} /><stop offset="95%" stopColor="var(--info)" stopOpacity={0} /></linearGradient></defs>
-                        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
-                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={15} tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600 }} />
-                        <YAxis tickLine={false} axisLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
-                        <Tooltip content={<CustomTooltip chartType="area" />} />
-                        <Area type="monotone" dataKey="tonnage" name="tonnage" stroke="var(--info)" strokeWidth={3} fill="url(#fillProd)" />
+                      <AreaChart data={formattedProductionChartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="fillProd" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--info)" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="var(--info)" stopOpacity={0} />
+                          </linearGradient>
+                          <filter id="shadow" height="200%">
+                            <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                            <feOffset dx="0" dy="4" result="offsetblur" />
+                            <feComponentTransfer>
+                              <feFuncA type="linear" slope="0.2" />
+                            </feComponentTransfer>
+                            <feMerge>
+                              <feMergeNode />
+                              <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                          </filter>
+                        </defs>
+                        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="4 4" opacity={0.4} />
+                        <XAxis 
+                          dataKey="date" 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickMargin={20} 
+                          tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em' }} 
+                        />
+                        <YAxis 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickMargin={10}
+                          tick={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 500 }} 
+                        />
+                        <Tooltip content={<CustomTooltip chartType="area" />} cursor={false} />
+                        <Area 
+                          type="monotone" 
+                          dataKey="tonnage" 
+                          name="tonnage" 
+                          stroke="var(--info)" 
+                          strokeWidth={4} 
+                          fill="url(#fillProd)" 
+                          animationDuration={2000}
+                          filter="url(#shadow)"
+                        />
                       </AreaChart>
                     )}
                  </ResponsiveContainer>
-               ) : <div className="h-full flex items-center justify-center text-muted-foreground italic">Aucune donnée.</div>}
-            </motion.div>
-          )}
-        </AnimatePresence>
+               ) : (
+                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3">
+                    <div className="p-4 rounded-full bg-secondary/30">
+                      <Activity size={32} className="opacity-20" />
+                    </div>
+                    <p className="italic font-medium">Aucune donnée de production disponible pour cette période.</p>
+                 </div>
+               )}
+          </div>
+        </div>
       </div>
 
       {/* Correlation Section: Production vs Deliveries */}
-      <div className="pt-2">
-         <div onClick={() => setIsCorrGraphOpen(!isCorrGraphOpen)} className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer ${isCorrGraphOpen ? 'bg-card border-border shadow-sm' : 'bg-card/50 border-transparent hover:bg-card'}`}>
-            <div className="flex items-center gap-4">
-               <div className={`p-3 rounded-xl transition-colors ${isCorrGraphOpen ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}`}><ArrowLeftRight size={24} /></div>
+      <div className="pt-2 space-y-4">
+         <div className="w-full flex flex-col md:flex-row md:items-center justify-between p-6 rounded-2xl border bg-card border-border shadow-soft-sm gap-4">
+            <div className="flex items-center gap-5">
+               <div className="p-3.5 rounded-2xl bg-primary/15 text-primary shadow-glow">
+                <ArrowLeftRight size={26} />
+               </div>
                <div className="text-left">
-                  <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">Flux Logistique & Stock</h3>
-                  <p className="text-sm text-muted-foreground">Corrélation entre Production ensachée et Livraisons expédiées</p>
+                  <h3 className="font-bold text-xl text-foreground">Flux Logistique & Stock</h3>
+                  <p className="text-sm text-muted-foreground font-medium">Corrélation entre Production ensachée et Livraisons expédiées</p>
                </div>
             </div>
-            <div className="flex items-center gap-4">
-               {isCorrGraphOpen ? <ChevronUp className="text-muted-foreground" /> : <ChevronDown className="text-muted-foreground" />}
-            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex bg-secondary/40 p-1 rounded-xl backdrop-blur-sm">
+                  <button onClick={() => setCorrChartType('composed')} className={`p-2 rounded-lg transition-all ${corrChartType === 'composed' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}><LineChartIcon size={18} /></button>
+                  <button onClick={() => setCorrChartType('bar')} className={`p-2 rounded-lg transition-all ${corrChartType === 'bar' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}><BarChart3 size={18} /></button>
+                  <button onClick={() => setCorrChartType('area')} className={`p-2 rounded-lg transition-all ${corrChartType === 'area' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Activity size={18} /></button>
+                  <button onClick={() => setCorrChartType('pie')} className={`p-2 rounded-lg transition-all ${corrChartType === 'pie' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}><PieChartIcon size={18} /></button>
+              </div>
+              <div className="flex bg-secondary/40 p-1 rounded-xl backdrop-blur-sm">
+                  <button onClick={() => setCorrRange('15d')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${corrRange === '15d' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}>15 Jours</button>
+                  <button onClick={() => setCorrRange('30d')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${corrRange === '30d' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}>30 Jours</button>
+                  <button onClick={() => setCorrRange('all')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${corrRange === 'all' ? 'bg-card shadow-soft-xs text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Tout</button>
+              </div>
+           </div>
          </div>
-         <AnimatePresence>
-          {isCorrGraphOpen && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="mt-6 bg-card p-6 rounded-2xl border border-border shadow-sm h-[400px] overflow-hidden"
-              >
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex gap-6 items-center">
-                      <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-info"></div><span className="text-[10px] font-bold uppercase text-muted-foreground">Production</span></div>
-                      <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-primary"></div><span className="text-[10px] font-bold uppercase text-muted-foreground">Expédition</span></div>
+
+         <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm space-y-4">
+            <div className="bg-card p-8 rounded-2xl border border-border/50 h-[450px] overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 opacity-20"></div>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                  <div className="flex gap-8 items-center bg-secondary/30 px-5 py-2.5 rounded-2xl border border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3.5 h-3.5 rounded-full bg-info shadow-[0_0_8px_rgba(0,186,209,0.4)]"></div>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-foreground">Production</span>
                     </div>
-                    <div className="text-[10px] font-bold text-muted-foreground italic">Données des 20 derniers jours actifs</div>
-                </div>
-                <ResponsiveContainer width="100%" height="90%">
-                    <ComposedChart data={correlationChartData}>
-                      <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" opacity={0.6} />
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 600 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }} label={{ value: 'Tonnes', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 'bold' } }} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="tonnage" name="tonnage" fill="var(--info)" radius={[4, 4, 0, 0]} barSize={20} opacity={0.8} />
-                      <Line type="monotone" dataKey="deliveryTonnage" name="deliveryTonnage" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
-                    </ComposedChart>
+                    <div className="flex items-center gap-3">
+                      <div className="w-3.5 h-3.5 rounded-full bg-primary shadow-[0_0_8px_rgba(140,87,255,0.4)]"></div>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-foreground">Expédition</span>
+                    </div>
+                  </div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter bg-muted/50 px-3 py-1 rounded-md">
+                    Données des {corrRange === '15d' ? '15' : corrRange === '30d' ? '30' : '20'} derniers jours actifs
+                  </div>
+              </div>
+              <div className="h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                    {corrChartType === 'pie' ? (
+                      <PieChart>
+                        <Pie 
+                          data={deliveryByPhaseData} 
+                          cx="50%" 
+                          cy="50%" 
+                          innerRadius={90} 
+                          outerRadius={130} 
+                          paddingAngle={8} 
+                          dataKey="value" 
+                          nameKey="name" 
+                          stroke="none" 
+                          cornerRadius={8}
+                          animationBegin={0}
+                          animationDuration={1500}
+                        >
+                          {deliveryByPhaseData.map((entry, index) => {
+                            const phaseNum = entry.name.replace('Phase ', '');
+                            const phaseColor = getPhaseColor(phaseNum);
+                            return <Cell key={`cell-${index}`} fill={phaseColor.hex} />;
+                          })}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip chartType="pie" />} />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={40} 
+                          iconType="circle" 
+                          formatter={(value) => <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-2">{value}</span>}
+                        />
+                      </PieChart>
+                    ) : corrChartType === 'composed' ? (
+                      <ComposedChart data={correlationChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="4 4" opacity={0.4} />
+                        <XAxis 
+                          dataKey="date" 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickMargin={15} 
+                          tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }} 
+                        />
+                        <YAxis 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickMargin={10}
+                          tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 600 }} 
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--muted)', opacity: 0.15 }} />
+                        <Bar 
+                          dataKey="tonnage" 
+                          name="tonnage" 
+                          fill="var(--info)" 
+                          radius={[4, 4, 0, 0]} 
+                          barSize={24} 
+                          opacity={0.7} 
+                          animationDuration={2000}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="deliveryTonnage" 
+                          name="deliveryTonnage" 
+                          stroke="var(--primary)" 
+                          strokeWidth={4} 
+                          dot={{ r: 5, fill: 'var(--primary)', strokeWidth: 3, stroke: 'var(--card)' }} 
+                          activeDot={{ r: 8, strokeWidth: 0, fill: 'var(--primary)' }} 
+                          animationDuration={2500}
+                        />
+                      </ComposedChart>
+                    ) : corrChartType === 'bar' ? (
+                      <BarChart data={correlationChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="4 4" opacity={0.4} />
+                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={15} tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700 }} />
+                        <YAxis tickLine={false} axisLine={false} tickMargin={10} tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 600 }} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--muted)', opacity: 0.15 }} />
+                        <Bar dataKey="tonnage" name="tonnage" fill="var(--info)" radius={[4, 4, 0, 0]} barSize={16} />
+                        <Bar dataKey="deliveryTonnage" name="deliveryTonnage" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={16} />
+                      </BarChart>
+                    ) : (
+                      <AreaChart data={correlationChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="fillProdCorr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--info)" stopOpacity={0.3} /><stop offset="95%" stopColor="var(--info)" stopOpacity={0} /></linearGradient>
+                          <linearGradient id="fillDelivCorr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} /><stop offset="95%" stopColor="var(--primary)" stopOpacity={0} /></linearGradient>
+                        </defs>
+                        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="4 4" opacity={0.4} />
+                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={15} tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 700 }} />
+                        <YAxis tickLine={false} axisLine={false} tickMargin={10} tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 600 }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Area type="monotone" dataKey="tonnage" name="tonnage" stroke="var(--info)" fill="url(#fillProdCorr)" strokeWidth={3} />
+                        <Area type="monotone" dataKey="deliveryTonnage" name="deliveryTonnage" stroke="var(--primary)" fill="url(#fillDelivCorr)" strokeWidth={3} />
+                      </AreaChart>
+                    )}
                 </ResponsiveContainer>
-              </motion.div>
-          )}
-         </AnimatePresence>
-      </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
     </motion.div>
   );
 };
 
-const KpiCard = ({ title, value, subValue, icon: Icon, color, trend }: any) => {
+const KpiCard = ({ title, value, subValue, icon: Icon, color, trend, delay = 0 }: any) => {
   const colorMap: any = {
-    purple: { bg: "bg-primary/10", text: "text-primary", icon: "bg-primary text-white" },
-    green: { bg: "bg-success/10", text: "text-success", icon: "bg-success text-white" },
-    amber: { bg: "bg-warning/10", text: "text-warning", icon: "bg-warning text-white" },
-    red: { bg: "bg-destructive/10", text: "text-destructive", icon: "bg-destructive text-white" },
-    cyan: { bg: "bg-info/10", text: "text-info", icon: "bg-info text-white" },
+    purple: { bg: "bg-primary/10", text: "text-primary", icon: "bg-primary text-white", glow: "shadow-[0_0_20px_rgba(140,87,255,0.2)]" },
+    green: { bg: "bg-success/10", text: "text-success", icon: "bg-success text-white", glow: "shadow-[0_0_20px_rgba(40,199,111,0.2)]" },
+    amber: { bg: "bg-warning/10", text: "text-warning", icon: "bg-warning text-white", glow: "shadow-[0_0_20px_rgba(255,159,67,0.2)]" },
+    red: { bg: "bg-destructive/10", text: "text-destructive", icon: "bg-destructive text-white", glow: "shadow-[0_0_20px_rgba(255,76,81,0.2)]" },
+    cyan: { bg: "bg-info/10", text: "text-info", icon: "bg-info text-white", glow: "shadow-[0_0_20px_rgba(0,186,209,0.2)]" },
   };
   const theme = colorMap[color] || colorMap.purple;
 
   return (
-    <div className="bg-card rounded-2xl p-6 shadow-sm border border-border relative overflow-hidden group hover:shadow-md transition-all duration-300">
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
-          <h3 className="text-2xl font-bold text-foreground mt-2 mb-1">{value}</h3>
-          <div className="flex items-center gap-1">
-            {trend === 'up' && <ArrowUpRight size={14} className="text-success" />}
-            {trend === 'down' && <ArrowDownRight size={14} className="text-destructive" />}
-            {trend === 'neutral' && <ArrowLeftRight size={14} className="text-muted-foreground" />}
-            <p className="text-xs text-muted-foreground">{subValue}</p>
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay, duration: 0.4, ease: "easeOut" }}
+      className="bg-card rounded-3xl p-6 shadow-soft-sm border border-border/60 relative overflow-hidden group hover:shadow-soft-md hover:border-primary/30 transition-all duration-500"
+    >
+      <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br from-current to-transparent opacity-[0.03] rounded-full group-hover:scale-150 transition-transform duration-700" style={{ color: `var(--${color === 'purple' ? 'primary' : color})` }}></div>
+      
+      <div className="flex justify-between items-start relative z-10">
+        <div className="space-y-3">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">{title}</p>
+          <h3 className="text-2xl font-black text-foreground tracking-tight tabular-nums">{value}</h3>
+          <div className="flex items-center gap-1.5 bg-secondary/30 w-fit px-2 py-0.5 rounded-full border border-border/20">
+            {trend === 'up' && <ArrowUpRight size={12} className="text-success" />}
+            {trend === 'down' && <ArrowDownRight size={12} className="text-destructive" />}
+            {trend === 'neutral' && <ArrowLeftRight size={12} className="text-muted-foreground" />}
+            <p className="text-[10px] font-bold text-muted-foreground/80">{subValue}</p>
           </div>
         </div>
-        <div className={`h-11 w-11 rounded-xl ${theme.icon} flex items-center justify-center shadow-sm`}>
-          <Icon size={20} />
+        <div className={`h-12 w-12 rounded-2xl ${theme.icon} ${theme.glow} flex items-center justify-center transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110`}>
+          <Icon size={22} strokeWidth={2.5} />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

@@ -326,6 +326,18 @@ export const Logistics = () => {
     }));
   }, [trucks]);
 
+  const getPhaseColor = (num: number) => {
+    const colors = [
+      { bg: 'bg-blue-500/10', text: 'text-blue-600', border: 'border-blue-200' },
+      { bg: 'bg-emerald-500/10', text: 'text-emerald-600', border: 'border-emerald-200' },
+      { bg: 'bg-amber-500/10', text: 'text-amber-600', border: 'border-amber-200' },
+      { bg: 'bg-purple-500/10', text: 'text-purple-600', border: 'border-purple-200' },
+      { bg: 'bg-rose-500/10', text: 'text-rose-600', border: 'border-rose-200' },
+      { bg: 'bg-cyan-500/10', text: 'text-cyan-600', border: 'border-cyan-200' },
+    ];
+    return colors[(num - 1) % colors.length] || colors[0];
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -344,7 +356,7 @@ export const Logistics = () => {
       </div>
 
       {/* Main Filter Toolbar */}
-      <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col gap-4">
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm space-y-4">
         <div className="flex flex-col md:flex-row gap-4 items-center">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
@@ -353,22 +365,31 @@ export const Logistics = () => {
               placeholder="Rechercher Camion, Date, Opérateur..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
             />
           </div>
 
-          <div className="flex-1 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase text-muted-foreground mr-2 shrink-0 flex items-center gap-1">
-                <Filter size={14} /> Filtre:
-              </span>
-              <form className="filter">
-                <input className="btn btn-square" type="reset" value="×" onClick={() => setMainPhaseFilter('all')} />
-                <input className="btn" type="radio" name="logistic-phase" aria-label="Tous" checked={mainPhaseFilter === 'all'} onChange={() => setMainPhaseFilter('all')} />
-                {visibleProjects.map(p => (
-                  <input key={p.id} className="btn" type="radio" name="logistic-phase" aria-label={`Phase ${p.numero_phase}`} checked={mainPhaseFilter === p.id} onChange={() => setMainPhaseFilter(p.id)} />
-                ))}
-              </form>
+          <div className="flex flex-col gap-2 flex-[2] w-full">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+              <button 
+                onClick={() => setMainPhaseFilter('all')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border whitespace-nowrap ${mainPhaseFilter === 'all' ? 'bg-primary text-white border-primary shadow-md' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+              >
+                Toutes les Phases
+              </button>
+              {visibleProjects.map(p => {
+                const phaseColor = getPhaseColor(p.numero_phase);
+                const isActive = mainPhaseFilter === p.id;
+                return (
+                  <button 
+                    key={p.id}
+                    onClick={() => setMainPhaseFilter(p.id)}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border whitespace-nowrap ${isActive ? `${phaseColor.bg} ${phaseColor.text} ${phaseColor.border} shadow-md` : `bg-background text-muted-foreground border-border hover:${phaseColor.border}/50`}`}
+                  >
+                    Phase {p.numero_phase}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

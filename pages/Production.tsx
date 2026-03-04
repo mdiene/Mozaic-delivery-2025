@@ -183,6 +183,19 @@ export const ProductionPage = () => {
     subLabel: p.numero_marche
   }));
 
+  const getPhaseColor = (num: number | string) => {
+    const n = typeof num === 'string' ? parseInt(num) : num;
+    const colors = [
+      { bg: 'bg-blue-500/10', text: 'text-blue-600', border: 'border-blue-200', hex: '#3b82f6' },
+      { bg: 'bg-emerald-500/10', text: 'text-emerald-600', border: 'border-emerald-200', hex: '#10b981' },
+      { bg: 'bg-amber-500/10', text: 'text-amber-600', border: 'border-amber-200', hex: '#f59e0b' },
+      { bg: 'bg-purple-500/10', text: 'text-purple-600', border: 'border-purple-200', hex: '#8b5cf6' },
+      { bg: 'bg-rose-500/10', text: 'text-rose-600', border: 'border-rose-200', hex: '#f43f5e' },
+      { bg: 'bg-cyan-500/10', text: 'text-cyan-600', border: 'border-cyan-200', hex: '#06b6d4' },
+    ];
+    return colors[(n - 1) % colors.length] || colors[0];
+  };
+
   if (loading && projects.length === 0) return <div className="p-8 text-center text-muted-foreground">Chargement...</div>;
 
   return (
@@ -243,30 +256,41 @@ export const ProductionPage = () => {
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <input 
-            type="text" 
-            placeholder="Rechercher par note ou date..." 
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <Filter size={18} className="text-muted-foreground ml-2" />
-          <select 
-            className="flex-1 md:w-48 py-2.5 px-4 rounded-xl bg-secondary/50 border-transparent focus:bg-card focus:border-primary focus:ring-0 transition-all text-sm"
-            value={filterPhase}
-            onChange={(e) => setFilterPhase(e.target.value)}
-          >
-            <option value="all">Toutes les Phases</option>
-            {Array.from(new Set(projects.map(p => p.id))).map(id => {
-              const p = projects.find(proj => proj.id === id);
-              return <option key={id} value={id}>Phase {p?.numero_phase}</option>;
-            })}
-          </select>
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm space-y-4">
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <input 
+              type="text" 
+              placeholder="Rechercher par note ou date..." 
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2 flex-[2] w-full">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+              <button 
+                onClick={() => setFilterPhase('all')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border whitespace-nowrap ${filterPhase === 'all' ? 'bg-primary text-white border-primary shadow-md' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+              >
+                Toutes les Phases
+              </button>
+              {projects.map(p => {
+                const phaseColor = getPhaseColor(p.numero_phase);
+                const isActive = filterPhase === p.id;
+                return (
+                  <button 
+                    key={p.id}
+                    onClick={() => setFilterPhase(p.id)}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border whitespace-nowrap ${isActive ? `${phaseColor.bg} ${phaseColor.text} ${phaseColor.border} shadow-md` : `bg-background text-muted-foreground border-border hover:${phaseColor.border}/50`}`}
+                  >
+                    Phase {p.numero_phase}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
