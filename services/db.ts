@@ -5,7 +5,7 @@ import {
   Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference, ProductionView,
   AdminCategoryDepense, AdminModePaiement, AdminCodeAnalytique, AdminPoste, AdminPersonnel, AdminDepense,
   EquipmentType, Equipment, HQSEInspection, HQSEInspectionPlan, HQSENonConformity, HQSECorrectiveAction,
-  EmployeeEndowment, HQSESafetyAudit
+  EmployeeEndowment, HQSESafetyAudit, HQSEEmployeeAllocation, HQSESignalement
 } from '../types';
 
 const safeLog = (message: string, ...args: any[]) => {
@@ -804,6 +804,81 @@ export const db = {
     }));
   },
 
+  getHQSEEmployeeAllocations: async (employeeId?: string): Promise<HQSEEmployeeAllocation[]> => {
+    let query = supabase.from('hqse_employee_allocations').select(`
+      *,
+      admin_personnel(nom, prenom, telephone),
+      equipments(name, ref_code)
+    `);
+    
+    if (employeeId) {
+      query = query.eq('employee_id', employeeId);
+    }
+
+    const { data, error } = await query.order('allocation_date', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching allocations:', error);
+      return [];
+    }
+
+    return (data || []).map((a: any) => ({
+      ...a,
+      employee_name: a.admin_personnel ? `${a.admin_personnel.prenom} ${a.admin_personnel.nom}` : '-',
+      equipment_name: a.equipments?.name || '-',
+      equipment_ref: a.equipments?.ref_code || '-'
+    }));
+  },
+
+  createHQSEEmployeeAllocation: async (payload: any) => {
+    // 1. Check stock from equipment
+    const { data: equipData, error: equipError } = await supabase
+      .from('equipments')
+      .select('quantite_dispo, type_id')
+      .eq('id', payload.equipment_id)
+      .single();
+
+    if (equipError || !equipData) throw new Error('Équipement introuvable');
+    
+    if ((equipData.quantite_dispo || 0) < payload.quantity_allocated) {
+      throw new Error('Stock insuffisant pour cet équipement');
+    }
+
+    // 2. Create allocation
+    const { data, error } = await supabase.from('hqse_employee_allocations').insert([payload]).select();
+    if (error) throw error;
+
+    // 3. Update equipment stock
+    const { error: updateError } = await supabase
+      .from('equipments')
+      .update({ 
+        quantite_dispo: (equipData.quantite_dispo || 0) - payload.quantity_allocated 
+      })
+      .eq('id', payload.equipment_id);
+
+    if (updateError) console.error('Error updating equipment stock:', updateError);
+
+    // 4. Update global stock in equipment_types if type_id exists
+    if (equipData.type_id) {
+      const { data: typeData } = await supabase
+        .from('equipment_types')
+        .select('available_stock_quantity')
+        .eq('id', equipData.type_id)
+        .single();
+      
+      if (typeData) {
+        await supabase
+          .from('equipment_types')
+          .update({ 
+            available_stock_quantity: typeData.available_stock_quantity - payload.quantity_allocated 
+          })
+          .eq('id', equipData.type_id);
+      }
+    }
+
+    return data;
+  },
+
   getHQSEInspectionPlans: async (): Promise<HQSEInspectionPlan[]> => {
     const { data } = await supabase.from('hqse_inspection_plans').select(`
       *,
@@ -820,11 +895,12 @@ export const db = {
   getHQSENonConformities: async (): Promise<HQSENonConformity[]> => {
     const { data } = await supabase.from('hqse_non_conformities').select(`
       *,
-      equipments(name)
+      equipments(name, ref_code)
     `).order('declared_at', { ascending: false });
     return (data || []).map((nc: any) => ({
       ...nc,
-      equipment_name: nc.equipments?.name
+      equipment_name: nc.equipments?.name,
+      equipment_ref: nc.equipments?.ref_code
     }));
   },
 
@@ -859,13 +935,42 @@ export const db = {
       *,
       admin_personnel(nom, prenom),
       user_preferences(user_email),
-      equipments(name)
+      equipments(name, ref_code)
     `).order('audit_date', { ascending: false });
     return (data || []).map((a: any) => ({
       ...a,
       employee_name: a.admin_personnel ? `${a.admin_personnel.prenom} ${a.admin_personnel.nom}` : '-',
       auditor_name: a.user_preferences?.user_email || '-',
-      equipment_name: a.equipments?.name
+      equipment_name: a.equipments?.name,
+      equipment_ref: a.equipments?.ref_code
     }));
+  },
+
+  getHQSESignalements: async (): Promise<HQSESignalement[]> => {
+    const { data, error } = await supabase.from('hqse_tickets_signalements').select(`
+      *,
+      equipments(name, ref_code),
+      admin_personnel!hqse_tickets_signalements_employee_concerned_id_fkey(nom, prenom),
+      reporter:reported_by(user_email)
+    `).order('event_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching signalements:', error);
+      return [];
+    }
+
+    return (data || []).map((s: any) => ({
+      ...s,
+      equipment_name: s.equipments?.name,
+      equipment_ref: s.equipments?.ref_code,
+      employee_name: s.admin_personnel ? `${s.admin_personnel.prenom} ${s.admin_personnel.nom}` : '-',
+      reporter_name: s.reporter?.user_email || '-'
+    }));
+  },
+
+  createHQSESignalement: async (payload: any) => {
+    const { data, error } = await supabase.from('hqse_tickets_signalements').insert([payload]).select();
+    if (error) throw error;
+    return data;
   }
 };

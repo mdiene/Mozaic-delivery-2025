@@ -46,7 +46,8 @@ import {
   HQSEInspectionPlan, 
   HQSENonConformity, 
   HQSECorrectiveAction,
-  AdminPersonnel
+  AdminPersonnel,
+  HQSESignalement
 } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -63,6 +64,7 @@ export const HQSEPage = () => {
   const [correctiveActions, setCorrectiveActions] = useState<HQSECorrectiveAction[]>([]);
   const [personnel, setPersonnel] = useState<AdminPersonnel[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
+  const [signalements, setSignalements] = useState<HQSESignalement[]>([]);
 
   // Modal States
   const [isEquipmentModalOpen, setIsEquipmentModalOpen] = useState(false);
@@ -70,12 +72,15 @@ export const HQSEPage = () => {
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [ticketData, setTicketData] = useState<any>({
+  const [ticketData, setTicketData] = useState<Partial<HQSESignalement>>({
     register: 'sante',
-    category: 'humain',
+    origin: 'humain',
     equipment_id: '',
-    severity: 'Majeure',
-    description: ''
+    employee_concerned_id: '',
+    severity: 'Mineure',
+    reason_description: '',
+    measures_to_take: '',
+    event_date: new Date().toISOString().split('T')[0] + 'T' + new Date().toTimeString().split(' ')[0].substring(0, 5)
   });
 
   // Form State
@@ -96,14 +101,15 @@ export const HQSEPage = () => {
   const loadHQSEData = async () => {
     try {
       setLoading(true);
-      const [eq, plans, insp, nc, ca, pers, types] = await Promise.all([
+      const [eq, plans, insp, nc, ca, pers, types, sigs] = await Promise.all([
         db.getEquipments(),
         db.getHQSEInspectionPlans(),
         db.getHQSEInspections(),
         db.getHQSENonConformities(),
         db.getHQSECorrectiveActions(),
         db.getAdminPersonnel(),
-        db.getEquipmentTypes()
+        db.getEquipmentTypes(),
+        db.getHQSESignalements()
       ]);
       setEquipments(eq);
       setInspectionPlans(plans);
@@ -112,6 +118,7 @@ export const HQSEPage = () => {
       setCorrectiveActions(ca);
       setPersonnel(pers);
       setEquipmentTypes(types);
+      setSignalements(sigs);
     } catch (e) {
       console.error('Error loading HQSE data:', e);
     } finally {
@@ -200,29 +207,37 @@ export const HQSEPage = () => {
 
   const handleSaveTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticketData.description) return;
+    if (!ticketData.reason_description) return;
 
     try {
       setFormLoading(true);
-      await db.createItem('hqse_tickets', {
+      
+      if (!user?.id) {
+        throw new Error('Utilisateur non identifié. Veuillez vous reconnecter.');
+      }
+      
+      await db.createHQSESignalement({
         ...ticketData,
-        title: `Signalement ${ticketData.register} - ${new Date().toLocaleDateString()}`,
-        status: 'Ouvert',
-        declared_at: new Date().toISOString()
+        status: 'Nouveau',
+        reported_by: user.id
       });
       
       setTicketData({
         register: 'sante',
-        category: 'humain',
+        origin: 'humain',
         equipment_id: '',
-        severity: 'Majeure',
-        description: ''
+        employee_concerned_id: '',
+        severity: 'Mineure',
+        reason_description: '',
+        measures_to_take: '',
+        event_date: new Date().toISOString().split('T')[0] + 'T' + new Date().toTimeString().split(' ')[0].substring(0, 5)
       });
       
+      await loadHQSEData();
       alert('Signalement enregistré avec succès.');
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error saving ticket:', e);
-      alert('Erreur lors de l\'enregistrement du signalement.');
+      alert(`Erreur lors de l'enregistrement du signalement: ${e.message || 'Erreur inconnue'}`);
     } finally {
       setFormLoading(false);
     }
@@ -464,8 +479,9 @@ export const HQSEPage = () => {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
-            className="max-w-4xl mx-auto"
+            className="max-w-5xl mx-auto space-y-8"
           >
+            {/* Ticket Creation Form */}
             <div className="bg-card rounded-3xl border border-border shadow-soft-sm overflow-hidden">
               <div className="p-8 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
                 <h3 className="text-xl font-black text-foreground tracking-tight flex items-center gap-3">
@@ -490,7 +506,7 @@ export const HQSEPage = () => {
                       <button 
                         key={item.id}
                         type="button"
-                        onClick={() => setTicketData({...ticketData, register: item.id})}
+                        onClick={() => setTicketData({...ticketData, register: item.id as any})}
                         className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all group ${ticketData.register === item.id ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50 hover:bg-secondary/50'}`}
                       >
                         <div className={`h-12 w-12 rounded-xl ${item.bg} ${item.color} flex items-center justify-center group-hover:scale-110 transition-transform ${ticketData.register === item.id ? 'scale-110 shadow-lg' : ''}`}>
@@ -502,7 +518,7 @@ export const HQSEPage = () => {
                   </div>
                 </div>
 
-                {/* Pertinence Selection */}
+                {/* Origin Selection */}
                 <div className="space-y-4">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pertinence / Origine</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -515,13 +531,13 @@ export const HQSEPage = () => {
                       <button 
                         key={item.id}
                         type="button"
-                        onClick={() => setTicketData({...ticketData, category: item.id})}
-                        className={`flex items-center gap-3 p-4 rounded-2xl border transition-all group ${ticketData.category === item.id ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50 hover:bg-secondary/50'}`}
+                        onClick={() => setTicketData({...ticketData, origin: item.id as any})}
+                        className={`flex items-center gap-3 p-4 rounded-2xl border transition-all group ${ticketData.origin === item.id ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50 hover:bg-secondary/50'}`}
                       >
-                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${ticketData.category === item.id ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground group-hover:text-primary'}`}>
+                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center transition-colors ${ticketData.origin === item.id ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground group-hover:text-primary'}`}>
                           <item.icon size={20} />
                         </div>
-                        <span className={`text-xs font-bold ${ticketData.category === item.id ? 'text-primary' : 'text-foreground'}`}>{item.label}</span>
+                        <span className={`text-xs font-bold ${ticketData.origin === item.id ? 'text-primary' : 'text-foreground'}`}>{item.label}</span>
                       </button>
                     ))}
                   </div>
@@ -531,14 +547,31 @@ export const HQSEPage = () => {
                 <form onSubmit={handleSaveTicket} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Équipement concerné</label>
-                    <select 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                    <AdvancedSelect 
+                      options={equipments.map(e => ({ value: e.id, label: e.name, subLabel: e.ref_code }))}
                       value={ticketData.equipment_id || ''}
-                      onChange={e => setTicketData({...ticketData, equipment_id: e.target.value})}
-                    >
-                      <option value="">Sélectionner un équipement...</option>
-                      {equipments.map(e => <option key={e.id} value={e.id}>{e.ref_code} - {e.name}</option>)}
-                    </select>
+                      onChange={val => setTicketData({...ticketData, equipment_id: val})}
+                      placeholder="Sélectionner un équipement..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Personnel concerné</label>
+                    <AdvancedSelect 
+                      options={personnelOptions}
+                      value={ticketData.employee_concerned_id || ''}
+                      onChange={val => setTicketData({...ticketData, employee_concerned_id: val})}
+                      placeholder="Sélectionner un employé..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Date & Heure de l'événement</label>
+                    <input 
+                      type="datetime-local"
+                      required
+                      className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                      value={ticketData.event_date || ''}
+                      onChange={e => setTicketData({...ticketData, event_date: e.target.value})}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Gravité</label>
@@ -547,8 +580,8 @@ export const HQSEPage = () => {
                         <button 
                           key={s} 
                           type="button"
-                          onClick={() => setTicketData({...ticketData, severity: s})}
-                          className={`flex-1 py-2 rounded-lg border text-xs font-bold transition-all ${ticketData.severity === s ? 'bg-primary text-white border-primary shadow-md' : 'border-border hover:bg-secondary'}`}
+                          onClick={() => setTicketData({...ticketData, severity: s as any})}
+                          className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition-all ${ticketData.severity === s ? 'bg-primary text-white border-primary shadow-md' : 'border-border hover:bg-secondary'}`}
                         >
                           {s}
                         </button>
@@ -556,14 +589,24 @@ export const HQSEPage = () => {
                     </div>
                   </div>
                   <div className="md:col-span-2 space-y-2">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Description détaillée</label>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Description de la cause / raison</label>
                     <textarea 
-                      rows={4}
+                      rows={3}
                       required
-                      placeholder="Décrivez l'incident ou l'anomalie constatée..."
+                      placeholder="Décrivez précisément ce qui s'est passé..."
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none"
-                      value={ticketData.description || ''}
-                      onChange={e => setTicketData({...ticketData, description: e.target.value})}
+                      value={ticketData.reason_description || ''}
+                      onChange={e => setTicketData({...ticketData, reason_description: e.target.value})}
+                    ></textarea>
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mesures à prendre / Actions immédiates</label>
+                    <textarea 
+                      rows={2}
+                      placeholder="Quelles actions ont été ou doivent être entreprises ?"
+                      className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none"
+                      value={ticketData.measures_to_take || ''}
+                      onChange={e => setTicketData({...ticketData, measures_to_take: e.target.value})}
                     ></textarea>
                   </div>
 
@@ -578,6 +621,97 @@ export const HQSEPage = () => {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+
+            {/* Tickets List */}
+            <div className="bg-card rounded-3xl border border-border shadow-soft-sm overflow-hidden">
+              <div className="p-6 border-b border-border flex items-center justify-between bg-muted/30">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Activity className="text-primary" size={20} />
+                  Liste des Signalements & Tickets
+                </h3>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                    <input type="text" placeholder="Filtrer..." className="pl-9 pr-4 py-1.5 bg-background border border-border rounded-lg text-xs outline-none w-48 focus:ring-1 focus:ring-primary" />
+                  </div>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-muted/30">
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Date Event</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Registre / Origine</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Concerne</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Gravité</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</th>
+                      <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {signalements.map((sig) => (
+                      <tr key={sig.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-foreground">{new Date(sig.event_date).toLocaleDateString()}</span>
+                            <span className="text-[10px] text-muted-foreground">{new Date(sig.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-primary">{sig.register}</span>
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase">{sig.origin}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            {sig.equipment_name && (
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                                <Wrench size={12} className="text-primary" />
+                                {sig.equipment_name}
+                              </div>
+                            )}
+                            {sig.employee_name && (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                                <User size={12} />
+                                {sig.employee_name}
+                              </div>
+                            )}
+                            {!sig.equipment_name && !sig.employee_name && <span className="text-xs text-muted-foreground">-</span>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                            sig.severity === 'Critique' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                            sig.severity === 'Majeure' ? 'bg-warning/10 text-warning border-warning/20' :
+                            'bg-info/10 text-info border-info/20'
+                          }`}>
+                            {sig.severity}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-xs text-muted-foreground max-w-xs truncate" title={sig.reason_description}>
+                            {sig.reason_description}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 rounded-lg bg-secondary text-foreground text-[10px] font-bold uppercase">
+                            {sig.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {signalements.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground italic text-sm">
+                          Aucun signalement enregistré pour le moment.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </motion.div>

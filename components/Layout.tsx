@@ -270,7 +270,8 @@ const Sidebar = ({
           {(isAdmin || isVisitor) && (
             <SidebarSubmenu label="HQSE" icon={ShieldCheck} basePath="/hqse" expanded={expanded}>
                <li><NavLink to="/hqse" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Activity size={16} className="shrink-0" /><span className="truncate">Dashboard</span></NavLink></li>
-               <li><NavLink to="/hqse/dotations" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><HardHat size={16} className="shrink-0" /><span className="truncate">Dotations & Contrôle</span></NavLink></li>
+               <li><NavLink to="/hqse/allocations" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Gift size={16} className="shrink-0" /><span className="truncate">Dotations</span></NavLink></li>
+               <li><NavLink to="/hqse/dotations" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><HardHat size={16} className="shrink-0" /><span className="truncate">Contrôle</span></NavLink></li>
             </SidebarSubmenu>
           )}
 

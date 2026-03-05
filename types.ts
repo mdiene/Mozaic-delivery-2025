@@ -362,6 +362,7 @@ export interface Equipment {
   status: 'Actif' | 'Inactif' | 'Maintenance';
   responsible_user_id?: string;
   type_id?: string;
+  quantite_dispo?: number;
   created_at: string;
   // Enriched fields
   type_label?: string;
@@ -401,10 +402,11 @@ export interface HQSENonConformity {
   equipment_id?: string;
   description: string;
   severity: 'Mineure' | 'Majeure' | 'Critique';
-  status: 'Ouvert' | 'En cours' | 'Résolu';
+  status: string;
   declared_at: string;
   // Enriched fields
   equipment_name?: string;
+  equipment_ref?: string;
 }
 
 export interface HQSECorrectiveAction {
@@ -415,9 +417,29 @@ export interface HQSECorrectiveAction {
   target_date?: string;
   completion_date?: string;
   status: 'A faire' | 'En cours' | 'Terminé';
+  created_at: string;
   // Enriched fields
   nc_description?: string;
   assigned_person_name?: string;
+}
+
+export interface HQSEEmployeeAllocation {
+  id: string;
+  employee_id: string;
+  equipment_id: string;
+  quantity_allocated: number;
+  allocation_date: string;
+  expected_renewal_date?: string;
+  condition_at_allocation?: string;
+  is_returned: boolean;
+  return_date?: string;
+  comments?: string;
+  created_at: string;
+  // Enriched fields
+  employee_name?: string;
+  employee_matricule?: string;
+  equipment_name?: string;
+  equipment_ref?: string;
 }
 
 export interface EmployeeEndowment {
@@ -445,11 +467,30 @@ export interface HQSESafetyAudit {
   has_loss_occurred: boolean;
   has_deteriorated_equipment: boolean;
   corrective_action_required?: string;
-  sanction_level?: 'RAS' | 'Avertissement' | 'Sanction lourde';
-  report_photo_url?: string;
   created_at: string;
   // Enriched fields
   employee_name?: string;
   auditor_name?: string;
   equipment_name?: string;
+  equipment_ref?: string;
+}
+
+export interface HQSESignalement {
+  id: string;
+  register: 'accident' | 'sante' | 'danger' | 'qualite' | 'environnement';
+  origin: 'materiel' | 'humain' | 'organisationnel' | 'externe';
+  equipment_id?: string;
+  employee_concerned_id?: string;
+  event_date: string;
+  severity: 'Mineure' | 'Majeure' | 'Critique';
+  reason_description: string;
+  measures_to_take?: string;
+  status: string;
+  reported_by: string;
+  created_at: string;
+  // Enriched fields
+  equipment_name?: string;
+  equipment_ref?: string;
+  employee_name?: string;
+  reporter_name?: string;
 }

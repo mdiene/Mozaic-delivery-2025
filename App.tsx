@@ -21,6 +21,7 @@ import { ProductionExcavation } from './pages/ProductionExcavation';
 import { Login } from './pages/Login';
 import { HQSEPage } from './pages/HQSE';
 import { HQSEDotations } from './pages/HQSEDotations';
+import { HQSEAllocations } from './pages/HQSEAllocations';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { PersonnelPage } from './pages/admin/Personnel';
 import { useAuth } from './contexts/AuthContext';
@@ -175,6 +176,12 @@ function App() {
           <Route path="hqse/dotations" element={
             <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
               <HQSEDotations />
+            </ProtectedRoute>
+          } />
+
+          <Route path="hqse/allocations" element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <HQSEAllocations />
             </ProtectedRoute>
           } />
 
