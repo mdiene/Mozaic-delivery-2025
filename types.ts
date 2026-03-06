@@ -375,12 +375,14 @@ export interface HQSEInspection {
   inspector_name?: string;
   inspection_date: string;
   verdict: 'OK' | 'NON-CONFORME';
-  report_url?: string;
+  report?: string;
   comments?: string;
   created_at: string;
+  id_employe?: string;
   // Enriched fields
   equipment_name?: string;
   equipment_ref?: string;
+  employee_name?: string;
 }
 
 export interface HQSEInspectionPlan {

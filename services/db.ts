@@ -795,13 +795,27 @@ export const db = {
   getHQSEInspections: async (): Promise<HQSEInspection[]> => {
     const { data } = await supabase.from('hqse_inspections').select(`
       *,
-      equipments(name, ref_code)
+      equipments(name, ref_code),
+      admin_personnel!hqse_inspections_id_employe_fkey(nom, prenom)
     `).order('inspection_date', { ascending: false });
     return (data || []).map((i: any) => ({
       ...i,
       equipment_name: i.equipments?.name,
-      equipment_ref: i.equipments?.ref_code
+      equipment_ref: i.equipments?.ref_code,
+      employee_name: i.admin_personnel ? `${i.admin_personnel.prenom} ${i.admin_personnel.nom}` : '-'
     }));
+  },
+
+  createHQSEInspection: async (payload: any) => {
+    const { data, error } = await supabase.from('hqse_inspections').insert([payload]).select();
+    if (error) throw error;
+    return data;
+  },
+
+  updateHQSEInspection: async (id: string, payload: any) => {
+    const { data, error } = await supabase.from('hqse_inspections').update(payload).eq('id', id).select();
+    if (error) throw error;
+    return data;
   },
 
   getHQSEEmployeeAllocations: async (employeeId?: string): Promise<HQSEEmployeeAllocation[]> => {

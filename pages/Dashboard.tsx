@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
-import { ProductionView, DeliveryView, HQSEInspection, HQSENonConformity, HQSECorrectiveAction } from '../types';
+import { ProductionView, DeliveryView, HQSEInspection, HQSENonConformity, HQSECorrectiveAction, HQSESignalement } from '../types';
 import { getPhaseColor } from '../lib/colors';
 
 // FlyonUI Palette
@@ -87,6 +87,7 @@ export const Dashboard = () => {
   const [productionHistory, setProductionHistory] = useState<ProductionView[]>([]);
   const [deliveriesHistory, setDeliveriesHistory] = useState<DeliveryView[]>([]);
   const [hqseActivities, setHqseActivities] = useState<any[]>([]);
+  const [hqseSignalements, setHqseSignalements] = useState<HQSESignalement[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
@@ -107,14 +108,15 @@ export const Dashboard = () => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [s, c, p, d, insp, nc, ca] = await Promise.all([
+        const [s, c, p, d, insp, nc, ca, sig] = await Promise.all([
           db.getStats(selectedProject),
           db.getChartData(selectedProject),
           db.getProductions(),
           db.getDeliveriesView(),
           db.getHQSEInspections(),
           db.getHQSENonConformities(),
-          db.getHQSECorrectiveActions()
+          db.getHQSECorrectiveActions(),
+          db.getHQSESignalements()
         ]);
         setStats(s as any); 
         setChartData(c);
@@ -140,6 +142,7 @@ export const Dashboard = () => {
           ...ca.map(a => ({ ...a, type: 'ca', date: a.target_date || a.created_at }))
         ];
         setHqseActivities(combinedHqse);
+        setHqseSignalements(sig);
       } catch (e: any) {
         console.error('Error loading dashboard data:', e.message || e);
       } finally {
@@ -245,6 +248,23 @@ export const Dashboard = () => {
     });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [deliveriesHistory]);
+
+  const hqseSummaryData = useMemo(() => {
+    const severityMap: Record<string, number> = { 'Critique': 0, 'Majeure': 0, 'Mineure': 0, 'Observation': 0 };
+    const registerMap: Record<string, number> = {};
+
+    hqseSignalements.forEach(s => {
+      severityMap[s.severity] = (severityMap[s.severity] || 0) + 1;
+      registerMap[s.register] = (registerMap[s.register] || 0) + 1;
+    });
+
+    return {
+      severity: Object.entries(severityMap).map(([name, value]) => ({ name, value })),
+      register: Object.entries(registerMap).map(([name, value]) => ({ name, value })),
+      totalOpen: hqseSignalements.filter(s => s.status === 'Nouveau').length,
+      criticalCount: hqseSignalements.filter(s => s.severity === 'Critique').length
+    };
+  }, [hqseSignalements]);
 
   const recentActivities = useMemo(() => {
     const activities: any[] = [];
@@ -751,6 +771,108 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
+
+      {/* HQSE Overview Section */}
+      <div className="pt-2 space-y-4">
+        <div className="w-full flex flex-col md:flex-row md:items-center justify-between p-6 rounded-2xl border bg-card border-border shadow-soft-sm gap-4">
+          <div className="flex items-center gap-5">
+            <div className="p-3.5 rounded-2xl bg-destructive/15 text-destructive shadow-glow">
+              <ShieldCheck size={26} />
+            </div>
+            <div className="text-left">
+              <h3 className="font-bold text-xl text-foreground">Sécurité & Conformité (HQSE)</h3>
+              <p className="text-sm text-muted-foreground font-medium">Aperçu des signalements et risques opérationnels</p>
+            </div>
+          </div>
+          <Link to="/hqse" className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all flex items-center gap-2">
+            Tableau de Bord HQSE <ArrowUpRight size={14} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Tickets Ouverts</h4>
+                <span className="px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-bold">TEMPS RÉEL</span>
+              </div>
+              <div className="flex items-end gap-3">
+                <span className="text-4xl font-black text-foreground">{hqseSummaryData.totalOpen}</span>
+                <span className="text-xs text-muted-foreground mb-1.5 font-medium">Signalements nouveaux</span>
+              </div>
+              <div className="pt-4 border-t border-border/50">
+                <div className="flex items-center justify-between text-xs mb-2">
+                  <span className="text-muted-foreground font-medium">Risques Critiques</span>
+                  <span className="font-bold text-destructive">{hqseSummaryData.criticalCount}</span>
+                </div>
+                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-destructive" 
+                    style={{ width: `${Math.min(100, (hqseSummaryData.criticalCount / (hqseSummaryData.totalOpen || 1)) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border/50">
+              <p className="text-[10px] text-muted-foreground leading-relaxed italic">
+                "La sécurité n'est pas un gadget, c'est un état d'esprit." - Veillez à la clôture rapide des tickets critiques.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm">
+            <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Répartition par Registre</h4>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={hqseSummaryData.register}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {hqseSummaryData.register.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm">
+            <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Gravité des Événements</h4>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={hqseSummaryData.severity}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                  <YAxis hide />
+                  <Tooltip cursor={{ fill: 'transparent' }} />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={30}>
+                    {hqseSummaryData.severity.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={
+                          entry.name === 'Critique' ? 'var(--destructive)' :
+                          entry.name === 'Majeure' ? 'var(--warning)' :
+                          entry.name === 'Mineure' ? 'var(--info)' :
+                          'var(--muted-foreground)'
+                        } 
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
 
     </motion.div>
   );

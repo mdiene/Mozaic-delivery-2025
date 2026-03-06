@@ -190,7 +190,7 @@ const Sidebar = ({
       </div>
 
       {/* Navigation */}
-      <nav className="mt-4 px-3 overflow-y-auto h-[calc(100vh-140px)] no-scrollbar">
+      <nav className="mt-4 px-3 overflow-y-auto h-[calc(100vh-80px)] no-scrollbar">
         <ul className="flex flex-col gap-1">
           
           <li className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-4 mb-2 mt-4">
@@ -283,24 +283,6 @@ const Sidebar = ({
           )}
         </ul>
       </nav>
-
-      {/* Footer / User Profile - Removed Logout Section as requested */}
-      <div className="absolute bottom-0 w-full p-4 border-t border-sidebar-border/50">
-        <div className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${expanded ? 'bg-sidebar-accent' : ''}`}>
-          <div className="relative shrink-0">
-             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary shadow-sm">
-                <User size={18} />
-             </div>
-             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-sidebar"></span>
-          </div>
-          {expanded && (
-            <div className="flex flex-col overflow-hidden animate-fade-in">
-              <span className="truncate text-sm font-bold text-foreground">{user?.name}</span>
-              <span className="truncate text-[10px] text-muted-foreground uppercase font-semibold">{user?.role}</span>
-            </div>
-          )}
-        </div>
-      </div>
     </aside>
   );
 };
