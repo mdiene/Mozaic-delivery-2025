@@ -1,7 +1,9 @@
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Network } from 'vis-network';
 import { NetworkHierarchy } from '../types';
+import { Truck, User, FileText, Scale, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface Props {
   regions: NetworkHierarchy;
@@ -59,6 +61,8 @@ const HEX_COLORS = [
 export default function RegionalGraph({ regions }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
+  const [hoveredData, setHoveredData] = useState<any>(null);
+  const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!containerRef.current || regions.length === 0) return;
@@ -179,6 +183,7 @@ export default function RegionalGraph({ regions }: Props) {
                  size: 8, // 4 -> 8
                  color: '#10b981', // Emerald for active delivery
                  group: 'delivery',
+                 deliveryData: del,
                  title: `📄 BL: ${del.bl_number}\n⚖️ Charge: ${del.tonnage} T\n🚛 Camion: ${del.truck_plate}\n👤 Chauffeur: ${del.driver_name}`
                });
 
@@ -235,6 +240,27 @@ export default function RegionalGraph({ regions }: Props) {
     // 3. Initialize Network
     networkRef.current = new Network(containerRef.current, { nodes, edges }, options);
 
+    // 4. Custom Hover Logic
+    networkRef.current.on('hoverNode', (params) => {
+      const nodeId = params.node;
+      const node = nodes.find(n => n.id === nodeId);
+      
+      if (node && node.group === 'delivery') {
+        const positions = networkRef.current?.getPositions([nodeId]);
+        if (positions && positions[nodeId]) {
+          const domPos = networkRef.current?.canvasToDOM(positions[nodeId]);
+          if (domPos) {
+            setPopupPos({ x: domPos.x, y: domPos.y });
+            setHoveredData(node.deliveryData);
+          }
+        }
+      }
+    });
+
+    networkRef.current.on('blurNode', () => {
+      setHoveredData(null);
+    });
+
     return () => {
       if (networkRef.current) {
         networkRef.current.destroy();
@@ -253,6 +279,77 @@ export default function RegionalGraph({ regions }: Props) {
        <div className="relative w-full flex-1 bg-muted/5 min-h-[500px]">
           <div ref={containerRef} className="absolute inset-0" />
           
+          {/* Custom Delivery Popup */}
+          <AnimatePresence>
+            {hoveredData && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: -20 }}
+                exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                className="absolute z-50 pointer-events-none"
+                style={{ 
+                  left: popupPos.x, 
+                  top: popupPos.y,
+                  transform: 'translate(-50%, -100%)'
+                }}
+              >
+                <div className="bg-background/95 backdrop-blur-md border border-emerald-500/30 shadow-2xl rounded-xl p-4 min-w-[240px] overflow-hidden">
+                  {/* Header Accent */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
+                  
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-600">
+                      <Truck size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Détails Livraison</h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-foreground font-mono">{hoveredData.bl_number}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <Scale size={12} /> Charge
+                      </span>
+                      <span className="font-bold text-foreground bg-emerald-500/10 px-2 py-0.5 rounded-full text-[10px]">
+                        {hoveredData.tonnage} T
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <Truck size={12} /> Camion
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {hoveredData.truck_plate}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <User size={12} /> Chauffeur
+                      </span>
+                      <span className="font-medium text-foreground truncate max-w-[120px]">
+                        {hoveredData.driver_name}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-[10px] text-muted-foreground italic">
+                    <Info size={10} />
+                    Livraison en cours / active
+                  </div>
+                </div>
+                
+                {/* Arrow */}
+                <div className="w-3 h-3 bg-background border-r border-b border-emerald-500/30 rotate-45 mx-auto -mt-1.5 shadow-lg" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Legend Overlay */}
           <div className="absolute bottom-4 right-4 bg-background/90 backdrop-blur p-3 rounded-lg border border-border shadow-sm text-xs space-y-2 pointer-events-none">
              <div className="flex items-center gap-2">
