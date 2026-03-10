@@ -12,11 +12,11 @@ import {
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, ChevronDown, ChevronUp, MoreHorizontal, Maximize2, Minimize2,
   Coins, Factory, Package, CalendarDays, ArrowLeftRight,
-  ArrowUpRight, ArrowDownRight, Search, ShieldCheck, AlertTriangle, ClipboardCheck
+  ArrowUpRight, ArrowDownRight, Search, ShieldCheck, AlertTriangle, ClipboardCheck, Zap
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
-import { ProductionView, DeliveryView, HQSEInspection, HQSENonConformity, HQSECorrectiveAction, HQSESignalement } from '../types';
+import { ProductionView, DeliveryView, HQSEInspection, HQSENonConformity, HQSECorrectiveAction, HQSESignalement, AdminPersonnel } from '../types';
 import { getPhaseColor } from '../lib/colors';
 
 // FlyonUI Palette
@@ -87,7 +87,11 @@ export const Dashboard = () => {
   const [productionHistory, setProductionHistory] = useState<ProductionView[]>([]);
   const [deliveriesHistory, setDeliveriesHistory] = useState<DeliveryView[]>([]);
   const [hqseActivities, setHqseActivities] = useState<any[]>([]);
+  const [hqseSummaryData, setHqseSummaryData] = useState<any>({ severity: [], register: [], totalOpen: 0, criticalCount: 0, originBreakdown: [], safetyTrend: [] });
   const [hqseSignalements, setHqseSignalements] = useState<HQSESignalement[]>([]);
+  const [adminStats, setAdminStats] = useState({ totalEmployees: 0, totalPostes: 0 });
+  const [adminCharts, setAdminCharts] = useState({ personnelByPoste: [], personnelByCategorie: [] });
+  const [adminPersonnel, setAdminPersonnel] = useState<AdminPersonnel[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
@@ -108,7 +112,7 @@ export const Dashboard = () => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [s, c, p, d, insp, nc, ca, sig] = await Promise.all([
+        const [s, c, p, d, insp, nc, ca, sig, adminPers, adminPostes] = await Promise.all([
           db.getStats(selectedProject),
           db.getChartData(selectedProject),
           db.getProductions(),
@@ -116,7 +120,9 @@ export const Dashboard = () => {
           db.getHQSEInspections(),
           db.getHQSENonConformities(),
           db.getHQSECorrectiveActions(),
-          db.getHQSESignalements()
+          db.getHQSESignalements(),
+          db.getAdminPersonnel(),
+          db.getAdminPostes()
         ]);
         setStats(s as any); 
         setChartData(c);
@@ -143,6 +149,32 @@ export const Dashboard = () => {
         ];
         setHqseActivities(combinedHqse);
         setHqseSignalements(sig);
+
+        // Process Admin Data
+        setAdminPersonnel(adminPers);
+        setAdminStats({
+          totalEmployees: adminPers.length,
+          totalPostes: adminPostes.length
+        });
+
+        const personnelByPoste = adminPostes.map(poste => ({
+          name: poste.titre_poste,
+          count: adminPers.filter(p => p.id_poste === poste.id_poste).length
+        })).sort((a, b) => b.count - a.count).slice(0, 6);
+
+        const personnelByCategorie = Array.from(new Set(adminPostes.map(p => p.categorie_poste))).map(cat => ({
+          name: cat,
+          value: adminPers.filter(p => {
+            const poste = adminPostes.find(pos => pos.id_poste === p.id_poste);
+            return poste?.categorie_poste === cat;
+          }).length
+        }));
+
+        setAdminCharts({
+          personnelByPoste: personnelByPoste as any,
+          personnelByCategorie: personnelByCategorie as any
+        });
+
       } catch (e: any) {
         console.error('Error loading dashboard data:', e.message || e);
       } finally {
@@ -249,21 +281,38 @@ export const Dashboard = () => {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [deliveriesHistory]);
 
-  const hqseSummaryData = useMemo(() => {
+  useEffect(() => {
     const severityMap: Record<string, number> = { 'Critique': 0, 'Majeure': 0, 'Mineure': 0, 'Observation': 0 };
     const registerMap: Record<string, number> = {};
+    const originMap: Record<string, number> = { 'materiel': 0, 'humain': 0, 'organisationnel': 0, 'externe': 0 };
+    const trendData: Record<string, number> = {};
+
+    // Initialize trend data for last 15 days
+    for (let i = 0; i < 15; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      trendData[d.toISOString().split('T')[0]] = 0;
+    }
 
     hqseSignalements.forEach(s => {
       severityMap[s.severity] = (severityMap[s.severity] || 0) + 1;
       registerMap[s.register] = (registerMap[s.register] || 0) + 1;
+      if (originMap[s.origin] !== undefined) originMap[s.origin]++;
+      
+      const date = s.event_date.split('T')[0];
+      if (trendData[date] !== undefined) trendData[date]++;
     });
 
-    return {
+    setHqseSummaryData({
       severity: Object.entries(severityMap).map(([name, value]) => ({ name, value })),
       register: Object.entries(registerMap).map(([name, value]) => ({ name, value })),
+      originBreakdown: Object.entries(originMap).map(([name, value]) => ({ name, value })),
+      safetyTrend: Object.entries(trendData)
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date)),
       totalOpen: hqseSignalements.filter(s => s.status === 'Nouveau').length,
       criticalCount: hqseSignalements.filter(s => s.severity === 'Critique').length
-    };
+    });
   }, [hqseSignalements]);
 
   const recentActivities = useMemo(() => {
@@ -772,6 +821,89 @@ export const Dashboard = () => {
           </div>
         </div>
 
+      {/* Administration & RH Section */}
+      <div className="pt-2 space-y-4">
+        <div className="w-full flex flex-col md:flex-row md:items-center justify-between p-6 rounded-2xl border bg-card border-border shadow-soft-sm gap-4">
+          <div className="flex items-center gap-5">
+            <div className="p-3.5 rounded-2xl bg-primary/15 text-primary shadow-glow">
+              <Users size={26} />
+            </div>
+            <div className="text-left">
+              <h3 className="font-bold text-xl text-foreground">Administration & Ressources Humaines</h3>
+              <p className="text-sm text-muted-foreground font-medium">Effectifs, organisation et structure de l'entreprise</p>
+            </div>
+          </div>
+          <Link to="/admin/personnel" className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all flex items-center gap-2">
+            Gestion Personnel <ArrowUpRight size={14} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm">
+            <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Répartition par Poste</h4>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={adminCharts.personnelByPoste} layout="vertical" margin={{ left: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={120} 
+                    axisLine={false} 
+                    tickLine={false}
+                    tick={{ fontSize: 10, fontWeight: 700, fill: 'currentColor' }}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(0,0,0,0.02)' }}
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                  />
+                  <Bar dataKey="count" fill="var(--primary)" radius={[0, 10, 10, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-2xl border border-border shadow-soft-sm overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-border bg-muted/20">
+              <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                <Activity size={16} className="text-primary" />
+                Derniers Mouvements Personnel
+              </h4>
+            </div>
+            <div className="overflow-x-auto flex-1">
+              <table className="table w-full text-left">
+                <thead className="bg-muted/10">
+                  <tr>
+                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Employé</th>
+                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Poste</th>
+                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {adminPersonnel.slice(0, 5).map((p, i) => (
+                    <tr key={i} className="hover:bg-muted/5 transition-colors">
+                      <td className="px-6 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px] font-bold">
+                            {p.prenom.charAt(0)}{p.nom.charAt(0)}
+                          </div>
+                          <span className="text-xs font-bold text-foreground">{p.prenom} {p.nom}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-xs text-muted-foreground">{p.poste_titre}</td>
+                      <td className="px-6 py-3">
+                        <span className="badge badge-soft badge-success text-[9px]">Actif</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* HQSE Overview Section */}
       <div className="pt-2 space-y-4">
         <div className="w-full flex flex-col md:flex-row md:items-center justify-between p-6 rounded-2xl border bg-card border-border shadow-soft-sm gap-4">
@@ -812,6 +944,16 @@ export const Dashboard = () => {
                   ></div>
                 </div>
               </div>
+              <div className="pt-4">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Tendance Sécurité (15j)</p>
+                <div className="h-12 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={hqseSummaryData.safetyTrend}>
+                      <Area type="monotone" dataKey="count" stroke="var(--info)" fill="var(--info)" fillOpacity={0.1} strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
             <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border/50">
               <p className="text-[10px] text-muted-foreground leading-relaxed italic">
@@ -846,30 +988,79 @@ export const Dashboard = () => {
           </div>
 
           <div className="bg-card p-6 rounded-2xl border border-border shadow-soft-sm">
-            <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Gravité des Événements</h4>
+            <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6">Origine des Signalements</h4>
             <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={hqseSummaryData.severity}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <Tooltip cursor={{ fill: 'transparent' }} />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={30}>
-                    {hqseSummaryData.severity.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={
-                          entry.name === 'Critique' ? 'var(--destructive)' :
-                          entry.name === 'Majeure' ? 'var(--warning)' :
-                          entry.name === 'Mineure' ? 'var(--info)' :
-                          'var(--muted-foreground)'
-                        } 
-                      />
+                <PieChart>
+                  <Pie
+                    data={hqseSummaryData.originBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {hqseSummaryData.originBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
                     ))}
-                  </Bar>
-                </BarChart>
+                  </Pie>
+                  <Tooltip />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                </PieChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
+
+        {/* Incident Command Center Table */}
+        <div className="bg-card rounded-2xl border border-border shadow-soft-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-border bg-muted/20 flex items-center justify-between">
+            <h4 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+              <Zap size={16} className="text-destructive" />
+              Incident Command Center (Derniers Signalements)
+            </h4>
+            <Link to="/hqse" className="text-[10px] font-bold text-primary hover:underline">Voir tout</Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="table w-full text-left">
+              <thead className="bg-muted/10">
+                <tr>
+                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Date</th>
+                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Registre</th>
+                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</th>
+                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Gravité</th>
+                  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Statut</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {hqseSignalements.slice(0, 5).map((s, i) => (
+                  <tr key={i} className="hover:bg-muted/5 transition-colors">
+                    <td className="px-6 py-3 text-xs text-muted-foreground font-mono">
+                      {new Date(s.event_date).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="px-6 py-3">
+                      <span className="text-xs font-bold text-foreground capitalize">{s.register}</span>
+                    </td>
+                    <td className="px-6 py-3 text-xs text-foreground line-clamp-1 max-w-[200px]">
+                      {s.reason_description}
+                    </td>
+                    <td className="px-6 py-3">
+                      <span className={`badge badge-soft text-[9px] ${
+                        s.severity === 'Critique' ? 'badge-error' :
+                        s.severity === 'Majeure' ? 'badge-warning' :
+                        'badge-info'
+                      }`}>{s.severity}</span>
+                    </td>
+                    <td className="px-6 py-3">
+                      <span className={`badge badge-outline text-[9px] ${
+                        s.status === 'Résolu' ? 'badge-success' : 'badge-primary'
+                      }`}>{s.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

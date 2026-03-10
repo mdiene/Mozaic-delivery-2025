@@ -7,7 +7,7 @@ import {
 import { 
   ShoppingCart, Coins, TrendingUp, Plus, Search, Calendar, Layers, CreditCard, 
   Code, User, FileText, X, Save, Edit2, Trash2, RefreshCw, Filter, Receipt, Info,
-  ChevronRight, Minimize2, Maximize2, RotateCcw, List, AlertCircle, Clock
+  ChevronRight, Minimize2, Maximize2, RotateCcw, List, AlertCircle, Clock, Eye, Printer
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,6 +24,8 @@ export const ProductionPurchases = () => {
 
   // UI State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewData, setViewData] = useState<{ date: string, items: any[] } | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -107,6 +109,15 @@ export const ProductionPurchases = () => {
       });
     }
     setIsModalOpen(true);
+  };
+
+  const openViewModal = (items: any[], date: string) => {
+    setViewData({ date, items });
+    setIsViewModalOpen(true);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const handleSave = async (e: FormEvent) => {
@@ -388,6 +399,16 @@ export const ProductionPurchases = () => {
                        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-0.5">Total Jour</p>
                        <p className="font-mono font-bold text-primary">{group.totalSpent.toLocaleString()} F</p>
                     </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openViewModal(group.items, group.date);
+                      }}
+                      className="btn btn-circle btn-ghost btn-sm text-primary hover:bg-primary/10"
+                      title="Voir le récapitulatif du jour"
+                    >
+                      <Eye size={18} />
+                    </button>
                   </div>
                 </button>
 
@@ -447,10 +468,11 @@ export const ProductionPurchases = () => {
                                <span className={`text-sm font-bold font-mono ${e.depense_en_attente ? 'text-red-600' : 'text-primary'}`}>{Number(e.montant).toLocaleString()} F</span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <div className="flex justify-end gap-1">
-                                <button onClick={() => openModal(e)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 size={16} /></button>
-                                <button onClick={() => handleDelete(e.id_depense)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
-                              </div>
+                               <div className="flex justify-end gap-1">
+                                 <button onClick={() => openViewModal([e], e.date_operation)} className="btn btn-circle btn-text btn-sm text-primary hover:bg-primary/5 transition-colors" title="Détails"><Eye size={16} /></button>
+                                 <button onClick={() => openModal(e)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 size={16} /></button>
+                                 <button onClick={() => handleDelete(e.id_depense)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+                               </div>
                             </td>
                           </tr>
                         ))}
@@ -523,6 +545,7 @@ export const ProductionPurchases = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
+                          <button onClick={() => openViewModal([e], e.date_operation)} className="btn btn-circle btn-text btn-sm text-primary hover:bg-primary/5 transition-colors" title="Détails"><Eye size={16} /></button>
                           <button onClick={() => openModal(e)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 size={16} /></button>
                           <button onClick={() => handleDelete(e.id_depense)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
                         </div>
@@ -535,6 +558,105 @@ export const ProductionPurchases = () => {
           </div>
         )}
       </div>
+
+      {/* View Modal */}
+      {isViewModalOpen && viewData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-border flex flex-col max-h-[90vh]">
+            <div className="px-8 py-5 border-b border-border flex justify-between items-center bg-muted/30 print:hidden">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-primary/10 text-primary">
+                  <Eye size={22} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground">Récapitulatif des Dépenses</h3>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {new Date(viewData.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={handlePrint}
+                  className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-bold shadow-soft-lg hover:scale-105 transition-all active:scale-95"
+                >
+                  <Printer size={18} /> Imprimer
+                </button>
+                <button onClick={() => setIsViewModalOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X size={20} /></button>
+              </div>
+            </div>
+            
+            <div className="p-8 overflow-y-auto flex-1 print:p-0 print:overflow-visible" id="printable-receipt">
+              <div className="hidden print:block text-center mb-8 border-b-2 border-black pb-6">
+                <h1 className="text-3xl font-black uppercase tracking-tighter mb-2">MASAE - Rapport de Dépenses</h1>
+                <p className="text-sm font-bold">Date: {new Date(viewData.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+
+              <div className="space-y-8">
+                {viewData.items.map((item, idx) => (
+                  <div key={item.id_depense} className={`pb-6 ${idx !== viewData.items.length - 1 ? 'border-b border-border print:border-black/20' : ''}`}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h4 className="text-lg font-black text-foreground uppercase tracking-tight">{item.libelle}</h4>
+                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Réf: {item.reference_piece || 'N/A'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-black font-mono text-primary print:text-black">{Number(item.montant).toLocaleString()} F</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Montant TTC</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-muted/30 p-4 rounded-2xl border border-border/50 print:bg-transparent print:border-black/10">
+                      <div>
+                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter mb-1">Catégorie</p>
+                        <p className="text-xs font-bold text-foreground">{item.nom_categorie}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter mb-1">Code Analytique</p>
+                        <p className="text-xs font-bold text-foreground">{item.code_analytique || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter mb-1">Responsable</p>
+                        <p className="text-xs font-bold text-foreground">{item.responsable_nom}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter mb-1">Mode Paiement</p>
+                        <p className="text-xs font-bold text-foreground">{item.nom_mode}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="mt-10 pt-6 border-t-2 border-primary/30 flex justify-between items-center print:border-black">
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nombre d'opérations</p>
+                    <p className="text-lg font-black text-foreground">{viewData.items.length}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Général</p>
+                    <p className="text-3xl font-black font-mono text-primary print:text-black">
+                      {viewData.items.reduce((sum, i) => sum + Number(i.montant), 0).toLocaleString()} F
+                    </p>
+                  </div>
+                </div>
+
+                <div className="hidden print:grid grid-cols-2 gap-20 mt-20">
+                  <div className="text-center border-t border-black pt-4">
+                    <p className="text-xs font-bold uppercase tracking-widest">Signature Responsable</p>
+                  </div>
+                  <div className="text-center border-t border-black pt-4">
+                    <p className="text-xs font-bold uppercase tracking-widest">Cachet Direction</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-8 py-5 border-t border-border bg-muted/10 flex justify-end print:hidden">
+              <button onClick={() => setIsViewModalOpen(false)} className="px-6 py-2 bg-secondary text-secondary-foreground rounded-xl text-sm font-bold hover:bg-secondary/80 transition-all">Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
