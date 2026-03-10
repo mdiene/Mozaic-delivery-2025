@@ -7,10 +7,11 @@ import {
   Factory, Plus, Search, Calendar, Package, Users, Coins, 
   ChevronRight, Save, X, Edit2, Trash2, TrendingUp, History,
   LayoutList, FileText, Banknote, ChevronDown, UserCircle, Scissors,
-  ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter
+  ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter, Receipt, CheckCircle2, AlertCircle, CreditCard, Code, User, Info
 } from 'lucide-react';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 import { useAuth } from '../contexts/AuthContext';
+import { AdminCategoryDepense, AdminModePaiement, AdminCodeAnalytique, AdminPersonnel } from '../types';
 
 export const ProductionPage = () => {
   const { user } = useAuth();
@@ -27,18 +28,35 @@ export const ProductionPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPhase, setFilterPhase] = useState<string>('all');
   
+  // Expense Integration State
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [expenseFormData, setExpenseFormData] = useState<any>({});
+  const [categories, setCategories] = useState<AdminCategoryDepense[]>([]);
+  const [modes, setModes] = useState<AdminModePaiement[]>([]);
+  const [codes, setCodes] = useState<AdminCodeAnalytique[]>([]);
+  const [personnel, setPersonnel] = useState<AdminPersonnel[]>([]);
+  const [selectedProduction, setSelectedProduction] = useState<ProductionView | null>(null);
+  
   // Accordion State
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [prod, proj] = await Promise.all([
+      const [prod, proj, cat, md, cd, pers] = await Promise.all([
         db.getProductions(),
-        db.getProjects()
+        db.getProjects(),
+        db.getAdminCategories(),
+        db.getAdminModesPaiement(),
+        db.getAdminCodesAnalytiques(),
+        db.getAdminPersonnel()
       ]);
       setProductions(prod);
       setProjects(proj);
+      setCategories(cat);
+      setModes(md);
+      setCodes(cd);
+      setPersonnel(pers);
     } catch (e) {
       console.error(e);
     } finally {
@@ -95,6 +113,55 @@ export const ProductionPage = () => {
       fetchData();
     } catch (e) {
       alert("Erreur lors de la suppression.");
+    }
+  };
+
+  const handleOpenExpenseModal = (prod: ProductionView) => {
+    if (isVisitor) return;
+    setSelectedProduction(prod);
+    setExpenseFormData({
+      date_operation: prod.production_date,
+      libelle: `Main d'œuvre Production - ${prod.project_phase} - ${new Date(prod.production_date).toLocaleDateString('fr-FR')}`,
+      montant: prod.total_amount || 0,
+      reference_piece: `PROD-${prod.id.slice(0, 8)}`,
+      depense_en_attente: false,
+      id_categorie: categories.find(c => c.nom_categorie.toLowerCase().includes('main'))?.id_categorie || '',
+      id_mode_paiement: modes[0]?.id_mode || '',
+      id_code_analytique: codes.find(c => c.code.toUpperCase().includes('DEPENSES INTERNE'))?.id_code || codes[0]?.id_code || '',
+      id_responsable: personnel[0]?.id_personnel || ''
+    });
+    setIsExpenseModalOpen(true);
+  };
+
+  const handleSaveExpense = async (e: FormEvent) => {
+    e.preventDefault();
+    if (isVisitor || !selectedProduction) return;
+
+    try {
+      const payload = {
+        date_operation: expenseFormData.date_operation,
+        libelle: expenseFormData.libelle,
+        montant: Number(expenseFormData.montant),
+        id_categorie: expenseFormData.id_categorie || null,
+        id_mode_paiement: expenseFormData.id_mode_paiement || null,
+        id_code_analytique: expenseFormData.id_code_analytique || null,
+        id_responsable: expenseFormData.id_responsable || null,
+        reference_piece: expenseFormData.reference_piece || '',
+        depense_en_attente: !!expenseFormData.depense_en_attente,
+        updated_at: new Date().toISOString()
+      };
+
+      // Create the expense
+      await db.createItem('admin_depenses', payload);
+
+      // Update the production record to mark it as accounted
+      await db.updateItem('production', selectedProduction.id, { is_accounted: true });
+
+      setIsExpenseModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      console.error(error);
+      alert(`Erreur: ${error.message || "Une erreur est survenue."}`);
     }
   };
 
@@ -346,6 +413,7 @@ export const ProductionPage = () => {
                           <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tonnage</th>
                           <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Effectif</th>
                           <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Coût</th>
+                          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Comptabilité</th>
                           <th className="px-6 py-4 text-right"></th>
                         </tr>
                       </thead>
@@ -381,6 +449,21 @@ export const ProductionPage = () => {
                               <span className="text-sm font-mono font-bold text-foreground">
                                 {prod.total_amount?.toLocaleString()} F
                               </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              {prod.is_accounted ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
+                                  <CheckCircle2 size={12} /> Comptabilisé
+                                </span>
+                              ) : (
+                                <button 
+                                  onClick={() => handleOpenExpenseModal(prod)}
+                                  disabled={isVisitor || !prod.total_amount}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+                                >
+                                  <Receipt size={12} /> Envoyer aux dépenses
+                                </button>
+                              )}
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -565,6 +648,127 @@ export const ProductionPage = () => {
                     Enregistrer
                   </button>
                 </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Expense Integration Modal */}
+      <AnimatePresence>
+        {isExpenseModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsExpenseModalOpen(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-card rounded-3xl border border-border shadow-2xl overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Receipt size={18} className="text-primary" />
+                  Enregistrer en Dépense de Production
+                </h3>
+                <button onClick={() => setIsExpenseModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X size={20} /></button>
+              </div>
+              
+              <form onSubmit={handleSaveExpense} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto no-scrollbar">
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                       <label className="block text-sm font-medium text-foreground mb-1">Date</label>
+                       <input type="date" required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={expenseFormData.date_operation || ''} onChange={e => setExpenseFormData({...expenseFormData, date_operation: e.target.value})} />
+                    </div>
+                    <div>
+                       <label className="block text-sm font-medium text-foreground mb-1">Libellé / Désignation</label>
+                       <input type="text" required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={expenseFormData.libelle || ''} onChange={e => setExpenseFormData({...expenseFormData, libelle: e.target.value})} />
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                       <label className="block text-sm font-medium text-foreground mb-1">Montant (FCFA)</label>
+                       <input type="number" required min="0" className="w-full border border-input rounded-xl p-2.5 text-sm bg-background font-mono font-bold" value={expenseFormData.montant || ''} onChange={e => setExpenseFormData({...expenseFormData, montant: e.target.value})} />
+                    </div>
+                    <div>
+                       <label className="block text-sm font-medium text-foreground mb-1">Référence Pièce</label>
+                       <input type="text" className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={expenseFormData.reference_piece || ''} onChange={e => setExpenseFormData({...expenseFormData, reference_piece: e.target.value})} />
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                       <label className="block text-sm font-medium text-foreground mb-1">Catégorie</label>
+                       <select required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={expenseFormData.id_categorie || ''} onChange={e => setExpenseFormData({...expenseFormData, id_categorie: e.target.value})}>
+                          <option value="">Sélectionner...</option>
+                          {categories.map(c => <option key={c.id_categorie} value={c.id_categorie}>{c.nom_categorie}</option>)}
+                       </select>
+                    </div>
+                    <div>
+                       <label className="block text-sm font-medium text-foreground mb-1">Mode de Paiement</label>
+                       <select required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={expenseFormData.id_mode_paiement || ''} onChange={e => setExpenseFormData({...expenseFormData, id_mode_paiement: e.target.value})}>
+                          <option value="">Sélectionner...</option>
+                          {modes.map(m => <option key={m.id_mode} value={m.id_mode}>{m.nom_mode}</option>)}
+                       </select>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                       <label className="block text-sm font-medium text-foreground mb-1">Code Analytique</label>
+                       <select className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={expenseFormData.id_code_analytique || ''} onChange={e => setExpenseFormData({...expenseFormData, id_code_analytique: e.target.value})}>
+                          <option value="">Aucun</option>
+                          {codes.map(c => <option key={c.id_code} value={c.id_code}>{c.code}</option>)}
+                       </select>
+                    </div>
+                    <div>
+                       <label className="block text-sm font-medium text-foreground mb-1">Responsable</label>
+                       <select required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={expenseFormData.id_responsable || ''} onChange={e => setExpenseFormData({...expenseFormData, id_responsable: e.target.value})}>
+                          <option value="">Sélectionner...</option>
+                          {personnel.map(p => <option key={p.id_personnel} value={p.id_personnel}>{p.prenom} {p.nom}</option>)}
+                       </select>
+                    </div>
+                 </div>
+
+                 <div className="flex items-center gap-2 p-3 bg-blue-50 text-blue-800 rounded-xl text-xs border border-blue-100">
+                    <Info size={16} />
+                    <span>Cette dépense sera indexée et rattachée à l'historique financier du site de production.</span>
+                 </div>
+
+                 <div className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${expenseFormData.depense_en_attente ? 'bg-red-50 border-red-200 text-red-900' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                    <div className="flex items-center gap-3">
+                       <div className={`p-2 rounded-lg ${expenseFormData.depense_en_attente ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-500'}`}>
+                          <AlertCircle size={20} />
+                       </div>
+                       <div>
+                          <p className="text-sm font-bold">Statut de finalisation</p>
+                          <p className="text-xs opacity-70">Cochez si la dépense est en attente de justificatif ou de validation.</p>
+                       </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={!!expenseFormData.depense_en_attente}
+                        onChange={e => setExpenseFormData({...expenseFormData, depense_en_attente: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                    </label>
+                 </div>
+
+                 <div className="flex justify-end gap-2 pt-4 border-t border-border">
+                    <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-xl text-sm font-bold transition-colors">Annuler</button>
+                    <button type="submit" className="px-6 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-sm font-bold shadow-soft-xl flex items-center gap-2 transition-all active:scale-95">
+                      <Save size={18} /> Confirmer l'envoi
+                    </button>
+                 </div>
               </form>
             </motion.div>
           </div>

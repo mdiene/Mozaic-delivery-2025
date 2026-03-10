@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, ReactNode, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../services/db';
 import { useProject } from '../components/Layout';
 import { GlobalHierarchy, DeliveryView } from '../types';
@@ -28,7 +29,14 @@ import {
   Activity,
   ArrowUpRight,
   History,
-  LayoutDashboard
+  LayoutDashboard,
+  Share2,
+  Copy,
+  ExternalLink,
+  Package,
+  CheckCircle2,
+  Search,
+  X
 } from 'lucide-react';
 
 // Palette for charts
@@ -354,7 +362,8 @@ export const GlobalView = () => {
   const [hierarchy, setHierarchy] = useState<GlobalHierarchy>([]);
   const [flatDeliveries, setFlatDeliveries] = useState<DeliveryView[]>([]);
   const [loading, setLoading] = useState(true);
-  const [layoutMode, setLayoutMode] = useState<'split' | 'geo' | 'drivers' | 'collapsed'>('collapsed');
+  const [layoutMode, setLayoutMode] = useState<'split' | 'geo' | 'drivers' | 'transport' | 'collapsed'>('collapsed');
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
   
   // Selection State
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
@@ -363,6 +372,9 @@ export const GlobalView = () => {
   const [selectedOperatorId, setSelectedOperatorId] = useState<string | null>(null);
   const [selectedAllocId, setSelectedAllocId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [selectedOwnerForDetails, setSelectedOwnerForDetails] = useState<string | null>(null);
+  const [regionSearch, setRegionSearch] = useState('');
+  const [driverOwnerFilter, setDriverOwnerFilter] = useState('all');
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -395,6 +407,12 @@ export const GlobalView = () => {
   }, [loading, hierarchy, selectedRegionId]);
 
   const selectedRegion = useMemo(() => hierarchy.find(r => r.id === selectedRegionId), [hierarchy, selectedRegionId]);
+  
+  const filteredHierarchy = useMemo(() => {
+    if (!regionSearch) return hierarchy;
+    return hierarchy.filter(r => r.name.toLowerCase().includes(regionSearch.toLowerCase()));
+  }, [hierarchy, regionSearch]);
+
   const departments = useMemo(() => selectedRegion ? selectedRegion.departments.sort((a,b) => a.name.localeCompare(b.name)) : [], [selectedRegion]);
   const selectedDept = useMemo(() => departments.find(d => d.id === selectedDeptId), [departments, selectedDeptId]);
   const communes = useMemo(() => selectedDept ? selectedDept.communes.sort((a,b) => a.name.localeCompare(b.name)) : [], [selectedDept]);
@@ -422,6 +440,9 @@ export const GlobalView = () => {
   const driverStats: DriverStat[] = useMemo(() => {
     const stats: Record<string, DriverStat> = {};
     flatDeliveries.forEach(d => {
+      const owner = d.truck_owner || 'Inconnu';
+      if (driverOwnerFilter !== 'all' && owner !== driverOwnerFilter) return;
+
       const dId = d.driver_id || 'unknown';
       if (!stats[dId]) {
         stats[dId] = { driverId: dId, driverName: d.driver_name || 'Inconnu', truckPlate: d.truck_plate || '-', totalTonnage: 0, tripCount: 0, deliveries: [], isWague: d.truck_owner_type === true };
@@ -431,6 +452,14 @@ export const GlobalView = () => {
       stats[dId].deliveries.push(d);
     });
     return Object.values(stats).sort((a, b) => b.totalTonnage - a.totalTonnage);
+  }, [flatDeliveries, driverOwnerFilter]);
+
+  const ownersList = useMemo(() => {
+    const owners = new Set<string>();
+    flatDeliveries.forEach(d => {
+      if (d.truck_owner) owners.add(d.truck_owner);
+    });
+    return Array.from(owners).sort();
   }, [flatDeliveries]);
 
   useEffect(() => {
@@ -440,14 +469,45 @@ export const GlobalView = () => {
   }, [loading, driverStats, selectedDriverId]);
 
   const selectedDriver = useMemo(() => driverStats.find(d => d.driverId === selectedDriverId), [driverStats, selectedDriverId]);
+  
+  const ownerStats = useMemo(() => {
+    const stats: Record<string, { owner: string, totalTonnage: number, tripCount: number, deliveries: DeliveryView[] }> = {};
+    flatDeliveries.forEach(d => {
+      const owner = d.truck_owner || 'Inconnu';
+      if (!stats[owner]) {
+        stats[owner] = { owner, totalTonnage: 0, tripCount: 0, deliveries: [] };
+      }
+      stats[owner].totalTonnage += Number(d.tonnage_loaded);
+      stats[owner].tripCount += 1;
+      stats[owner].deliveries.push(d);
+    });
+    return Object.values(stats).sort((a, b) => b.totalTonnage - a.totalTonnage);
+  }, [flatDeliveries]);
 
-  const toggleLayout = (target: 'geo' | 'drivers') => {
+  const selectedOwnerStats = useMemo(() => 
+    ownerStats.find(s => s.owner === selectedOwnerForDetails),
+    [ownerStats, selectedOwnerForDetails]
+  );
+
+  const toggleLayout = (target: 'geo' | 'drivers' | 'transport') => {
     setLayoutMode(layoutMode === target ? 'collapsed' : target);
+  };
+
+  const copyShareLink = (type: 'transport' | 'network', id?: string) => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const encodedId = id ? btoa(id) : '';
+    const link = `${baseUrl}#/public/${type}/${encodedId}?project=${selectedProject}`;
+    
+    navigator.clipboard.writeText(link).then(() => {
+      setCopySuccess(id || 'link');
+      setTimeout(() => setCopySuccess(null), 2000);
+    });
   };
 
   const resetSelections = () => {
     setSelectedRegionId(null); setSelectedDeptId(null); setSelectedCommuneId(null);
     setSelectedOperatorId(null); setSelectedAllocId(null); setSelectedDriverId(null);
+    setRegionSearch(''); setDriverOwnerFilter('all');
   };
 
   const handleRegionSelect = (id: string) => {
@@ -479,8 +539,9 @@ export const GlobalView = () => {
     );
   }
 
-  const geoMode = layoutMode === 'geo' ? 'maximized' : (layoutMode === 'drivers' || layoutMode === 'collapsed' ? 'hidden' : 'split');
-  const driverMode = layoutMode === 'drivers' ? 'maximized' : (layoutMode === 'geo' || layoutMode === 'collapsed' ? 'hidden' : 'split');
+  const geoMode = layoutMode === 'geo' ? 'maximized' : (layoutMode === 'drivers' || layoutMode === 'transport' || layoutMode === 'collapsed' ? 'hidden' : 'split');
+  const driverMode = layoutMode === 'drivers' ? 'maximized' : (layoutMode === 'geo' || layoutMode === 'transport' || layoutMode === 'collapsed' ? 'hidden' : 'split');
+  const transportMode = layoutMode === 'transport' ? 'maximized' : (layoutMode === 'geo' || layoutMode === 'drivers' || layoutMode === 'collapsed' ? 'hidden' : 'split');
 
   return (
     <div className={`flex flex-col space-y-4 ${layoutMode === 'split' ? 'h-[calc(100vh-8rem)]' : 'min-h-[calc(100vh-8rem)]'}`}>
@@ -509,8 +570,19 @@ export const GlobalView = () => {
 
       <div className="flex-1 min-h-0 flex flex-col gap-4">
         <Section title="Zones Géographiques" icon={MapPin} mode={geoMode} onToggle={() => toggleLayout('geo')} scrollRef={scrollContainerRef} headerContent={<div className="flex items-baseline gap-2"><span className="text-sm font-bold font-mono text-primary">{totalZoneStats.totalDelivered.toLocaleString()} / {totalZoneStats.totalTarget.toLocaleString()} T</span></div>}>
-            <Column title="Régions" stats={totalZoneStats} isScrollable={geoMode === 'split'}>
-              {hierarchy.map(region => {
+            <Column title="Régions" stats={totalZoneStats} isScrollable={geoMode === 'split'} headerAction={
+              <div className="relative">
+                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="text" 
+                  placeholder="Filtrer..." 
+                  value={regionSearch}
+                  onChange={(e) => setRegionSearch(e.target.value)}
+                  className="pl-7 pr-2 py-1 bg-background border border-border rounded-md text-[10px] w-24 focus:w-32 transition-all outline-none"
+                />
+              </div>
+            }>
+              {filteredHierarchy.map(region => {
                 const rStats = calculateNodeStats(region, 'region');
                 return <ListItem key={region.id} label={region.name} icon={MapPin} selected={selectedRegionId === region.id} onClick={() => handleRegionSelect(region.id)} rightInfo={<span className="text-[10px] font-mono text-muted-foreground">{rStats.totalDelivered.toLocaleString()} / {rStats.totalTarget.toLocaleString()} T</span>} progress={{ target: rStats.totalTarget, delivered: rStats.totalDelivered }} />;
               })}
@@ -561,107 +633,302 @@ export const GlobalView = () => {
         </Section>
 
         <Section title="Performance Chauffeurs" icon={Truck} mode={driverMode} onToggle={() => toggleLayout('drivers')} headerContent={<div className="flex items-center gap-2"><span className="text-xs text-muted-foreground bg-background/50 px-2 py-1 rounded hidden sm:inline">{driverStats.length} Actifs</span></div>}>
-           <div className="flex divide-x divide-border min-h-full">
-              {/* Left Column: Driver List */}
-              <div className={`w-1/3 min-w-[300px] p-2 space-y-1 bg-card ${driverMode === 'split' ? 'overflow-y-auto' : 'overflow-visible'}`}>
-                 {driverStats.length === 0 ? <div className="text-center p-8 text-muted-foreground text-sm">Aucune donnée chauffeur.</div> : driverStats.map(driver => (
-                    <button key={driver.driverId} onClick={() => setSelectedDriverId(driver.driverId)} className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all border ${selectedDriverId === driver.driverId ? 'bg-primary/10 border-primary/20 shadow-sm' : 'bg-transparent border-transparent hover:bg-muted'}`}>
-                       <div className="flex items-center gap-3 overflow-hidden">
-                          <div className={`p-2 rounded-full ${selectedDriverId === driver.driverId ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}><User size={16} /></div>
-                          <div className="flex flex-col min-w-0">
-                             <div className="flex items-center gap-2">
-                                <span className={`text-sm font-semibold truncate ${selectedDriverId === driver.driverId ? 'text-primary' : 'text-foreground'}`}>{driver.driverName}</span>
-                                {driver.isWague && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100 shrink-0">Wague AB</span>}
-                             </div>
-                             <span className="text-xs text-muted-foreground truncate flex items-center gap-1"><Truck size={10} /> {driver.truckPlate}</span>
-                          </div>
-                       </div>
-                       <div className="flex flex-col items-end shrink-0"><span className="text-sm font-bold font-mono text-foreground">{driver.totalTonnage.toLocaleString()} T</span><span className="text-[10px] text-muted-foreground">{driver.tripCount} Voyage{driver.tripCount > 1 ? 's' : ''}</span></div>
-                    </button>
-                 ))}
+           <div className="flex flex-col h-full">
+              {/* Filter Bar */}
+              <div className="px-4 py-2 border-b border-border bg-muted/5 flex items-center gap-4 shrink-0">
+                 <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Propriétaire:</span>
+                    <select 
+                       value={driverOwnerFilter}
+                       onChange={(e) => setDriverOwnerFilter(e.target.value)}
+                       className="bg-background border border-border rounded-md px-2 py-1 text-[10px] outline-none focus:ring-1 focus:ring-primary/30"
+                    >
+                       <option value="all">Tous les propriétaires</option>
+                       {ownersList.map(owner => (
+                          <option key={owner} value={owner}>{owner}</option>
+                       ))}
+                    </select>
+                 </div>
               </div>
 
-              {/* Right Column: Driver Details with Statistics and History in distinct sections */}
-              <div className={`flex-1 p-0 bg-muted/5 ${driverMode === 'split' ? 'overflow-y-auto' : 'overflow-visible'}`}>
-                 {selectedDriver ? (
-                    <div className="flex flex-col h-full">
-                       {/* Header */}
-                       <div className="p-4 border-b border-border bg-card shrink-0 sticky top-0 z-10">
-                          <div className="flex justify-between items-start">
-                             <div>
-                                <div className="flex items-center gap-3">
-                                   <h4 className="text-lg font-bold text-foreground">{selectedDriver.driverName}</h4>
-                                   {selectedDriver.isWague && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100">Wague AB</span>}
+              <div className="flex divide-x divide-border flex-1 min-h-0">
+                 {/* Left Column: Driver List */}
+                 <div className={`w-1/3 min-w-[300px] p-2 space-y-1 bg-card ${driverMode === 'split' ? 'overflow-y-auto' : 'overflow-visible'}`}>
+                    {driverStats.length === 0 ? <div className="text-center p-8 text-muted-foreground text-sm">Aucun chauffeur trouvé.</div> : driverStats.map(driver => (
+                       <button key={driver.driverId} onClick={() => setSelectedDriverId(driver.driverId)} className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-all border ${selectedDriverId === driver.driverId ? 'bg-primary/10 border-primary/20 shadow-sm' : 'bg-transparent border-transparent hover:bg-muted'}`}>
+                          <div className="flex items-center gap-3 overflow-hidden">
+                             <div className={`p-2 rounded-full ${selectedDriverId === driver.driverId ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}><User size={16} /></div>
+                             <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-2">
+                                   <span className={`text-sm font-semibold truncate ${selectedDriverId === driver.driverId ? 'text-primary' : 'text-foreground'}`}>{driver.driverName}</span>
+                                   {driver.isWague && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100 shrink-0">Wague AB</span>}
                                 </div>
-                                <p className="text-sm text-muted-foreground flex items-center gap-2"><Truck size={14} /> {selectedDriver.truckPlate}</p>
+                                <span className="text-xs text-muted-foreground truncate flex items-center gap-1"><Truck size={10} /> {driver.truckPlate}</span>
                              </div>
-                             <div className="text-right">
-                                <div className="text-2xl font-bold text-primary font-mono">{selectedDriver.totalTonnage.toLocaleString()} T</div>
-                                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Tonnage Total Livré</div>
+                          </div>
+                          <div className="flex flex-col items-end shrink-0"><span className="text-sm font-bold font-mono text-foreground">{driver.totalTonnage.toLocaleString()} T</span><span className="text-[10px] text-muted-foreground">{driver.tripCount} Voyage{driver.tripCount > 1 ? 's' : ''}</span></div>
+                       </button>
+                    ))}
+                 </div>
+
+                 {/* Right Column: Driver Details with Statistics and History in distinct sections */}
+                 <div className={`flex-1 p-0 bg-muted/5 ${driverMode === 'split' ? 'overflow-y-auto' : 'overflow-visible'}`}>
+                    {selectedDriver ? (
+                       <div className="flex flex-col h-full">
+                          {/* Header */}
+                          <div className="p-4 border-b border-border bg-card shrink-0 sticky top-0 z-10">
+                             <div className="flex justify-between items-start">
+                                <div>
+                                   <div className="flex items-center gap-3">
+                                      <h4 className="text-lg font-bold text-foreground">{selectedDriver.driverName}</h4>
+                                      {selectedDriver.isWague && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100">Wague AB</span>}
+                                   </div>
+                                   <p className="text-sm text-muted-foreground flex items-center gap-2"><Truck size={14} /> {selectedDriver.truckPlate}</p>
+                                </div>
+                                <div className="text-right">
+                                   <div className="text-2xl font-bold text-primary font-mono">{selectedDriver.totalTonnage.toLocaleString()} T</div>
+                                   <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Tonnage Total Livré</div>
+                                </div>
+                             </div>
+                          </div>
+                          
+                          <div className="p-6 space-y-12">
+                             {/* SECTION 1: STATISTICS */}
+                             <div>
+                                <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2 border-l-2 border-primary pl-3">
+                                   <LayoutDashboard size={14} className="text-primary" /> Statistiques de Performance
+                                </h5>
+                                <DriverStatsDashboard driver={selectedDriver} />
+                             </div>
+
+                             <div className="h-px bg-border w-full" />
+
+                             {/* SECTION 2: HISTORY */}
+                             <div>
+                                <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2 border-l-2 border-blue-500 pl-3">
+                                   <History size={14} className="text-blue-500" /> Historique des Livraisons ({selectedDriver.deliveries.length})
+                                </h5>
+                                <div className="space-y-3">
+                                   {/* Fix: Corrected sort property from 'date' to 'delivery_date' as 'date' is not on DeliveryView */}
+                                   {selectedDriver.deliveries.sort((a,b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime()).map((del) => (
+                                      <div key={del.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all group">
+                                         <div className="flex items-center gap-4">
+                                            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                               <FileText size={18} />
+                                            </div>
+                                            <div>
+                                               <div className="flex items-center gap-3">
+                                                  <span className="font-bold text-sm text-foreground">{del.bl_number}</span>
+                                                  <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground font-medium uppercase">{del.project_phase}</span>
+                                               </div>
+                                               <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
+                                                  <span className="flex items-center gap-1"><Calendar size={12} /> {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString('fr-FR') : '-'}</span>
+                                                  <span className="flex items-center gap-1"><MapPin size={12} /> {del.commune_name || 'Inconnue'}</span>
+                                               </div>
+                                            </div>
+                                         </div>
+                                         <div className="flex items-center gap-6">
+                                            <div className="text-right">
+                                               <span className="block font-bold text-sm text-foreground">{del.operator_name}</span>
+                                               <span className="text-[10px] text-muted-foreground uppercase font-medium">Destinataire</span>
+                                            </div>
+                                            <div className="bg-primary/5 text-primary px-3 py-1.5 rounded-lg text-sm font-bold font-mono min-w-[4rem] text-center border border-primary/10">
+                                               {del.tonnage_loaded} T
+                                            </div>
+                                         </div>
+                                      </div>
+                                   ))}
+                                </div>
                              </div>
                           </div>
                        </div>
-                       
-                       <div className="p-6 space-y-12">
-                          {/* SECTION 1: STATISTICS */}
-                          <div>
-                             <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2 border-l-2 border-primary pl-3">
-                                <LayoutDashboard size={14} className="text-primary" /> Statistiques de Performance
-                             </h5>
-                             <DriverStatsDashboard driver={selectedDriver} />
+                    ) : (
+                       <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center min-h-[300px]">
+                          <TrendingUp size={48} className="mb-4 opacity-20" />
+                          <p>Sélectionnez un chauffeur à gauche pour voir son historique détaillé.</p>
+                       </div>
+                    )}
+                 </div>
+              </div>
+           </div>
+        </Section>
+
+        <Section title="Bilan Transport" icon={Package} mode={transportMode} onToggle={() => toggleLayout('transport')} headerContent={<div className="flex items-center gap-2"><span className="text-xs text-muted-foreground bg-background/50 px-2 py-1 rounded hidden sm:inline">{ownerStats.length} Propriétaires</span></div>}>
+           <div className="flex divide-x divide-border min-h-full">
+              <div className={`w-full p-6 space-y-6 bg-card ${transportMode === 'split' ? 'overflow-y-auto' : 'overflow-visible'}`}>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {ownerStats.map(stat => (
+                       <div key={stat.owner} className="bg-card border border-border rounded-2xl p-6 shadow-soft-sm hover:shadow-soft-md transition-all group relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-4">
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); copyShareLink('transport', stat.owner); }}
+                                className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-medium ${copySuccess === stat.owner ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground hover:bg-primary hover:text-white'}`}
+                             >
+                                {copySuccess === stat.owner ? <CheckCircle2 size={14} /> : <Share2 size={14} />}
+                                {copySuccess === stat.owner ? 'Copié !' : 'Partager'}
+                             </button>
+                          </div>
+                          
+                          <div className="flex items-center gap-4 mb-6">
+                             <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                <Building2 size={24} />
+                             </div>
+                             <div>
+                                <h4 className="font-bold text-foreground">{stat.owner}</h4>
+                                <p className="text-xs text-muted-foreground">{stat.tripCount} livraisons effectuées</p>
+                             </div>
                           </div>
 
-                          <div className="h-px bg-border w-full" />
+                          <div className="grid grid-cols-2 gap-4 mb-6">
+                             <div className="bg-muted/30 p-3 rounded-xl">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Tonnage Total</span>
+                                <span className="text-lg font-bold text-foreground font-mono">{stat.totalTonnage.toLocaleString()} t</span>
+                             </div>
+                             <div className="bg-muted/30 p-3 rounded-xl">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Moyenne / Voyage</span>
+                                <span className="text-lg font-bold text-foreground font-mono">{(stat.totalTonnage / stat.tripCount).toFixed(1)} t</span>
+                             </div>
+                          </div>
 
-                          {/* SECTION 2: HISTORY */}
-                          <div>
-                             <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2 border-l-2 border-blue-500 pl-3">
-                                <History size={14} className="text-blue-500" /> Historique des Livraisons ({selectedDriver.deliveries.length})
-                             </h5>
-                             <div className="space-y-3">
-                                {/* Fix: Corrected sort property from 'date' to 'delivery_date' as 'date' is not on DeliveryView */}
-                                {selectedDriver.deliveries.sort((a,b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime()).map((del) => (
-                                   <div key={del.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all group">
-                                      <div className="flex items-center gap-4">
-                                         <div className="p-2.5 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                                            <FileText size={18} />
-                                         </div>
-                                         <div>
-                                            <div className="flex items-center gap-3">
-                                               <span className="font-bold text-sm text-foreground">{del.bl_number}</span>
-                                               <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground font-medium uppercase">{del.project_phase}</span>
-                                            </div>
-                                            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
-                                               <span className="flex items-center gap-1"><Calendar size={12} /> {del.delivery_date ? new Date(del.delivery_date).toLocaleDateString('fr-FR') : '-'}</span>
-                                               <span className="flex items-center gap-1"><MapPin size={12} /> {del.commune_name || 'Inconnue'}</span>
-                                            </div>
-                                         </div>
-                                      </div>
-                                      <div className="flex items-center gap-6">
-                                         <div className="text-right">
-                                            <span className="block font-bold text-sm text-foreground">{del.operator_name}</span>
-                                            <span className="text-[10px] text-muted-foreground uppercase font-medium">Destinataire</span>
-                                         </div>
-                                         <div className="bg-primary/5 text-primary px-3 py-1.5 rounded-lg text-sm font-bold font-mono min-w-[4rem] text-center border border-primary/10">
-                                            {del.tonnage_loaded} T
-                                         </div>
-                                      </div>
+                          <div className="space-y-2">
+                             <div className="flex justify-between items-center text-xs">
+                                <span className="text-muted-foreground">Dernières livraisons</span>
+                                <button 
+                                  onClick={() => setSelectedOwnerForDetails(stat.owner)}
+                                  className="text-primary hover:underline flex items-center gap-1"
+                                >
+                                  Détails <ChevronRight size={12} />
+                                </button>
+                             </div>
+                             <div className="space-y-1">
+                                {stat.deliveries.slice(0, 3).map(d => (
+                                   <div key={d.id} className="flex items-center justify-between text-[10px] p-2 bg-muted/20 rounded-lg">
+                                      <span className="font-medium text-foreground">{d.bl_number}</span>
+                                      <span className="text-muted-foreground">{new Date(d.delivery_date).toLocaleDateString()}</span>
+                                      <span className="font-bold text-primary">{d.tonnage_loaded} t</span>
                                    </div>
                                 ))}
                              </div>
                           </div>
                        </div>
-                    </div>
-                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center min-h-[300px]">
-                       <TrendingUp size={48} className="mb-4 opacity-20" />
-                       <p>Sélectionnez un chauffeur à gauche pour voir son historique détaillé.</p>
-                    </div>
-                 )}
+                    ))}
+                 </div>
               </div>
            </div>
         </Section>
       </div>
+
+      {/* Transport Details Modal */}
+      <AnimatePresence>
+        {selectedOwnerForDetails && selectedOwnerStats && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedOwnerForDetails(null)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-4xl bg-card rounded-3xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 text-primary rounded-xl">
+                    <Truck size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground">Détails des Transports - {selectedOwnerForDetails}</h3>
+                    <p className="text-xs text-muted-foreground">{selectedOwnerStats.tripCount} livraisons au total</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedOwnerForDetails(null)} 
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Tonnage Total</span>
+                    <span className="text-2xl font-bold text-foreground font-mono">{selectedOwnerStats.totalTonnage.toLocaleString()} t</span>
+                  </div>
+                  <div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Nombre de Voyages</span>
+                    <span className="text-2xl font-bold text-foreground font-mono">{selectedOwnerStats.tripCount}</span>
+                  </div>
+                  <div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Moyenne par Voyage</span>
+                    <span className="text-2xl font-bold text-foreground font-mono">{(selectedOwnerStats.totalTonnage / selectedOwnerStats.tripCount).toFixed(1)} t</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                    <History size={14} /> Historique Complet
+                  </h4>
+                  <div className="border border-border rounded-2xl overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-muted/50 border-b border-border">
+                          <th className="px-4 py-3 text-[10px] font-bold uppercase text-muted-foreground">Date</th>
+                          <th className="px-4 py-3 text-[10px] font-bold uppercase text-muted-foreground">BL</th>
+                          <th className="px-4 py-3 text-[10px] font-bold uppercase text-muted-foreground">Camion</th>
+                          <th className="px-4 py-3 text-[10px] font-bold uppercase text-muted-foreground">Chauffeur</th>
+                          <th className="px-4 py-3 text-[10px] font-bold uppercase text-muted-foreground">Destination</th>
+                          <th className="px-4 py-3 text-[10px] font-bold uppercase text-muted-foreground text-right">Tonnage</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {selectedOwnerStats.deliveries.sort((a,b) => new Date(b.delivery_date).getTime() - new Date(a.delivery_date).getTime()).map((del) => (
+                          <tr key={del.id} className="hover:bg-muted/20 transition-colors group">
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {new Date(del.delivery_date).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-xs font-bold font-mono text-foreground">{del.bl_number}</span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-foreground">
+                              {del.truck_plate}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {del.driver_name}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-foreground">{del.commune_name}</span>
+                                <span className="text-[10px] text-muted-foreground">{del.operator_name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="text-xs font-bold font-mono text-primary">{del.tonnage_loaded} t</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-border bg-muted/30 flex justify-end shrink-0">
+                <button 
+                  onClick={() => setSelectedOwnerForDetails(null)}
+                  className="px-6 py-2 bg-foreground text-background rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

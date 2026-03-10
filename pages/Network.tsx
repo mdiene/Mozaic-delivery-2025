@@ -4,13 +4,24 @@ import { db } from '../services/db';
 import { useProject } from '../components/Layout';
 import RegionalGraph from '../components/RegionalGraph';
 import { NetworkHierarchy } from '../types';
-import { Filter, Maximize2, Minimize2, Layers } from 'lucide-react';
+import { Filter, Maximize2, Minimize2, Layers, Share2, CheckCircle2 } from 'lucide-react';
 
 export const NetworkPage = () => {
   const { selectedProject, projects, setSelectedProject } = useProject();
   const [graphData, setGraphData] = useState<NetworkHierarchy>([]);
   const [loading, setLoading] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const copyShareLink = () => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const link = `${baseUrl}#/public/network/all?project=${selectedProject}`;
+    
+    navigator.clipboard.writeText(link).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    });
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -29,6 +40,13 @@ export const NetworkPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Carte du Réseau</h1>
           <p className="text-muted-foreground text-sm">Visualisation hiérarchique des distributions par région.</p>
         </div>
+        <button 
+          onClick={copyShareLink}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-medium shadow-sm border ${copySuccess ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-card border-border text-foreground hover:bg-muted'}`}
+        >
+          {copySuccess ? <CheckCircle2 size={18} /> : <Share2 size={18} />}
+          {copySuccess ? 'Lien Copié !' : 'Partager la Carte'}
+        </button>
       </div>
       
       <div className="flex-1 min-h-0 flex flex-col">

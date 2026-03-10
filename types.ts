@@ -131,6 +131,7 @@ export interface DeliveryView extends Delivery {
   driver_phone?: string;
   project_id?: string;
   truck_owner_type?: boolean;
+  truck_owner?: string;
   operator_id?: string;
 }
 
@@ -188,6 +189,7 @@ export interface Production {
   equipe_couture: number;
   total_amount?: number;
   notes?: string;
+  is_accounted?: boolean;
   created_at: string;
   updated_at: string;
 }

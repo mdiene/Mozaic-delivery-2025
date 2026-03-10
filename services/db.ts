@@ -18,7 +18,7 @@ export const db = {
       .from('deliveries')
       .select(`
         *,
-        trucks:truck_id(plate_number, owner_type, trailer_number, chassis_camion),
+        trucks:truck_id(plate_number, owner_type, trailer_number, chassis_camion, Trucks_proprietaire),
         drivers:driver_id(name, license_number, phone_normalized),
         allocations:allocation_id!inner (
           operator_id,
@@ -65,6 +65,7 @@ export const db = {
         truck_owner_type: del.trucks?.owner_type,
         truck_trailer: del.trucks?.trailer_number,
         truck_chassis: del.trucks?.chassis_camion,
+        truck_owner: del.trucks?.Trucks_proprietaire,
         driver_name: del.drivers?.name || 'Unknown',
         driver_license: del.drivers?.license_number,
         driver_phone: del.drivers?.phone_normalized,

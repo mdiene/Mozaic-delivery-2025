@@ -24,6 +24,7 @@ import { HQSEDotations } from './pages/HQSEDotations';
 import { HQSEAllocations } from './pages/HQSEAllocations';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { PersonnelPage } from './pages/admin/Personnel';
+import { PublicView } from './pages/PublicView';
 import { useAuth } from './contexts/AuthContext';
 
 // Protected Route Wrapper
@@ -57,6 +58,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/public/:type/:id" element={<PublicView />} />
         
         {/* Main App Container */}
         <Route path="/" element={<Layout />}>
