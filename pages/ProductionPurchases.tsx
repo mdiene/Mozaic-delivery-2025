@@ -135,7 +135,7 @@ export const ProductionPurchases = () => {
   const handleExportCSV = () => {
     if (filteredExpenses.length === 0) return;
     
-    const headers = ['Date', 'Libellé', 'Catégorie', 'Projet', 'Montant (FCFA)', 'Responsable', 'Pièce'];
+    const headers = ['Date', 'Libellé', 'Catégorie', 'Montant (FCFA)', 'Responsable', 'Pièce'];
     const csvRows = [headers.join(',')];
     
     filteredExpenses.forEach(e => {
@@ -143,7 +143,6 @@ export const ProductionPurchases = () => {
         e.date_operation,
         `"${(e.libelle || '').replace(/"/g, '""')}"`,
         `"${e.nom_categorie || ''}"`,
-        `"${e.project_name || ''}"`,
         e.montant,
         `"${e.responsable_nom || ''}"`,
         `"${e.reference_piece || ''}"`

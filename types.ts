@@ -249,7 +249,6 @@ export interface AdminDepense {
   nom_mode?: string;
   code_analytique?: string;
   responsable_nom?: string;
-  project_phase?: string;
 }
 
 export type NetworkHierarchy = Array<{
