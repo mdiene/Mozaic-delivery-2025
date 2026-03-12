@@ -318,58 +318,24 @@ export const Dashboard = () => {
   const recentActivities = useMemo(() => {
     const activities: any[] = [];
 
-    // Add Deliveries
-    deliveriesHistory.slice(0, 10).forEach(d => {
-      activities.push({
-        id: `del-${d.id}`,
-        title: 'Camion expédié',
-        description: `${d.bl_number} • ${d.region_name} → ${d.commune_name}`,
-        date: d.delivery_date || d.created_at,
-        icon: Truck,
-        color: 'text-primary',
-        borderColor: 'border-primary'
+    // Add Deliveries only, max 4
+    deliveriesHistory
+      .sort((a, b) => new Date(b.delivery_date || b.created_at).getTime() - new Date(a.delivery_date || a.created_at).getTime())
+      .slice(0, 4)
+      .forEach(d => {
+        activities.push({
+          id: `del-${d.id}`,
+          title: 'Camion expédié',
+          description: `${d.bl_number} • ${d.region_name} → ${d.commune_name}`,
+          date: d.delivery_date || d.created_at,
+          icon: Truck,
+          color: 'text-primary',
+          borderColor: 'border-primary'
+        });
       });
-    });
 
-    // Add HQSE
-    hqseActivities.forEach(a => {
-      if (a.type === 'inspection') {
-        activities.push({
-          id: `insp-${a.id}`,
-          title: 'Contrôle effectué',
-          description: `${a.equipment_name} • Verdict: ${a.verdict}`,
-          date: a.date,
-          icon: ShieldCheck,
-          color: a.verdict === 'OK' ? 'text-success' : 'text-destructive',
-          borderColor: a.verdict === 'OK' ? 'border-success' : 'border-destructive'
-        });
-      } else if (a.type === 'nc') {
-        activities.push({
-          id: `nc-${a.id}`,
-          title: 'Non-conformité déclarée',
-          description: `${a.equipment_name} • Gravité: ${a.severity}`,
-          date: a.date,
-          icon: AlertTriangle,
-          color: 'text-warning',
-          borderColor: 'border-warning'
-        });
-      } else if (a.type === 'ca') {
-        activities.push({
-          id: `ca-${a.id}`,
-          title: 'Action corrective',
-          description: a.action_plan,
-          date: a.date,
-          icon: ClipboardCheck,
-          color: 'text-info',
-          borderColor: 'border-info'
-        });
-      }
-    });
-
-    return activities
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 6);
-  }, [deliveriesHistory, hqseActivities]);
+    return activities;
+  }, [deliveriesHistory]);
 
   if (loading && projects.length === 0) {
     return (

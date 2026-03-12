@@ -7,7 +7,7 @@ import {
 import { 
   ShoppingCart, Coins, TrendingUp, Plus, Search, Calendar, Layers, CreditCard, 
   Code, User, FileText, X, Save, Edit2, Trash2, RefreshCw, Filter, Receipt, Info,
-  ChevronRight, Minimize2, Maximize2, RotateCcw, List, AlertCircle, Clock, Eye, Printer
+  ChevronRight, Minimize2, Maximize2, RotateCcw, List, AlertCircle, Clock, Eye, Printer, Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -117,6 +117,43 @@ export const ProductionPurchases = () => {
   };
 
   const handlePrint = () => {
+    window.print();
+  };
+
+  const handleExportCSV = () => {
+    if (filteredExpenses.length === 0) return;
+    
+    const headers = ['Date', 'Libellé', 'Catégorie', 'Projet', 'Montant (FCFA)', 'Responsable', 'Pièce'];
+    const csvRows = [headers.join(',')];
+    
+    filteredExpenses.forEach(e => {
+      const row = [
+        e.date_operation,
+        `"${(e.libelle || '').replace(/"/g, '""')}"`,
+        `"${e.nom_categorie || ''}"`,
+        `"${e.project_name || ''}"`,
+        e.montant,
+        `"${e.responsable_nom || ''}"`,
+        `"${e.reference_piece || ''}"`
+      ];
+      csvRows.push(row.join(','));
+    });
+    
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `depenses_production_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSavePDF = () => {
+    // For simplicity, we'll use window.print() but we could also use a library if needed.
+    // The user asked for a simple printable pdf file.
     window.print();
   };
 
@@ -301,27 +338,30 @@ export const ProductionPurchases = () => {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
             <div className="relative w-full md:w-auto shrink-0">
-              <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                <Calendar size={16} className="text-muted-foreground" />
+              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 mb-1 ml-1">filter par date</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                  <Calendar size={16} className="text-muted-foreground" />
+                </div>
+                <input 
+                  ref={dateRangeInputRef}
+                  type="text" 
+                  className="input w-full md:w-64 ps-10 cursor-pointer text-sm" 
+                  placeholder="Période (Début à Fin)" 
+                />
+                {dateRange.start && (
+                  <button 
+                    onClick={() => {
+                      if (dateRangeInputRef.current && (window as any).flatpickr) {
+                        (dateRangeInputRef.current as any)._flatpickr.clear();
+                      }
+                    }}
+                    className="absolute inset-y-0 end-0 flex items-center pe-3 text-muted-foreground hover:text-foreground"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
-              <input 
-                ref={dateRangeInputRef}
-                type="text" 
-                className="input w-full md:w-64 ps-10 cursor-pointer text-sm" 
-                placeholder="Période (Début à Fin)" 
-              />
-              {dateRange.start && (
-                <button 
-                  onClick={() => {
-                    if (dateRangeInputRef.current && (window as any).flatpickr) {
-                      (dateRangeInputRef.current as any)._flatpickr.clear();
-                    }
-                  }}
-                  className="absolute inset-y-0 end-0 flex items-center pe-3 text-muted-foreground hover:text-foreground"
-                >
-                  <X size={14} />
-                </button>
-              )}
             </div>
 
             <button 
@@ -349,6 +389,20 @@ export const ProductionPurchases = () => {
           </div>
 
           <div className="flex items-center gap-2">
+             <button 
+               onClick={handleExportCSV}
+               className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase transition-all border bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
+             >
+               <Download size={14} />
+               Export CSV
+             </button>
+             <button 
+               onClick={handleSavePDF}
+               className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase transition-all border bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
+             >
+               <FileText size={14} />
+               Save PDF
+             </button>
              {isGrouped && (
                <>
                  <button onClick={expandAll} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-border bg-card hover:bg-muted text-muted-foreground transition-all">

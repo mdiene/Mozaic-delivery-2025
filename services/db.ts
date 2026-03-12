@@ -371,7 +371,7 @@ export const db = {
     }));
   },
 
-  getAdminDepenses: async (): Promise<any[]> => {
+  getAdminDepenses: async (): Promise<AdminDepense[]> => {
     const { data, error } = await supabase
       .from('admin_depenses')
       .select(`
@@ -379,7 +379,8 @@ export const db = {
         admin_categories_depense(nom_categorie),
         admin_modes_paiement(nom_mode),
         admin_codes_analytiques(code),
-        admin_personnel(nom, prenom)
+        admin_personnel(nom, prenom),
+        project:project_id(numero_phase)
       `)
       .order('date_operation', { ascending: false });
 
@@ -393,7 +394,8 @@ export const db = {
       nom_categorie: d.admin_categories_depense?.nom_categorie || '-',
       nom_mode: d.admin_modes_paiement?.nom_mode || '-',
       code_analytique: d.admin_codes_analytiques?.code || '-',
-      responsable_nom: d.admin_personnel ? `${d.admin_personnel.prenom} ${d.admin_personnel.nom}` : '-'
+      responsable_nom: d.admin_personnel ? `${d.admin_personnel.prenom} ${d.admin_personnel.nom}` : '-',
+      project_phase: d.project ? `Phase ${d.project.numero_phase}` : '-'
     }));
   },
 

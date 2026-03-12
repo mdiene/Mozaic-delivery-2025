@@ -138,9 +138,9 @@ export const Fleet = () => {
           if (payload.capacity_tonnes) {
             payload.capacity_tonnes = Number(payload.capacity_tonnes);
           }
-          // Clear owner name if it's an internal truck
+          // Set owner name if it's an internal truck
           if (payload.owner_type === true) {
-            payload.Trucks_proprietaire = null;
+            payload.Trucks_proprietaire = 'Kalidou Wague';
           }
         }
         
@@ -466,26 +466,35 @@ export const Fleet = () => {
                         id="owner_type"
                         className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                         checked={formData.owner_type !== false}
-                        onChange={e => setFormData({...formData, owner_type: e.target.checked})}
+                        onChange={e => {
+                          const isInternal = e.target.checked;
+                          setFormData({
+                            ...formData, 
+                            owner_type: isInternal,
+                            Trucks_proprietaire: isInternal ? 'Kalidou Wague' : (formData.Trucks_proprietaire === 'Kalidou Wague' ? '' : formData.Trucks_proprietaire)
+                          });
+                        }}
                       />
                       <label htmlFor="owner_type" className="text-sm font-bold text-amber-900 cursor-pointer">
                          Camion Interne (Masae)
                       </label>
                     </div>
 
-                    {!formData.owner_type && (
-                      <div className="animate-in slide-in-from-top-2 duration-200">
-                        <label className="block text-[10px] font-black uppercase tracking-widest text-amber-600/70 mb-1 ml-1">Nom du Propriétaire</label>
-                        <AdvancedSelect 
-                          options={truckOwnerOptions}
-                          value={formData.Trucks_proprietaire || ''}
-                          onChange={(val) => setFormData({ ...formData, Trucks_proprietaire: val })}
-                          placeholder="Choisir ou taper le nom du propriétaire..."
-                          creatable={true}
-                          className="advance-select-amber"
-                        />
-                      </div>
-                    )}
+                    <div className="animate-in slide-in-from-top-2 duration-200">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-amber-600/70 mb-1 ml-1">Nom du Propriétaire</label>
+                      <AdvancedSelect 
+                        options={truckOwnerOptions}
+                        value={formData.Trucks_proprietaire || (formData.owner_type !== false ? 'Kalidou Wague' : '')}
+                        onChange={(val) => setFormData({ ...formData, Trucks_proprietaire: val })}
+                        placeholder="Choisir ou taper le nom du propriétaire..."
+                        creatable={true}
+                        className="advance-select-amber"
+                        disabled={formData.owner_type !== false}
+                      />
+                      {formData.owner_type !== false && (
+                        <p className="text-[10px] text-amber-600 mt-1 ml-1 italic">Propriétaire par défaut pour les camions internes.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (

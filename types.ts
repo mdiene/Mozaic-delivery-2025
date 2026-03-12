@@ -239,9 +239,17 @@ export interface AdminDepense {
   id_mode_paiement: string;
   id_code_analytique: string;
   id_responsable: string;
+  project_id?: string;
   reference_piece: string;
+  depense_en_attente?: boolean;
   created_at: string;
   updated_at: string;
+  // Enriched
+  nom_categorie?: string;
+  nom_mode?: string;
+  code_analytique?: string;
+  responsable_nom?: string;
+  project_phase?: string;
 }
 
 export type NetworkHierarchy = Array<{
