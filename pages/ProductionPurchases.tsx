@@ -29,9 +29,10 @@ export const ProductionPurchases = () => {
   const [formData, setFormData] = useState<any>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterCode, setFilterCode] = useState('all');
   const [filterYear, setFilterYear] = useState('all');
   const [dateRange, setDateRange] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
-  const [isGrouped, setIsGrouped] = useState(true);
+  const [isGrouped, setIsGrouped] = useState(false);
   const dateRangeInputRef = useRef<HTMLInputElement>(null);
 
   // Accordion State
@@ -64,6 +65,17 @@ export const ProductionPurchases = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const resetFilters = () => {
+    setFilterCategory('all');
+    setFilterCode('all');
+    setFilterYear('all');
+    setSearchTerm('');
+    setDateRange({ start: null, end: null });
+    if (dateRangeInputRef.current && (window as any).flatpickr) {
+      (dateRangeInputRef.current as any)._flatpickr.clear();
+    }
+  };
 
   // Extract unique years from data
   const availableYears = useMemo(() => {
@@ -207,7 +219,11 @@ export const ProductionPurchases = () => {
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(e => {
+      // Category filter
       if (filterCategory !== 'all' && e.id_categorie !== filterCategory) return false;
+      
+      // Code Analytique filter (Vient de)
+      if (filterCode !== 'all' && e.id_code_analytique !== filterCode) return false;
       
       // Year filter
       if (filterYear !== 'all') {
@@ -215,6 +231,7 @@ export const ProductionPurchases = () => {
         if (year !== filterYear) return false;
       }
 
+      // Date range filter
       if (dateRange.start && dateRange.end) {
         const d = new Date(e.date_operation);
         d.setHours(0,0,0,0);
@@ -223,17 +240,19 @@ export const ProductionPurchases = () => {
         if (d < start || d > end) return false;
       }
 
+      // Search term filter
       if (searchTerm) {
         const lower = searchTerm.toLowerCase();
         return (
           e.libelle.toLowerCase().includes(lower) ||
           e.reference_piece?.toLowerCase().includes(lower) ||
-          e.responsable_nom?.toLowerCase().includes(lower)
+          e.responsable_nom?.toLowerCase().includes(lower) ||
+          e.code_analytique?.toLowerCase().includes(lower)
         );
       }
       return true;
     });
-  }, [expenses, searchTerm, filterCategory, filterYear, dateRange]);
+  }, [expenses, searchTerm, filterCategory, filterCode, filterYear, dateRange]);
 
   const groupedByDate = useMemo(() => {
     const groups: Record<string, any[]> = {};
@@ -322,16 +341,30 @@ export const ProductionPurchases = () => {
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:ring-1 focus:ring-primary outline-none text-sm"
             />
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Filter size={16} className="text-muted-foreground" />
-            <select 
-              className="border border-input rounded-lg px-3 py-2 text-sm bg-background"
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-            >
-              <option value="all">Toutes Catégories</option>
-              {categories.map(c => <option key={c.id_categorie} value={c.id_categorie}>{c.nom_categorie}</option>)}
-            </select>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <Filter size={16} className="text-muted-foreground" />
+              <select 
+                className="border border-input rounded-lg px-3 py-2 text-sm bg-background font-medium"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+              >
+                <option value="all">Toutes Catégories</option>
+                {categories.map(c => <option key={c.id_categorie} value={c.id_categorie}>{c.nom_categorie}</option>)}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Code size={16} className="text-muted-foreground" />
+              <select 
+                className="border border-input rounded-lg px-3 py-2 text-sm bg-background font-medium"
+                value={filterCode}
+                onChange={(e) => setFilterCode(e.target.value)}
+              >
+                <option value="all">Vient de (Tous les codes)</option>
+                {codes.map(c => <option key={c.id_code} value={c.id_code}>{c.code}</option>)}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -386,6 +419,14 @@ export const ProductionPurchases = () => {
                 ))}
               </select>
             </div>
+
+            <button 
+              onClick={resetFilters}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase transition-all border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <RefreshCw size={14} />
+              Réinitialiser
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
