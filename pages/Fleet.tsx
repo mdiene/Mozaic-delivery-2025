@@ -26,6 +26,7 @@ export const Fleet = () => {
   const qrRef = useRef<HTMLDivElement>(null);
   
   const [truckSearch, setTruckSearch] = useState('');
+  const [globalSearch, setGlobalSearch] = useState('');
 
   const TRUCK_TYPES = [
     'Camion bennes',
@@ -138,8 +139,8 @@ export const Fleet = () => {
           if (payload.capacity_tonnes) {
             payload.capacity_tonnes = Number(payload.capacity_tonnes);
           }
-          // Set owner name if it's an internal truck
-          if (payload.owner_type === true) {
+          // Set owner name if it's an internal truck and not already set
+          if (payload.owner_type === true && !payload.Trucks_proprietaire) {
             payload.Trucks_proprietaire = 'Kalidou Wague';
           }
         }
@@ -225,10 +226,28 @@ export const Fleet = () => {
       }));
   }, [trucks, drivers, formData.truck_id, isModalOpen]);
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Chargement du Parc...</div>;
+  const filteredTrucks = useMemo(() => {
+    if (!globalSearch) return trucks;
+    const lower = globalSearch.toLowerCase();
+    return trucks.filter(t => 
+      t.plate_number.toLowerCase().includes(lower) || 
+      (t.driver_name && t.driver_name.toLowerCase().includes(lower))
+    );
+  }, [trucks, globalSearch]);
 
-  const assignedDrivers = drivers.filter(d => d.truck_plate);
-  const unassignedDrivers = drivers.filter(d => !d.truck_plate);
+  const filteredDrivers = useMemo(() => {
+    if (!globalSearch) return drivers;
+    const lower = globalSearch.toLowerCase();
+    return drivers.filter(d => 
+      d.name.toLowerCase().includes(lower) || 
+      (d.truck_plate && d.truck_plate.toLowerCase().includes(lower))
+    );
+  }, [drivers, globalSearch]);
+
+  const assignedDrivers = useMemo(() => filteredDrivers.filter(d => d.truck_plate), [filteredDrivers]);
+  const unassignedDrivers = useMemo(() => filteredDrivers.filter(d => !d.truck_plate), [filteredDrivers]);
+
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Chargement du Parc...</div>;
 
   return (
     <div className="space-y-6">
@@ -245,33 +264,59 @@ export const Fleet = () => {
       </div>
 
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden min-h-[500px]">
-        <div className="flex border-b border-border">
-          <button onClick={() => setActiveTab('trucks')} className={`flex-1 py-4 text-sm font-medium text-center transition-colors border-b-2 ${activeTab === 'trucks' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Camions</button>
-          <button onClick={() => setActiveTab('drivers')} className={`flex-1 py-4 text-sm font-medium text-center transition-colors border-b-2 ${activeTab === 'drivers' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Chauffeurs</button>
+        <div className="flex flex-col md:flex-row border-b border-border">
+          <div className="flex flex-1">
+            <button onClick={() => setActiveTab('trucks')} className={`flex-1 py-4 text-sm font-medium text-center transition-colors border-b-2 ${activeTab === 'trucks' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Camions</button>
+            <button onClick={() => setActiveTab('drivers')} className={`flex-1 py-4 text-sm font-medium text-center transition-colors border-b-2 ${activeTab === 'drivers' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Chauffeurs</button>
+          </div>
+          <div className="p-2 md:p-3 border-l border-border bg-muted/10 flex items-center">
+            <div className="relative w-full md:w-64">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={16} className="text-muted-foreground" />
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-2 border border-border rounded-lg bg-background text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                placeholder={activeTab === 'trucks' ? "Immatriculation ou Chauffeur..." : "Nom ou Camion..."}
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+              />
+              {globalSearch && (
+                <button 
+                  onClick={() => setGlobalSearch('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="w-full overflow-x-auto">
           {activeTab === 'trucks' ? (
             <table className="table table-striped">
               <thead className="bg-primary/5 border-b-2 border-primary/20">
-                <tr><th>Immatriculation</th><th>Type / Marque</th><th>N° Châssis</th><th>Capacité</th><th>Chauffeur Assigné</th><th>Statut</th><th className="text-right">Actions</th></tr>
+                <tr><th>Immatriculation</th><th>Type / Marque</th><th>Propriétaire</th><th>N° Châssis</th><th>Capacité</th><th>Chauffeur Assigné</th><th>Statut</th><th className="text-right">Actions</th></tr>
               </thead>
               <tbody>
-                {trucks.map(truck => (
+                {filteredTrucks.map(truck => (
                   <tr key={truck.id}>
                     <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="p-2 bg-muted rounded-lg"><Truck size={18} /></div><div><p className="font-mono font-medium">{truck.plate_number}</p></div></div></td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{truck.truck_type || '-'}</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground">{truck.truck_marque || '-'}</span>
-                          {truck.owner_type === false && truck.Trucks_proprietaire && (
-                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded font-bold uppercase">
-                              {truck.Trucks_proprietaire}
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-xs text-muted-foreground">{truck.truck_marque || '-'}</span>
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {truck.Trucks_proprietaire ? (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${truck.owner_type !== false ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {truck.Trucks_proprietaire}
+                        </span>
+                      ) : (
+                        <span className="text-xs italic text-muted-foreground">Non spécifié</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{truck.chassis_camion || '-'}</td>
                     <td className="px-4 py-3 text-sm">{truck.capacity_tonnes} T</td>
@@ -489,7 +534,6 @@ export const Fleet = () => {
                         placeholder="Choisir ou taper le nom du propriétaire..."
                         creatable={true}
                         className="advance-select-amber"
-                        disabled={formData.owner_type !== false}
                       />
                       {formData.owner_type !== false && (
                         <p className="text-[10px] text-amber-600 mt-1 ml-1 italic">Propriétaire par défaut pour les camions internes.</p>
