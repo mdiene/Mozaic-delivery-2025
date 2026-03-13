@@ -710,8 +710,8 @@ export const ProductionPurchases = () => {
                         <p className="text-xs font-bold text-foreground">{item.code_analytique || '-'}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter mb-1">Responsable</p>
-                        <p className="text-xs font-bold text-foreground">{item.responsable_nom}</p>
+                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter mb-1">Libellé / Désignation</p>
+                        <p className="text-xs font-bold text-foreground">{item.libelle}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter mb-1">Mode Paiement</p>
