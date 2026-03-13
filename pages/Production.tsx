@@ -7,7 +7,7 @@ import {
   Factory, Plus, Search, Calendar, Package, Users, Coins, 
   ChevronRight, Save, X, Edit2, Trash2, TrendingUp, History,
   LayoutList, FileText, Banknote, ChevronDown, UserCircle, Scissors,
-  ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter, Receipt, CheckCircle2, AlertCircle, CreditCard, Code, User, Info
+  ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter, Receipt, CheckCircle2, AlertCircle, CreditCard, Code, User, Info, Printer
 } from 'lucide-react';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +23,8 @@ export const ProductionPage = () => {
   
   // UI State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewData, setViewData] = useState<{ phase: string, items: ProductionView[] } | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [dailyWage, setDailyWage] = useState<number>(5000); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -244,6 +246,11 @@ export const ProductionPage = () => {
     setExpandedPhases(newSet);
   };
 
+  const handlePrintPhase = (phase: string, items: ProductionView[]) => {
+    setViewData({ phase, items });
+    setIsViewModalOpen(true);
+  };
+
   const projectOptions: Option[] = visibleProjects.map(p => ({
     value: p.id,
     label: `Phase ${p.numero_phase}`,
@@ -394,7 +401,19 @@ export const ProductionPage = () => {
                     </p>
                   </div>
                 </div>
-                <ChevronDown className={`text-muted-foreground transition-transform duration-300 ${expandedPhases.has(phase) ? 'rotate-180' : ''}`} />
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrintPhase(phase, phaseProds);
+                    }}
+                    className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                    title="Imprimer le récapitulatif de la phase"
+                  >
+                    <Printer size={18} />
+                  </button>
+                  <ChevronDown className={`text-muted-foreground transition-transform duration-300 ${expandedPhases.has(phase) ? 'rotate-180' : ''}`} />
+                </div>
               </button>
 
               <AnimatePresence>
@@ -770,6 +789,115 @@ export const ProductionPage = () => {
                     </button>
                  </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* View Modal for Printing */}
+      <AnimatePresence>
+        {isViewModalOpen && viewData && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-card rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-border flex flex-col max-h-[90vh]"
+            >
+              <div className="px-8 py-5 border-b border-border flex justify-between items-center bg-muted/30 print:hidden">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-primary/10 text-primary">
+                    <Printer size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground">Rapport de Production - {viewData.phase}</h3>
+                    <p className="text-xs text-muted-foreground font-medium">Récapitulatif détaillé des opérations d'ensachage</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-bold shadow-soft-lg hover:scale-105 transition-all active:scale-95"
+                  >
+                    <Printer size={18} /> Imprimer
+                  </button>
+                  <button onClick={() => setIsViewModalOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X size={20} /></button>
+                </div>
+              </div>
+              
+              <div className="p-8 overflow-y-auto flex-1 print:p-0 print:overflow-visible" id="printable-production">
+                <div className="hidden print:block text-center mb-8 border-b-2 border-black pb-6">
+                  <h1 className="text-3xl font-black uppercase tracking-tighter mb-2">MASAE - Rapport de Production Ensachage</h1>
+                  <h2 className="text-xl font-bold uppercase tracking-widest text-primary">{viewData.phase}</h2>
+                  <p className="text-sm font-bold mt-2">Généré le: {new Date().toLocaleDateString('fr-FR')}</p>
+                </div>
+
+                <div className="space-y-8">
+                  <div className="grid grid-cols-3 gap-6">
+                    <div className="bg-muted/30 p-4 rounded-2xl border border-border print:border-black/20">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Ensaché</p>
+                      <p className="text-2xl font-black text-foreground">{viewData.items.reduce((sum, i) => sum + Number(i.tonnage || 0), 0).toFixed(2)} T</p>
+                    </div>
+                    <div className="bg-muted/30 p-4 rounded-2xl border border-border print:border-black/20">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Sacs (50kg)</p>
+                      <p className="text-2xl font-black text-foreground">{viewData.items.reduce((sum, i) => sum + Number(i.bags_filled_50kg || 0), 0).toLocaleString()}</p>
+                    </div>
+                    <div className="bg-muted/30 p-4 rounded-2xl border border-border print:border-black/20">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Coût Main d'œuvre</p>
+                      <p className="text-2xl font-black text-foreground">{viewData.items.reduce((sum, i) => sum + Number(i.total_amount || 0), 0).toLocaleString()} F</p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border border-border print:border-black/20">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-muted/50 print:bg-transparent">
+                        <tr className="border-b border-border print:border-black/20">
+                          <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Date</th>
+                          <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Sacs Déployés</th>
+                          <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Sacs Remplis</th>
+                          <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Tonnage (T)</th>
+                          <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Effectif</th>
+                          <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest">Montant (F)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border print:divide-black/10">
+                        {viewData.items.sort((a, b) => new Date(b.production_date).getTime() - new Date(a.production_date).getTime()).map((item) => (
+                          <tr key={item.id} className="text-sm">
+                            <td className="px-4 py-3 font-medium">{new Date(item.production_date).toLocaleDateString('fr-FR')}</td>
+                            <td className="px-4 py-3">{item.bags_deployed}</td>
+                            <td className="px-4 py-3 font-bold">{item.bags_filled_50kg}</td>
+                            <td className="px-4 py-3 font-black text-primary print:text-black">{Number(item.tonnage).toFixed(2)}</td>
+                            <td className="px-4 py-3">{(item.nombre_elements || 0) + (item.equipe_couture || 0)}</td>
+                            <td className="px-4 py-3 text-right font-mono font-bold">{item.total_amount?.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-muted/50 print:bg-transparent font-black">
+                        <tr>
+                          <td colSpan={2} className="px-4 py-4 text-right uppercase tracking-widest text-[10px]">Totaux</td>
+                          <td className="px-4 py-4">{viewData.items.reduce((sum, i) => sum + Number(i.bags_filled_50kg || 0), 0).toLocaleString()}</td>
+                          <td className="px-4 py-4 text-primary print:text-black">{viewData.items.reduce((sum, i) => sum + Number(i.tonnage || 0), 0).toFixed(2)}</td>
+                          <td className="px-4 py-4">{viewData.items.reduce((sum, i) => sum + (Number(i.nombre_elements || 0) + Number(i.equipe_couture || 0)), 0)}</td>
+                          <td className="px-4 py-4 text-right text-primary print:text-black">{viewData.items.reduce((sum, i) => sum + Number(i.total_amount || 0), 0).toLocaleString()} F</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <div className="hidden print:grid grid-cols-2 gap-20 mt-20">
+                    <div className="text-center border-t border-black pt-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest">Visa Responsable Production</p>
+                    </div>
+                    <div className="text-center border-t border-black pt-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest">Visa Direction Générale</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-8 py-5 border-t border-border bg-muted/10 flex justify-end print:hidden">
+                <button onClick={() => setIsViewModalOpen(false)} className="px-6 py-2 bg-secondary text-secondary-foreground rounded-xl text-sm font-bold hover:bg-secondary/80 transition-all">Fermer</button>
+              </div>
             </motion.div>
           </div>
         )}
