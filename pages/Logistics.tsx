@@ -43,16 +43,32 @@ export const Logistics = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [del, tr, dr, al, proj, reg, dep] = await Promise.all([
+      const [del, tr, dr, al, proj, reg, dep, pay] = await Promise.all([
         db.getDeliveriesView(),
         db.getTrucks(),
         db.getDrivers(),
         db.getAllocationsView(),
         db.getProjects(),
         db.getRegions(),
-        db.getDepartments()
+        db.getDepartments(),
+        db.getPayments()
       ]);
-      setDeliveries(del);
+
+      const deliveriesWithFees = del.map(d => {
+        const payment = pay.find(p => p.delivery_id === d.id);
+        const total_fees = payment ? (
+          (Number(payment.road_fees) || 0) +
+          (Number(payment.personal_fees) || 0) +
+          (Number(payment.other_fees) || 0) +
+          (Number(payment.overweigh_fees) || 0) +
+          (Number(payment.fuel_cost) || 0) +
+          (Number(payment.loading_cost) || 0) +
+          (Number(payment.unloading_cost) || 0)
+        ) : 0;
+        return { ...d, total_fees };
+      });
+
+      setDeliveries(deliveriesWithFees);
       setTrucks(tr);
       setDrivers(dr);
       setAllocations(al); 
@@ -439,6 +455,7 @@ export const Logistics = () => {
                           <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Destination</th>
                           <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Transport</th>
                           <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Charge</th>
+                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Frais</th>
                           <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Date</th>
                           <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider w-32">Actions</th>
                         </tr>
@@ -448,7 +465,7 @@ export const Logistics = () => {
                            <Fragment key={subGroup.key}>
                               {groupBy !== 'none' && (
                                 <tr className="bg-muted/30">
-                                   <td colSpan={6} className="px-6 py-2 text-xs font-medium text-foreground border-b border-border/50 flex items-center justify-between">
+                                   <td colSpan={7} className="px-6 py-2 text-xs font-medium text-foreground border-b border-border/50 flex items-center justify-between">
                                       <span className="flex items-center gap-2 uppercase tracking-wide font-bold">{subGroup.key}</span>
                                       <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[10px]">Total: {subGroup.totalLoad.toFixed(2)} T</span>
                                    </td>
@@ -472,6 +489,7 @@ export const Logistics = () => {
                                   </td>
                                   <td className="px-4 py-3"><div className="flex flex-col"><p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'Aucun'}</p><p className="text-xs text-muted-foreground">{del.driver_name || 'Aucun'}</p></div></td>
                                   <td className="px-4 py-3"><span className="text-sm font-bold text-foreground bg-muted px-2 py-1 rounded">{del.tonnage_loaded} T</span></td>
+                                  <td className="px-4 py-3"><span className="text-sm font-bold text-amber-600">{del.total_fees?.toLocaleString()} F</span></td>
                                   <td className="px-4 py-3 text-sm text-muted-foreground">{del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}</td>
                                   <td className="px-4 py-3 text-right">
                                      <div className="flex justify-end gap-1">

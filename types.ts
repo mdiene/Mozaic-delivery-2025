@@ -133,6 +133,7 @@ export interface DeliveryView extends Delivery {
   truck_owner_type?: boolean;
   truck_owner?: string;
   operator_id?: string;
+  total_fees?: number;
 }
 
 export interface Payment {
