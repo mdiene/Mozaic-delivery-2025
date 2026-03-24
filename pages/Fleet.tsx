@@ -20,6 +20,14 @@ export const Fleet = () => {
   const [formData, setFormData] = useState<any>({});
   
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    type?: 'danger' | 'primary';
+  } | null>(null);
   const [selectedQRTruck, setSelectedQRTruck] = useState<TruckType | null>(null);
   const [generatedQRValue, setGeneratedQRValue] = useState<string>('');
   const [qrSuccessMessage, setQrSuccessMessage] = useState('');
@@ -94,13 +102,22 @@ export const Fleet = () => {
 
   const handleDelete = async (id: string) => {
     if (isVisitor) return;
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ?')) return;
-    try {
-      await db.deleteItem(activeTab, id);
-      fetchData();
-    } catch (e) {
-      alert("Impossible de supprimer. L'élément est peut-être utilisé.");
-    }
+    setConfirmConfig({
+      title: 'Confirmation de suppression',
+      message: `Êtes-vous sûr de vouloir supprimer ce ${activeTab === 'trucks' ? 'camion' : 'chauffeur'} ? Cette action est irréversible.`,
+      onConfirm: async () => {
+        try {
+          await db.deleteItem(activeTab, id);
+          fetchData();
+          setIsConfirmModalOpen(false);
+        } catch (e) {
+          alert("Impossible de supprimer. L'élément est peut-être utilisé.");
+        }
+      },
+      confirmText: 'Supprimer',
+      type: 'danger'
+    });
+    setIsConfirmModalOpen(true);
   };
 
   const handleAssignTruck = (driver: DriverType) => {
@@ -185,13 +202,22 @@ export const Fleet = () => {
 
   const handleDisassociate = async (truckId: string) => {
     if (isVisitor) return;
-    if (!confirm('Voulez-vous vraiment dissocier ce camion de son chauffeur ?')) return;
-    try {
-      await db.updateTruckDriverAssignment(truckId, null);
-      fetchData();
-    } catch (e) {
-      alert('Erreur lors de la dissociation');
-    }
+    setConfirmConfig({
+      title: 'Confirmation de dissociation',
+      message: 'Voulez-vous vraiment dissocier ce camion de son chauffeur ?',
+      onConfirm: async () => {
+        try {
+          await db.updateTruckDriverAssignment(truckId, null);
+          fetchData();
+          setIsConfirmModalOpen(false);
+        } catch (e) {
+          alert('Erreur lors de la dissociation');
+        }
+      },
+      confirmText: 'Dissocier',
+      type: 'primary'
+    });
+    setIsConfirmModalOpen(true);
   };
 
   const handleGenerateQR = () => {
@@ -592,6 +618,38 @@ export const Fleet = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isConfirmModalOpen && confirmConfig && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-border p-6">
+            <div className={`alert alert-soft ${confirmConfig.type === 'danger' ? 'alert-error' : 'alert-primary'} flex items-start max-sm:flex-col max-sm:items-center gap-4`}>
+              <span className={`${confirmConfig.type === 'danger' ? 'text-error' : 'text-primary'} size-6 shrink-0`}>
+                {confirmConfig.type === 'danger' ? <Trash2 size={24} /> : <Unlink size={24} />}
+              </span>
+              <div className="flex flex-col grow gap-1 max-sm:items-center">
+                <h5 className="text-lg font-semibold">{confirmConfig.title}</h5>
+                <p className="text-sm text-muted-foreground">{confirmConfig.message}</p>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  type="button" 
+                  onClick={confirmConfig.onConfirm}
+                  className={`btn ${confirmConfig.type === 'danger' ? 'btn-error' : 'btn-primary'} btn-sm`}
+                >
+                  {confirmConfig.confirmText || 'Accepter'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setIsConfirmModalOpen(false)}
+                  className="btn btn-outline btn-secondary btn-sm"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
