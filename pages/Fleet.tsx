@@ -633,18 +633,18 @@ export const Fleet = () => {
                 <h5 className="text-lg font-semibold">{confirmConfig.title}</h5>
                 <p className="text-sm text-muted-foreground">{confirmConfig.message}</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 w-full sm:w-auto">
                 <button 
                   type="button" 
                   onClick={confirmConfig.onConfirm}
-                  className={`btn ${confirmConfig.type === 'danger' ? 'btn-error' : 'btn-primary'} btn-sm`}
+                  className={`btn ${confirmConfig.type === 'danger' ? 'btn-error' : 'btn-primary'} btn-sm rounded-full w-full`}
                 >
                   {confirmConfig.confirmText || 'Accepter'}
                 </button>
                 <button 
                   type="button" 
                   onClick={() => setIsConfirmModalOpen(false)}
-                  className="btn btn-outline btn-secondary btn-sm"
+                  className={`btn btn-soft ${confirmConfig.type === 'danger' ? 'btn-error' : 'btn-primary'} btn-sm rounded-full w-full`}
                 >
                   Annuler
                 </button>
