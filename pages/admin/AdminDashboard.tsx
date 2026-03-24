@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../services/db';
 import { AdminPersonnel, AdminPoste } from '../../types';
 import { 
-  Users, UserCheck, UserPlus, Activity, TrendingUp, Briefcase, ShieldCheck, AlertCircle, RefreshCw
+  Users, UserCheck, UserPlus, Activity, TrendingUp, Briefcase, ShieldCheck, AlertCircle, RefreshCw, Calculator
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend, LineChart, Line
@@ -75,7 +76,7 @@ export const AdminDashboard = () => {
         {[
           { label: 'Effectif Total', value: totalEmployees, icon: Users, color: 'bg-primary/10 text-primary' },
           { label: 'Postes Définis', value: totalPostes, icon: Briefcase, color: 'bg-blue-500/10 text-blue-500' },
-          { label: 'Nouveaux (Mois)', value: 0, icon: UserPlus, color: 'bg-emerald-500/10 text-emerald-500' },
+          { label: 'Gestion Paie', value: 'Calculer', icon: Calculator, color: 'bg-emerald-500/10 text-emerald-500', link: '/admin/payroll' },
           { label: 'Taux Présence', value: '98%', icon: Activity, color: 'bg-purple-500/10 text-purple-500' },
         ].map((stat, i) => (
           <motion.div 
@@ -83,8 +84,11 @@ export const AdminDashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-card p-6 rounded-3xl border border-border shadow-soft-xl"
+            className="bg-card p-6 rounded-3xl border border-border shadow-soft-xl relative group"
           >
+            {stat.link && (
+              <Link to={stat.link} className="absolute inset-0 z-10" />
+            )}
             <div className="flex items-center justify-between mb-4">
               <div className={`p-3 rounded-2xl ${stat.color}`}>
                 <stat.icon size={24} />

@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent, useRef, useMemo } from 'react';
 import { db } from '../services/db';
 import { Truck as TruckType, Driver as DriverType } from '../types';
-import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon, Search, ChevronDown, QrCode, Printer, CheckCircle2, Link2 } from 'lucide-react';
+import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon, Search, ChevronDown, QrCode, Printer, CheckCircle2, Link2, Unlink } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
@@ -181,6 +181,17 @@ export const Fleet = () => {
     setIsQRModalOpen(true);
   };
 
+  const handleDisassociate = async (truckId: string) => {
+    if (isVisitor) return;
+    if (!confirm('Voulez-vous vraiment dissocier ce camion de son chauffeur ?')) return;
+    try {
+      await db.updateTruckDriverAssignment(truckId, null);
+      fetchData();
+    } catch (e) {
+      alert('Erreur lors de la dissociation');
+    }
+  };
+
   const handleGenerateQR = () => {
     if (isVisitor || !selectedQRTruck) return;
     const content = JSON.stringify({ id: selectedQRTruck.id, plate: selectedQRTruck.plate_number, trailer: selectedQRTruck.trailer_number || '' });
@@ -325,6 +336,9 @@ export const Fleet = () => {
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         <button onClick={() => handleOpenQRModal(truck)} className="btn btn-circle btn-text btn-sm" title="QR Code"><QrCode size={16} /></button>
+                        {truck.driver_id && (
+                          <button onClick={() => handleDisassociate(truck.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-orange-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Dissocier le chauffeur"><Unlink size={16} /></button>
+                        )}
                         <button onClick={() => handleEdit(truck)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete(truck.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm btn-text-error disabled:opacity-30 disabled:cursor-not-allowed"><Trash2 size={16} /></button>
                       </div>
@@ -347,9 +361,15 @@ export const Fleet = () => {
                     <td className="px-4 py-3"><span className="badge badge-soft text-xs">{driver.status}</span></td>
                     <td className="px-4 py-3 text-sm">{driver.truck_plate || 'Aucun'}</td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => handleAssignTruck(driver)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Assigner un Camion"><Link2 size={16} /></button>
-                      <button onClick={() => handleEdit(driver)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(driver.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm btn-text-error disabled:opacity-30 disabled:cursor-not-allowed"><Trash2 size={16} /></button>
+                      <div className="flex justify-end gap-1">
+                        {driver.truck_id ? (
+                          <button onClick={() => handleDisassociate(driver.truck_id!)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Dissocier le camion"><Unlink size={16} /></button>
+                        ) : (
+                          <button onClick={() => handleAssignTruck(driver)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Assigner un Camion"><Link2 size={16} /></button>
+                        )}
+                        <button onClick={() => handleEdit(driver)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete(driver.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm btn-text-error disabled:opacity-30 disabled:cursor-not-allowed"><Trash2 size={16} /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}

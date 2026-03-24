@@ -42,7 +42,8 @@ import {
   Users,
   UserCheck,
   Activity,
-  UserPlus
+  UserPlus,
+  Calculator
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -263,6 +264,7 @@ const Sidebar = ({
           {(isAdmin || isVisitor) && (
             <SidebarSubmenu label="Administration" icon={Users} basePath="/admin" expanded={expanded}>
                <li><NavLink to="/admin/personnel" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><UserCheck size={16} className="shrink-0" /><span className="truncate">Gestion Personnel</span></NavLink></li>
+               <li><NavLink to="/admin/payroll" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Calculator size={16} className="shrink-0" /><span className="truncate">Gestion de la Paye</span></NavLink></li>
             </SidebarSubmenu>
           )}
 

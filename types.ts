@@ -506,3 +506,69 @@ export interface HQSESignalement {
   employee_name?: string;
   reporter_name?: string;
 }
+
+// Payroll Types
+export interface PaieContrat {
+  id_contrat: string;
+  id_personnel: string;
+  type_contrat: 'CDI' | 'CDD' | 'Stage' | 'Journalier';
+  date_embauche: string;
+  salaire_base_mensuel: number;
+  surplus_salaire: number;
+  nb_parts_fiscales: number;
+  is_cadre: boolean;
+  active: boolean;
+  created_at: string;
+  // Enriched
+  personnel_nom?: string;
+  personnel_prenom?: string;
+}
+
+export interface PaieRubrique {
+  id_rubrique: string;
+  code_rubrique: string;
+  libelle: string;
+  type_rubrique: 'GAIN' | 'RETENUE';
+  is_imposable: boolean;
+  is_soumis_cotisation: boolean;
+  created_at: string;
+}
+
+export interface PaieElementFixe {
+  id_element: string;
+  id_personnel: string;
+  id_rubrique: string;
+  montant: number;
+  active: boolean;
+  // Enriched
+  rubrique_libelle?: string;
+  rubrique_type?: string;
+}
+
+export interface PaieBulletin {
+  id_bulletin: string;
+  id_personnel: string;
+  periode_mois: number;
+  periode_annee: number;
+  salaire_brut_total: number;
+  assiette_ipres: number;
+  impot_sur_revenu: number;
+  trimf: number;
+  net_a_payer: number;
+  statut_paiement: 'BROUILLON' | 'VALIDE' | 'PAYE';
+  date_calcul: string;
+  // Enriched
+  personnel_nom?: string;
+  personnel_prenom?: string;
+}
+
+export interface PaieBulletinDetail {
+  id_detail: string;
+  id_bulletin: string;
+  libelle_ligne: string;
+  base_calcul: number;
+  taux_salarial: number;
+  montant_salarial: number;
+  taux_patronal: number;
+  montant_patronal: number;
+}

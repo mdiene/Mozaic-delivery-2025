@@ -24,6 +24,7 @@ import { HQSEDotations } from './pages/HQSEDotations';
 import { HQSEAllocations } from './pages/HQSEAllocations';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { PersonnelPage } from './pages/admin/Personnel';
+import Payroll from './pages/Payroll';
 import { PublicView } from './pages/PublicView';
 import { useAuth } from './contexts/AuthContext';
 
@@ -190,6 +191,12 @@ function App() {
           <Route path="admin/personnel" element={
             <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
               <PersonnelPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="admin/payroll" element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+              <Payroll />
             </ProtectedRoute>
           } />
         </Route>

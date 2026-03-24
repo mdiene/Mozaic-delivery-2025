@@ -5,7 +5,8 @@ import {
   Operator, Project, NetworkHierarchy, GlobalHierarchy, BonLivraisonView, FinDeCessionView, EnrichedPayment, UserPreference, ProductionView,
   AdminCategoryDepense, AdminModePaiement, AdminCodeAnalytique, AdminPoste, AdminPersonnel, AdminDepense,
   EquipmentType, Equipment, HQSEInspection, HQSEInspectionPlan, HQSENonConformity, HQSECorrectiveAction,
-  EmployeeEndowment, HQSESafetyAudit, HQSEEmployeeAllocation, HQSESignalement
+  EmployeeEndowment, HQSESafetyAudit, HQSEEmployeeAllocation, HQSESignalement,
+  PaieContrat, PaieRubrique, PaieElementFixe, PaieBulletin, PaieBulletinDetail
 } from '../types';
 
 const safeLog = (message: string, ...args: any[]) => {
@@ -987,5 +988,60 @@ export const db = {
     const { data, error } = await supabase.from('hqse_tickets_signalements').insert([payload]).select();
     if (error) throw error;
     return data;
+  },
+
+  // Payroll Methods
+  getPaieContrats: async (): Promise<PaieContrat[]> => {
+    const { data } = await supabase.from('paie_contrats').select(`
+      *,
+      admin_personnel(nom, prenom)
+    `);
+    return (data || []).map((c: any) => ({
+      ...c,
+      personnel_nom: c.admin_personnel?.nom,
+      personnel_prenom: c.admin_personnel?.prenom
+    }));
+  },
+
+  getPaieRubriques: async (): Promise<PaieRubrique[]> => {
+    const { data } = await supabase.from('paie_rubriques').select('*');
+    return data || [];
+  },
+
+  getPaieElementsFixes: async (idPersonnel?: string): Promise<PaieElementFixe[]> => {
+    let query = supabase.from('paie_elements_fixes').select(`
+      *,
+      paie_rubriques(libelle, type_rubrique)
+    `);
+    if (idPersonnel) {
+      query = query.eq('id_personnel', idPersonnel);
+    }
+    const { data } = await query;
+    return (data || []).map((e: any) => ({
+      ...e,
+      rubrique_libelle: e.paie_rubriques?.libelle,
+      rubrique_type: e.paie_rubriques?.type_rubrique
+    }));
+  },
+
+  getPaieBulletins: async (periodeMois?: number, periodeAnnee?: number): Promise<PaieBulletin[]> => {
+    let query = supabase.from('paie_bulletins').select(`
+      *,
+      admin_personnel(nom, prenom)
+    `);
+    if (periodeMois) query = query.eq('periode_mois', periodeMois);
+    if (periodeAnnee) query = query.eq('periode_annee', periodeAnnee);
+    
+    const { data } = await query;
+    return (data || []).map((b: any) => ({
+      ...b,
+      personnel_nom: b.admin_personnel?.nom,
+      personnel_prenom: b.admin_personnel?.prenom
+    }));
+  },
+
+  getPaieBulletinDetails: async (idBulletin: string): Promise<PaieBulletinDetail[]> => {
+    const { data } = await supabase.from('paie_bulletin_details').select('*').eq('id_bulletin', idBulletin);
+    return data || [];
   }
 };
