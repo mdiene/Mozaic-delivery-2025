@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent, useRef, useMemo } from 'react';
 import { db } from '../services/db';
 import { Truck as TruckType, Driver as DriverType } from '../types';
-import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon, Search, ChevronDown, QrCode, Printer, CheckCircle2, Link2, Unlink } from 'lucide-react';
+import { Truck, User, Plus, Trash2, Edit2, X, Save, Link as LinkIcon, Search, ChevronDown, QrCode, Printer, CheckCircle2, Link2 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
@@ -16,7 +16,7 @@ export const Fleet = () => {
   const isVisitor = user?.role === 'VISITOR';
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<'form' | 'assign'>('form');
+  const [modalType, setModalType] = useState<'form' | 'assign-truck' | 'assign-driver'>('form');
   const [formData, setFormData] = useState<any>({});
   
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
@@ -105,8 +105,15 @@ export const Fleet = () => {
 
   const handleAssignTruck = (driver: DriverType) => {
     if (isVisitor) return;
-    setModalType('assign');
+    setModalType('assign-truck');
     setFormData({ ...driver }); // We store the driver data
+    setIsModalOpen(true);
+  };
+
+  const handleAssignDriver = (truck: TruckType) => {
+    if (isVisitor) return;
+    setModalType('assign-driver');
+    setFormData({ ...truck }); // We store the truck data
     setIsModalOpen(true);
   };
 
@@ -115,16 +122,11 @@ export const Fleet = () => {
     if (isVisitor) return;
     
     try {
-      if (modalType === 'assign') {
-        // Assignment logic: Update the driver table with the truck_id
-        const driverId = formData.id;
-        const truckId = formData.truck_id; // Selected from AdvancedSelect
+      if (modalType === 'assign-truck' || modalType === 'assign-driver') {
+        const driverId = modalType === 'assign-truck' ? formData.id : formData.driver_id;
+        const truckId = modalType === 'assign-truck' ? formData.truck_id : formData.id;
         
-        if (!truckId) {
-          // If no truck selected, we might be unassigning
-          await db.updateItem('drivers', driverId, { truck_id: null });
-        } else {
-          // Check if this truck is assigned elsewhere and unassign it first (1:1 constraint)
+        if (driverId && truckId) {
           await db.updateTruckDriverAssignment(truckId, driverId);
         }
       } else {
@@ -237,6 +239,16 @@ export const Fleet = () => {
       }));
   }, [trucks, drivers, formData.truck_id, isModalOpen]);
 
+  const availableDriverOptions: Option[] = useMemo(() => {
+    return drivers
+      .filter(d => !d.truck_id || d.id === formData.driver_id)
+      .map(d => ({
+        value: d.id,
+        label: d.name,
+        subLabel: `Permis: ${d.license_number}`
+      }));
+  }, [drivers, formData.driver_id, isModalOpen]);
+
   const filteredTrucks = useMemo(() => {
     if (!globalSearch) return trucks;
     const lower = globalSearch.toLowerCase();
@@ -336,8 +348,10 @@ export const Fleet = () => {
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         <button onClick={() => handleOpenQRModal(truck)} className="btn btn-circle btn-text btn-sm" title="QR Code"><QrCode size={16} /></button>
-                        {truck.driver_id && (
-                          <button onClick={() => handleDisassociate(truck.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-orange-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Dissocier le chauffeur"><Unlink size={16} /></button>
+                        {truck.driver_id ? (
+                          <button onClick={() => handleDisassociate(truck.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-red-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Dissocier le chauffeur"><Link2 size={16} /></button>
+                        ) : (
+                          <button onClick={() => handleAssignDriver(truck)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Assigner un Chauffeur"><Link2 size={16} /></button>
                         )}
                         <button onClick={() => handleEdit(truck)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete(truck.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm btn-text-error disabled:opacity-30 disabled:cursor-not-allowed"><Trash2 size={16} /></button>
@@ -363,7 +377,7 @@ export const Fleet = () => {
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         {driver.truck_id ? (
-                          <button onClick={() => handleDisassociate(driver.truck_id!)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Dissocier le camion"><Unlink size={16} /></button>
+                          <button onClick={() => handleDisassociate(driver.truck_id!)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Dissocier le camion"><Link2 size={16} /></button>
                         ) : (
                           <button onClick={() => handleAssignTruck(driver)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Assigner un Camion"><Link2 size={16} /></button>
                         )}
@@ -384,31 +398,31 @@ export const Fleet = () => {
           <div className="bg-card rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-border">
             <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
               <h3 className="font-semibold text-foreground">
-                {modalType === 'assign' ? 'Assignation Camion' : (formData.id ? 'Modifier' : 'Ajouter')} {modalType === 'assign' ? '' : (activeTab === 'trucks' ? 'Camion' : 'Chauffeur')}
+                {(modalType === 'assign-truck' || modalType === 'assign-driver') ? 'Assignation' : (formData.id ? 'Modifier' : 'Ajouter')} {(modalType === 'assign-truck' || modalType === 'assign-driver') ? '' : (activeTab === 'trucks' ? 'Camion' : 'Chauffeur')}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="p-0 space-y-0">
-              {modalType === 'assign' ? (
+              {(modalType === 'assign-truck' || modalType === 'assign-driver') ? (
                 <div className="p-6 space-y-4">
                   <div className="p-3 bg-muted/50 rounded-lg flex items-center gap-3">
-                    <User size={20} className="text-primary" />
+                    {modalType === 'assign-truck' ? <User size={20} className="text-primary" /> : <Truck size={20} className="text-primary" />}
                     <div>
-                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Chauffeur</p>
-                      <p className="text-sm font-bold text-foreground">{formData.name}</p>
+                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{modalType === 'assign-truck' ? 'Chauffeur' : 'Camion'}</p>
+                      <p className="text-sm font-bold text-foreground">{modalType === 'assign-truck' ? formData.name : formData.plate_number}</p>
                     </div>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium mb-1">Sélectionner un Camion Disponible</label>
+                    <label className="block text-sm font-medium mb-1">Sélectionner un {modalType === 'assign-truck' ? 'Camion' : 'Chauffeur'} Disponible</label>
                     <AdvancedSelect 
-                      options={availableTruckOptions}
-                      value={formData.truck_id || ''}
-                      onChange={(val) => setFormData({ ...formData, truck_id: val })}
-                      placeholder="Rechercher par immatriculation..."
+                      options={modalType === 'assign-truck' ? availableTruckOptions : availableDriverOptions}
+                      value={(modalType === 'assign-truck' ? formData.truck_id : formData.driver_id) || ''}
+                      onChange={(val) => setFormData({ ...formData, [modalType === 'assign-truck' ? 'truck_id' : 'driver_id']: val })}
+                      placeholder={modalType === 'assign-truck' ? "Rechercher par immatriculation..." : "Rechercher par nom..."}
                     />
                     <p className="text-[10px] text-muted-foreground mt-2 italic">
-                      Seuls les camions non encore assignés à un chauffeur actif sont affichés.
+                      Seuls les {modalType === 'assign-truck' ? 'camions' : 'chauffeurs'} non encore assignés sont affichés.
                     </p>
                   </div>
                 </div>
@@ -574,7 +588,7 @@ export const Fleet = () => {
               <div className="px-6 py-4 flex justify-end gap-2 border-t border-border bg-muted/10">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors">Annuler</button>
                 <button type="submit" className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-bold shadow-soft-xl flex items-center gap-2 active:scale-95 transition-all">
-                  <Save size={18} /> {modalType === 'assign' ? 'Confirmer' : 'Enregistrer'}
+                  <Save size={18} /> {(modalType === 'assign-truck' || modalType === 'assign-driver') ? 'Confirmer' : 'Enregistrer'}
                 </button>
               </div>
             </form>
