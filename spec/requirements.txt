@@ -1,37 +1,38 @@
 # MASAE Delivery Tracker - Local Dependency List
-# Run "npm install <package_name>" for each of these or use a package.json
+# Run "npm install" to install all dependencies from package.json
 
 # Core Framework
-react@^19.0.0
-react-dom@^19.0.0
-react-router-dom@^7.0.0
+react@^19.2.1
+react-dom@^19.2.1
+react-router-dom@^7.10.0
 
 # Build & Tooling
-vite@^6.0.0
-typescript@^5.0.0
-@vitejs/plugin-react@^4.0.0
+vite@^7.2.6
+typescript@~5.8.2
+@vitejs/plugin-react@^5.1.1
+@tailwindcss/vite@^4.2.1
+@types/node@^22.14.0
 
 # Backend & State Management
-@supabase/supabase-js@^2.45.0
-@tanstack/react-query@^5.60.0
+@supabase/supabase-js@^2.86.0
+@tanstack/react-query@^5.90.12
 
 # UI & Styling
-tailwindcss@^3.4.0
-autoprefixer@^10.4.0
-postcss@^8.4.0
-lucide-react@^0.450.0
+tailwindcss@^4.2.1
+lucide-react@^0.555.0
+motion@^12.34.5
 
 # Specialized Components & Utilities
-recharts@^2.13.0
-vis-network@^9.1.9
-@google/genai@^0.21.0
-jspdf@^2.5.1
-jspdf-autotable@^3.8.2
-qrcode.react@^4.0.0
-html5-qrcode@^2.3.8
-sortablejs@^1.15.3
-react-barcode@^1.5.3
+recharts@^3.5.1
+vis-network@9.1.9
+@google/genai@^1.31.0
+jspdf@2.5.1
+jspdf-autotable@3.8.2
+qrcode.react@4.2.0
+html5-qrcode@2.3.8
+
+# External CDN Dependencies (Loaded in index.html)
 flatpickr@^4.6.13
 
 # Command to install all at once locally:
-# npm install react react-dom react-router-dom @supabase/supabase-js @tanstack/react-query tailwindcss lucide-react recharts vis-network @google/genai jspdf jspdf-autotable qrcode.react html5-qrcode sortablejs react-barcode flatpickr
+# npm install react react-dom react-router-dom @supabase/supabase-js @tanstack/react-query tailwindcss lucide-react recharts vis-network @google/genai jspdf jspdf-autotable qrcode.react html5-qrcode motion
