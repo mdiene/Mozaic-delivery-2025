@@ -12,11 +12,12 @@ import {
   BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon,
   Activity, ChevronDown, ChevronUp, MoreHorizontal, Maximize2, Minimize2,
   Coins, Factory, Package, CalendarDays, ArrowLeftRight,
-  ArrowUpRight, ArrowDownRight, Search, ShieldCheck, AlertTriangle, ClipboardCheck, Zap
+  ArrowUpRight, ArrowDownRight, Search, ShieldCheck, AlertTriangle, ClipboardCheck, Zap,
+  Layers, Target
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProject } from '../components/Layout';
-import { ProductionView, DeliveryView, HQSEInspection, HQSENonConformity, HQSECorrectiveAction, HQSESignalement, AdminPersonnel } from '../types';
+import { ProductionView, DeliveryView, AllocationView, HQSEInspection, HQSENonConformity, HQSECorrectiveAction, HQSESignalement, AdminPersonnel } from '../types';
 import { getPhaseColor } from '../lib/colors';
 
 // FlyonUI Palette
@@ -86,6 +87,7 @@ export const Dashboard = () => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [productionHistory, setProductionHistory] = useState<ProductionView[]>([]);
   const [deliveriesHistory, setDeliveriesHistory] = useState<DeliveryView[]>([]);
+  const [allocations, setAllocations] = useState<AllocationView[]>([]);
   const [hqseActivities, setHqseActivities] = useState<any[]>([]);
   const [hqseSummaryData, setHqseSummaryData] = useState<any>({ severity: [], register: [], totalOpen: 0, criticalCount: 0, originBreakdown: [], safetyTrend: [] });
   const [hqseSignalements, setHqseSignalements] = useState<HQSESignalement[]>([]);
@@ -94,6 +96,7 @@ export const Dashboard = () => {
   const [adminPersonnel, setAdminPersonnel] = useState<AdminPersonnel[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [activeTab, setActiveTab] = useState<'overview' | 'production' | 'hqse'>('overview');
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
   const [prodChartType, setProdChartType] = useState<'area' | 'bar' | 'pie'>('area');
   const [prodRange, setProdRange] = useState<'15d' | '30d' | 'all'>('15d');
@@ -103,6 +106,7 @@ export const Dashboard = () => {
 
   const [isMounted, setIsMounted] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [featuredPhaseId, setFeaturedPhaseId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -112,11 +116,12 @@ export const Dashboard = () => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [s, c, p, d, insp, nc, ca, sig, adminPers, adminPostes] = await Promise.all([
+        const [s, c, p, d, allocs, insp, nc, ca, sig, adminPers, adminPostes] = await Promise.all([
           db.getStats(selectedProject),
           db.getChartData(selectedProject),
           db.getProductions(),
           db.getDeliveriesView(),
+          db.getAllocationsView(),
           db.getHQSEInspections(),
           db.getHQSENonConformities(),
           db.getHQSECorrectiveActions(),
@@ -140,6 +145,12 @@ export const Dashboard = () => {
           : d.filter(item => item.project_id === selectedProject);
         
         setDeliveriesHistory(filteredDels);
+
+        // Filter allocations by project if needed
+        const filteredAllocs = selectedProject === 'all'
+          ? allocs
+          : allocs.filter(item => item.project_id === selectedProject);
+        setAllocations(filteredAllocs);
 
         // Combine HQSE activities
         const combinedHqse = [
@@ -281,6 +292,51 @@ export const Dashboard = () => {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [deliveriesHistory]);
 
+  const phaseComparisonData = useMemo(() => {
+    return projects.map(project => {
+      const phaseDeliveries = deliveriesHistory.filter(d => d.project_id === project.id);
+      const phaseProduction = productionHistory.filter(p => p.project_id === project.id);
+      const phaseAllocations = allocations.filter(a => a.project_id === project.id);
+      
+      const delivered = phaseDeliveries.reduce((sum, d) => sum + Number(d.tonnage_loaded || 0), 0);
+      const produced = phaseProduction.reduce((sum, p) => sum + Number(p.tonnage || 0), 0);
+      const allocationTotal = phaseAllocations.reduce((sum, a) => sum + Number(a.target_tonnage || 0), 0);
+      const objectif = Number(project.objectif_tonnage || 0);
+      
+      const progress = allocationTotal > 0 ? (delivered / allocationTotal) * 100 : 0;
+      
+      // Activity score: weighted sum of recent production and deliveries
+      const activityScore = delivered + produced;
+
+      return {
+        id: project.id,
+        name: `Phase ${project.numero_phase}`,
+        delivered,
+        produced,
+        allocationTotal,
+        objectif,
+        progress,
+        activityScore,
+        color: getPhaseColor(project.numero_phase).hex
+      };
+    }).sort((a, b) => {
+      const pA = projects.find(p => p.id === a.id);
+      const pB = projects.find(p => p.id === b.id);
+      return (Number(pA?.numero_phase) || 0) - (Number(pB?.numero_phase) || 0);
+    });
+  }, [projects, deliveriesHistory, productionHistory, allocations]);
+
+  const mostActivePhase = useMemo(() => {
+    if (phaseComparisonData.length === 0) return null;
+    return [...phaseComparisonData].sort((a, b) => b.activityScore - a.activityScore)[0];
+  }, [phaseComparisonData]);
+
+  useEffect(() => {
+    if (mostActivePhase && !featuredPhaseId) {
+      setFeaturedPhaseId(mostActivePhase.id);
+    }
+  }, [mostActivePhase, featuredPhaseId]);
+
   useEffect(() => {
     const severityMap: Record<string, number> = { 'Critique': 0, 'Majeure': 0, 'Mineure': 0, 'Observation': 0 };
     const registerMap: Record<string, number> = {};
@@ -372,6 +428,281 @@ export const Dashboard = () => {
          </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex p-1 bg-muted/30 backdrop-blur-md rounded-2xl border border-border/50 w-fit mb-2">
+        <button 
+          onClick={() => setActiveTab('overview')}
+          className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-card shadow-lg text-primary border border-white/10' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Activity size={18} /> Vue Globale
+        </button>
+        <button 
+          onClick={() => setActiveTab('production')}
+          className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'production' ? 'bg-card shadow-lg text-primary border border-white/10' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Truck size={18} /> Production & Logistique
+        </button>
+        <button 
+          onClick={() => setActiveTab('hqse')}
+          className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'hqse' ? 'bg-card shadow-lg text-primary border border-white/10' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <ShieldCheck size={18} /> HQSE & Administration
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeTab === 'overview' && (
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            {/* Phase Comparison Section */}
+            <div className="bg-card/40 backdrop-blur-xl p-8 rounded-[2rem] border border-white/10 shadow-xl overflow-hidden relative mb-6">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-glow">
+                  <Layers size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xl text-foreground">Vue Comparative des Phases</h3>
+                  <p className="text-sm text-muted-foreground font-medium">Suivi de l'avancement global des livraisons par phase active</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {selectedProject === 'all' ? (
+                  <>
+                    {/* Featured Phase Card */}
+                    <div className="lg:col-span-5">
+                      {(() => {
+                        const featuredPhase = phaseComparisonData.find(p => p.id === featuredPhaseId) || mostActivePhase;
+                        if (!featuredPhase) return null;
+                        
+                        return (
+                          <motion.div 
+                            key={featuredPhase.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="h-full bg-gradient-to-br from-card/60 to-card/20 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden group"
+                          >
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-primary/10 transition-colors duration-700" />
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -ml-24 -mb-24" />
+                            
+                            <div className="relative z-10 flex flex-col h-full">
+                              <div className="flex items-start justify-between mb-6">
+                                <div className="space-y-4">
+                                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                    Phase Principale Actuelle
+                                  </div>
+                                  <h4 className="text-5xl font-black text-foreground tracking-tighter">{featuredPhase.name}</h4>
+                                </div>
+                                <div className="h-16 w-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-primary/40">
+                                  <Layers size={32} />
+                                </div>
+                              </div>
+
+                              <div className="mt-auto space-y-8">
+                                <div className="space-y-3">
+                                  <div className="flex justify-between items-end">
+                                    <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Progression</span>
+                                    <span className="text-3xl font-black text-primary">{featuredPhase.progress.toFixed(1)}%</span>
+                                  </div>
+                                  <div className="h-4 w-full bg-secondary/30 rounded-full overflow-hidden p-1 border border-white/5">
+                                    <motion.div 
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${Math.min(100, featuredPhase.progress)}%` }}
+                                      transition={{ duration: 1.5, ease: "easeOut" }}
+                                      className="h-full rounded-full bg-gradient-to-r from-primary via-info to-primary shadow-lg shadow-primary/20"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/5">
+                                  <div>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Réalisé (Livré)</p>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="text-2xl font-black text-foreground">{featuredPhase.delivered.toLocaleString()}</span>
+                                      <span className="text-xs font-bold text-muted-foreground">T</span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Allocation Totale</p>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="text-2xl font-black text-primary">{featuredPhase.allocationTotal.toLocaleString()}</span>
+                                      <span className="text-xs font-bold text-primary">T</span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Objectif Phase</p>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="text-2xl font-black text-foreground">{featuredPhase.objectif.toLocaleString()}</span>
+                                      <span className="text-xs font-bold text-muted-foreground">T</span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Produit</p>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="text-2xl font-black text-info">{featuredPhase.produced.toLocaleString()}</span>
+                                      <span className="text-xs font-bold text-info">T</span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Reste à livrer (vs Alloc)</p>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="text-2xl font-black text-warning">{Math.max(0, featuredPhase.allocationTotal - featuredPhase.delivered).toLocaleString()}</span>
+                                      <span className="text-xs font-bold text-warning">T</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                      <Activity size={20} />
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Score d'Activité</p>
+                                      <p className="text-lg font-black text-foreground">{featuredPhase.activityScore.toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                  <Link 
+                                    to={`/deliveries?phase=${featuredPhase.id}`}
+                                    className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-foreground uppercase tracking-widest transition-colors flex items-center gap-2"
+                                  >
+                                    Voir Détails <ArrowUpRight size={14} />
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Other Phases Grid */}
+                    <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4 content-start">
+                      {phaseComparisonData.map((phase) => (
+                        <motion.button
+                          key={phase.id}
+                          onClick={() => setFeaturedPhaseId(phase.id)}
+                          whileHover={{ y: -4, scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`p-6 rounded-3xl border transition-all text-left relative overflow-hidden group ${
+                            featuredPhaseId === phase.id 
+                              ? 'bg-primary/5 border-primary/30 shadow-lg shadow-primary/5' 
+                              : 'bg-card/20 border-white/5 hover:border-white/10 hover:bg-card/30'
+                          }`}
+                        >
+                          <div className="relative z-10 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 rounded-full shadow-glow" style={{ backgroundColor: phase.color }} />
+                                <span className="font-bold text-foreground">{phase.name}</span>
+                              </div>
+                              <div className="px-2 py-1 rounded-lg bg-muted/50 text-[10px] font-bold text-muted-foreground">
+                                {phase.progress.toFixed(1)}%
+                              </div>
+                            </div>
+
+                            <div className="h-2 w-full bg-secondary/30 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${Math.min(100, phase.progress)}%` }}
+                                transition={{ duration: 1 }}
+                                className="h-full rounded-full"
+                                style={{ backgroundColor: phase.color }}
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                              <div className="flex items-center gap-1.5">
+                                <CheckCircle size={12} className="text-success" />
+                                {phase.delivered.toLocaleString()} T
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Target size={12} className="text-primary" />
+                                {phase.allocationTotal.toLocaleString()} T
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {featuredPhaseId === phase.id && (
+                            <div className="absolute top-0 right-0 p-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                            </div>
+                          )}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="lg:col-span-12">
+                    {/* Specific Phase Focus (already handled by top selector, but keeping a detailed view here) */}
+                    <div className="bg-gradient-to-br from-primary/10 to-transparent p-8 rounded-[2.5rem] border border-primary/20 shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -mr-48 -mt-48" />
+                      <div className="relative z-10">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
+                          <div>
+                            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest mb-4">
+                              Focus Phase Individuelle
+                            </div>
+                            <h3 className="font-black text-5xl text-foreground tracking-tighter">Phase {projects.find(p => p.id === selectedProject)?.numero_phase}</h3>
+                            <p className="text-lg text-muted-foreground font-medium mt-2">Analyse détaillée des performances et objectifs</p>
+                          </div>
+                          <div className="h-24 w-24 rounded-[2rem] bg-primary/20 flex items-center justify-center text-primary shadow-glow">
+                            <Activity size={48} />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                          <div className="p-8 rounded-3xl bg-white/5 border border-white/5 backdrop-blur-sm group hover:bg-white/10 transition-colors">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Objectif Total</p>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-4xl font-black text-foreground">{Number(projects.find(p => p.id === selectedProject)?.objectif_tonnage || 0).toLocaleString()}</span>
+                              <span className="text-sm font-bold text-muted-foreground">T</span>
+                            </div>
+                          </div>
+                          <div className="p-8 rounded-3xl bg-white/5 border border-white/5 backdrop-blur-sm group hover:bg-white/10 transition-colors">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Livré à ce jour</p>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-4xl font-black text-success">{stats.totalDelivered.toLocaleString()}</span>
+                              <span className="text-sm font-bold text-success">T</span>
+                            </div>
+                          </div>
+                          <div className="p-8 rounded-3xl bg-white/5 border border-white/5 backdrop-blur-sm group hover:bg-white/10 transition-colors">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Reste à livrer</p>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-4xl font-black text-warning">{Math.max(0, Number(projects.find(p => p.id === selectedProject)?.objectif_tonnage || 0) - stats.totalDelivered).toLocaleString()}</span>
+                              <span className="text-sm font-bold text-warning">T</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div className="flex justify-between items-end">
+                            <span className="text-lg font-bold text-foreground uppercase tracking-widest">Progression de la phase</span>
+                            <span className="text-5xl font-black text-primary">{completionRate.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-6 w-full bg-secondary/30 rounded-full overflow-hidden p-1.5 border border-white/5">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(100, completionRate)}%` }}
+                              transition={{ duration: 1.5, ease: "easeOut" }}
+                              className="h-full rounded-full bg-gradient-to-r from-primary via-info to-primary shadow-lg shadow-primary/20"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         <KpiCard title="Total Livré" value={`${stats.totalDelivered.toLocaleString()} T`} subValue={`Cible: ${stats.totalTarget.toLocaleString()} T`} icon={CheckCircle} color="purple" trend="up" delay={0.1} />
@@ -383,8 +714,8 @@ export const Dashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart Card */}
-        <div className="lg:col-span-2 rounded-2xl bg-card shadow-sm border border-border min-w-0 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between p-6 border-b border-border/50">
+        <div className="lg:col-span-2 rounded-2xl bg-card/40 backdrop-blur-xl shadow-sm border border-white/10 min-w-0 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b border-white/5">
             <div>
               <h3 className="font-bold text-lg text-foreground">Performance Régionale</h3>
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-1">
@@ -478,8 +809,27 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
+    </motion.div>
+  )}
 
-      {/* Production Graph Section */}
+    {activeTab === 'production' && (
+          <motion.div
+            key="production"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            {/* Production KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <KpiCard title="Total Produit" value={`${stats.totalProduced.toLocaleString()} T`} subValue="Stock disponible" icon={Factory} color="cyan" trend="neutral" delay={0.1} />
+              <KpiCard title="Total Livré" value={`${stats.totalDelivered.toLocaleString()} T`} subValue="Expédié" icon={Truck} color="purple" trend="up" delay={0.2} />
+              <KpiCard title="Camions Actifs" value={stats.activeTrucks} subValue="En rotation" icon={Truck} color="amber" trend="neutral" delay={0.3} />
+              <KpiCard title="Performance" value={`${((stats.totalProduced / Math.max(1, stats.totalTarget)) * 100).toFixed(1)}%`} subValue="vs Objectif global" icon={Activity} color="green" trend="up" delay={0.4} />
+            </div>
+
+            {/* Production Graph Section */}
       <div className="pt-2 space-y-4">
         <div className="w-full flex flex-col md:flex-row md:items-center justify-between p-6 rounded-2xl border bg-card border-border shadow-soft-sm gap-4">
            <div className="flex items-center gap-5">
@@ -786,8 +1136,27 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
+      </motion.div>
+    )}
 
-      {/* Administration & RH Section */}
+      {activeTab === 'hqse' && (
+          <motion.div
+            key="hqse"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            {/* HQSE & Admin KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <KpiCard title="Signalements" value={hqseSummaryData.totalOpen} subValue="Tickets ouverts" icon={AlertTriangle} color="amber" trend="neutral" delay={0.1} />
+              <KpiCard title="Incidents Critiques" value={hqseSummaryData.criticalCount} subValue="À traiter d'urgence" icon={ShieldCheck} color="red" trend="down" delay={0.2} />
+              <KpiCard title="Effectif Total" value={adminStats.totalEmployees} subValue="Employés actifs" icon={Users} color="purple" trend="neutral" delay={0.3} />
+              <KpiCard title="Postes" value={adminStats.totalPostes} subValue="Structure RH" icon={ClipboardCheck} color="cyan" trend="neutral" delay={0.4} />
+            </div>
+
+            {/* Administration & RH Section */}
       <div className="pt-2 space-y-4">
         <div className="w-full flex flex-col md:flex-row md:items-center justify-between p-6 rounded-2xl border bg-card border-border shadow-soft-sm gap-4">
           <div className="flex items-center gap-5">
@@ -1030,43 +1399,54 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
-
+    </motion.div>
+  )}
+    </AnimatePresence>
     </motion.div>
   );
 };
 
 const KpiCard = ({ title, value, subValue, icon: Icon, color, trend, delay = 0 }: any) => {
   const colorMap: any = {
-    purple: { bg: "bg-primary/10", text: "text-primary", icon: "bg-primary text-white", glow: "shadow-[0_0_20px_rgba(140,87,255,0.2)]" },
-    green: { bg: "bg-success/10", text: "text-success", icon: "bg-success text-white", glow: "shadow-[0_0_20px_rgba(40,199,111,0.2)]" },
-    amber: { bg: "bg-warning/10", text: "text-warning", icon: "bg-warning text-white", glow: "shadow-[0_0_20px_rgba(255,159,67,0.2)]" },
-    red: { bg: "bg-destructive/10", text: "text-destructive", icon: "bg-destructive text-white", glow: "shadow-[0_0_20px_rgba(255,76,81,0.2)]" },
-    cyan: { bg: "bg-info/10", text: "text-info", icon: "bg-info text-white", glow: "shadow-[0_0_20px_rgba(0,186,209,0.2)]" },
+    purple: { bg: "bg-primary/10", text: "text-primary", icon: "bg-primary text-white", glow: "shadow-[0_0_20px_rgba(140,87,255,0.3)]", gradient: "from-primary/20 to-transparent" },
+    green: { bg: "bg-success/10", text: "text-success", icon: "bg-success text-white", glow: "shadow-[0_0_20px_rgba(40,199,111,0.3)]", gradient: "from-success/20 to-transparent" },
+    amber: { bg: "bg-warning/10", text: "text-warning", icon: "bg-warning text-white", glow: "shadow-[0_0_20px_rgba(255,159,67,0.3)]", gradient: "from-warning/20 to-transparent" },
+    red: { bg: "bg-destructive/10", text: "text-destructive", icon: "bg-destructive text-white", glow: "shadow-[0_0_20px_rgba(255,76,81,0.3)]", gradient: "from-destructive/20 to-transparent" },
+    cyan: { bg: "bg-info/10", text: "text-info", icon: "bg-info text-white", glow: "shadow-[0_0_20px_rgba(0,186,209,0.3)]", gradient: "from-info/20 to-transparent" },
   };
   const theme = colorMap[color] || colorMap.purple;
 
   return (
     <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay, duration: 0.4, ease: "easeOut" }}
-      className="bg-card rounded-3xl p-6 shadow-soft-sm border border-border/60 relative overflow-hidden group hover:shadow-soft-md hover:border-primary/30 transition-all duration-500"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.5, ease: "easeOut" }}
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+      className="relative group h-full"
     >
-      <div className="absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br from-current to-transparent opacity-[0.03] rounded-full group-hover:scale-150 transition-transform duration-700" style={{ color: `var(--${color === 'purple' ? 'primary' : color})` }}></div>
+      <div className="absolute inset-0 bg-card/40 backdrop-blur-xl rounded-[2rem] border border-white/10 shadow-2xl transition-all duration-500 group-hover:shadow-primary/5 group-hover:border-white/20" />
       
-      <div className="flex justify-between items-start relative z-10">
-        <div className="space-y-3">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">{title}</p>
-          <h3 className="text-2xl font-black text-foreground tracking-tight tabular-nums">{value}</h3>
-          <div className="flex items-center gap-1.5 bg-secondary/30 w-fit px-2 py-0.5 rounded-full border border-border/20">
-            {trend === 'up' && <ArrowUpRight size={12} className="text-success" />}
-            {trend === 'down' && <ArrowDownRight size={12} className="text-destructive" />}
-            {trend === 'neutral' && <ArrowLeftRight size={12} className="text-muted-foreground" />}
-            <p className="text-[10px] font-bold text-muted-foreground/80">{subValue}</p>
+      <div className={`absolute -right-6 -top-6 w-32 h-32 bg-gradient-to-br ${theme.gradient} rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity duration-500`} />
+      
+      <div className="relative p-6 flex flex-col h-full justify-between gap-4">
+        <div className="flex justify-between items-start">
+          <div className={`h-12 w-12 rounded-2xl ${theme.icon} ${theme.glow} flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-3`}>
+            <Icon size={24} strokeWidth={2.5} />
+          </div>
+          <div className="flex flex-col items-end">
+             {trend === 'up' && <div className="flex items-center gap-1 text-success text-[10px] font-bold bg-success/10 px-2 py-0.5 rounded-full"><ArrowUpRight size={12} /> +2.4%</div>}
+             {trend === 'down' && <div className="flex items-center gap-1 text-destructive text-[10px] font-bold bg-destructive/10 px-2 py-0.5 rounded-full"><ArrowDownRight size={12} /> -1.2%</div>}
           </div>
         </div>
-        <div className={`h-12 w-12 rounded-2xl ${theme.icon} ${theme.glow} flex items-center justify-center transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110`}>
-          <Icon size={22} strokeWidth={2.5} />
+
+        <div className="space-y-1">
+          <p className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-[0.2em]">{title}</p>
+          <h3 className="text-3xl font-black text-foreground tracking-tight tabular-nums drop-shadow-sm">{value}</h3>
+        </div>
+
+        <div className="flex items-center gap-2 pt-2 border-t border-white/5 mt-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          <p className="text-[10px] font-bold text-muted-foreground/80 tracking-wide">{subValue}</p>
         </div>
       </div>
     </motion.div>

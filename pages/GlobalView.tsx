@@ -489,6 +489,15 @@ export const GlobalView = () => {
     [ownerStats, selectedOwnerForDetails]
   );
 
+  const selectedProjectData = useMemo(() => projects.find(p => p.id === selectedProject), [projects, selectedProject]);
+
+  const totalPhaseStats = useMemo(() => {
+    const totalTonnage = flatDeliveries.reduce((sum, d) => sum + Number(d.tonnage_loaded), 0);
+    const totalTrips = flatDeliveries.length;
+    const totalTrucks = new Set(flatDeliveries.map(d => d.truck_plate)).size;
+    return { totalTonnage, totalTrips, totalTrucks };
+  }, [flatDeliveries]);
+
   const toggleLayout = (target: 'geo' | 'drivers' | 'transport') => {
     setLayoutMode(layoutMode === target ? 'collapsed' : target);
   };
@@ -753,19 +762,44 @@ export const GlobalView = () => {
            </div>
         </Section>
 
-        <Section title="Bilan Transport" icon={Package} mode={transportMode} onToggle={() => toggleLayout('transport')} headerContent={<div className="flex items-center gap-2"><span className="text-xs text-muted-foreground bg-background/50 px-2 py-1 rounded hidden sm:inline">{ownerStats.length} Propriétaires</span></div>}>
-           <div className="flex divide-x divide-border min-h-full">
-              <div className={`w-full p-6 space-y-6 bg-card ${transportMode === 'split' ? 'overflow-y-auto' : 'overflow-visible'}`}>
+        <Section title="Bilan Transport" icon={Package} mode={transportMode} onToggle={() => toggleLayout('transport')} headerContent={<div className="flex items-center gap-2"><span className="text-sm font-bold font-mono text-primary">{totalPhaseStats.totalTonnage.toLocaleString()} T</span></div>}>
+           <div className="flex flex-col min-h-full">
+              {/* KPI Row for the Phase */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-muted/5 border-b border-border">
+                <div className="bg-card border border-border p-4 rounded-xl shadow-soft-sm">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-1">Tonnage Total Livré</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-foreground font-mono">{totalPhaseStats.totalTonnage.toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground font-medium">T</span>
+                  </div>
+                </div>
+                <div className="bg-card border border-border p-4 rounded-xl shadow-soft-sm">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-1">Nombre de Voyages</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-foreground font-mono">{totalPhaseStats.totalTrips.toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground font-medium">Livraisons</span>
+                  </div>
+                </div>
+                <div className="bg-card border border-border p-4 rounded-xl shadow-soft-sm">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-1">Tonnage Total de la Phase</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-primary font-mono">{selectedProjectData?.tonnage_total?.toLocaleString() || '-'}</span>
+                    <span className="text-xs text-muted-foreground font-medium">T</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`p-6 space-y-6 bg-card ${transportMode === 'split' ? 'overflow-y-auto' : 'overflow-visible'}`}>
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {ownerStats.map(stat => (
                        <div key={stat.owner} className="bg-card border border-border rounded-2xl p-6 shadow-soft-sm hover:shadow-soft-md transition-all group relative overflow-hidden">
                           <div className="absolute top-0 right-0 p-4">
                              <button 
-                                onClick={(e) => { e.stopPropagation(); copyShareLink('transport', stat.owner); }}
-                                className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-medium ${copySuccess === stat.owner ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground hover:bg-primary hover:text-white'}`}
+                                onClick={(e) => { e.stopPropagation(); setSelectedOwnerForDetails(stat.owner); }}
+                                className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-medium bg-muted text-muted-foreground hover:bg-primary hover:text-white`}
                              >
-                                {copySuccess === stat.owner ? <CheckCircle2 size={14} /> : <Share2 size={14} />}
-                                {copySuccess === stat.owner ? 'Copié !' : 'Partager'}
+                                <Share2 size={14} />
+                                Partager
                              </button>
                           </div>
                           
@@ -845,12 +879,21 @@ export const GlobalView = () => {
                     <p className="text-xs text-muted-foreground">{selectedOwnerStats.tripCount} livraisons au total</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setSelectedOwnerForDetails(null)} 
-                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => copyShareLink('transport', selectedOwnerForDetails!)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${copySuccess === selectedOwnerForDetails ? 'bg-emerald-500 text-white' : 'bg-primary text-white hover:opacity-90'}`}
+                  >
+                    {copySuccess === selectedOwnerForDetails ? <CheckCircle2 size={18} /> : <Share2 size={18} />}
+                    {copySuccess === selectedOwnerForDetails ? 'Lien Copié' : 'Partager le Bilan'}
+                  </button>
+                  <button 
+                    onClick={() => setSelectedOwnerForDetails(null)} 
+                    className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
               
               <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
@@ -864,8 +907,8 @@ export const GlobalView = () => {
                     <span className="text-2xl font-bold text-foreground font-mono">{selectedOwnerStats.tripCount}</span>
                   </div>
                   <div className="bg-muted/30 p-4 rounded-2xl border border-border/50">
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Moyenne par Voyage</span>
-                    <span className="text-2xl font-bold text-foreground font-mono">{(selectedOwnerStats.totalTonnage / selectedOwnerStats.tripCount).toFixed(1)} t</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold block mb-1">Tonnage Total Phase</span>
+                    <span className="text-2xl font-bold text-primary font-mono">{totalPhaseStats.totalTonnage.toLocaleString()} t</span>
                   </div>
                 </div>
 

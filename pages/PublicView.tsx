@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { db } from '../services/db';
-import { DeliveryView, NetworkHierarchy } from '../types';
+import { DeliveryView, NetworkHierarchy, Project } from '../types';
 import RegionalGraph from '../components/RegionalGraph';
 import { 
   Truck, 
@@ -17,7 +17,8 @@ import {
   Download,
   Share2,
   ExternalLink,
-  Info
+  BarChart3,
+  TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -29,6 +30,7 @@ export const PublicView = () => {
   const [loading, setLoading] = useState(true);
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
   const [networkData, setNetworkData] = useState<NetworkHierarchy>([]);
+  const [project, setProject] = useState<Project | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Decode ID if it's base64 (for owner names with special characters)
@@ -45,6 +47,12 @@ export const PublicView = () => {
       setLoading(true);
       setError(null);
       try {
+        if (projectId !== 'all') {
+          const projects = await db.getProjects(false);
+          const p = projects.find(proj => proj.id === projectId);
+          if (p) setProject(p);
+        }
+
         if (type === 'transport') {
           const allDeliveries = await db.getDeliveriesView(false); // Get all, even if not "visible" if we have the link? 
           // Actually, the user said "current deliveries", usually we respect visibility but maybe for public links we want to show what's requested.
@@ -179,15 +187,15 @@ export const PublicView = () => {
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-600 dark:text-amber-400">
-                    <Truck size={20} />
+                    <TrendingUp size={20} />
                   </div>
-                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Camions Actifs</span>
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Objectif Phase</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-slate-900 dark:text-white">
-                    {new Set(deliveries.map(d => d.truck_plate)).size}
+                    {project?.tonnage_total?.toLocaleString() || '-'}
                   </span>
-                  <span className="text-slate-500 text-sm font-medium">Unités</span>
+                  <span className="text-slate-500 text-sm font-medium">Tonnes</span>
                 </div>
               </motion.div>
             </div>
