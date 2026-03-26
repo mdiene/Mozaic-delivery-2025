@@ -20,6 +20,7 @@ import { useProject } from '../components/Layout';
 import { ProductionView, DeliveryView, AllocationView, HQSEInspection, HQSENonConformity, HQSECorrectiveAction, HQSESignalement, AdminPersonnel } from '../types';
 import { getPhaseColor } from '../lib/colors';
 
+// upgrade to change page principale 
 // FlyonUI Palette
 const COLORS = [
   '#8c57ff', // Primary Purple
