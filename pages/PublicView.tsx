@@ -31,6 +31,7 @@ export const PublicView = () => {
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
   const [networkData, setNetworkData] = useState<NetworkHierarchy>([]);
   const [project, setProject] = useState<Project | null>(null);
+  const [phaseTotalTonnage, setPhaseTotalTonnage] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
 
   // Decode ID if it's base64 (for owner names with special characters)
@@ -54,12 +55,14 @@ export const PublicView = () => {
         }
 
         if (type === 'transport') {
-          const allDeliveries = await db.getDeliveriesView(false); // Get all, even if not "visible" if we have the link? 
-          // Actually, the user said "current deliveries", usually we respect visibility but maybe for public links we want to show what's requested.
-          // Let's stick to visible for now unless specified.
-          const filtered = allDeliveries.filter(d => 
-            d.truck_owner === decodedId && 
-            (projectId === 'all' || d.project_id === projectId)
+          const allDeliveries = await db.getDeliveriesView(false); 
+          const projectDeliveries = allDeliveries.filter(d => 
+            projectId === 'all' || d.project_id === projectId
+          );
+          setPhaseTotalTonnage(projectDeliveries.reduce((sum, d) => sum + Number(d.tonnage_loaded), 0));
+
+          const filtered = projectDeliveries.filter(d => 
+            d.truck_owner === decodedId
           );
           setDeliveries(filtered);
         } else if (type === 'network') {
@@ -189,11 +192,11 @@ export const PublicView = () => {
                   <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-600 dark:text-amber-400">
                     <TrendingUp size={20} />
                   </div>
-                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Objectif Phase</span>
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Tonnage Total Phase</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-slate-900 dark:text-white">
-                    {project?.tonnage_total?.toLocaleString() || '-'}
+                    {phaseTotalTonnage.toLocaleString()}
                   </span>
                   <span className="text-slate-500 text-sm font-medium">Tonnes</span>
                 </div>
