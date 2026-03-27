@@ -127,7 +127,7 @@ export const ProductionPage = () => {
       montant: prod.total_amount || 0,
       reference_piece: `PROD-${prod.id.slice(0, 8)}`,
       depense_en_attente: false,
-      id_categorie: categories.find(c => c.nom_categorie.toLowerCase().includes('main'))?.id_categorie || '',
+      id_categorie: categories.find(c => c.nom_categorie.toLowerCase().includes('salaire'))?.id_categorie || '',
       id_mode_paiement: modes[0]?.id_mode || '',
       id_code_analytique: codes.find(c => c.code.toUpperCase().includes('DEPENSES INTERNE'))?.id_code || codes[0]?.id_code || '',
       id_responsable: personnel[0]?.id_personnel || ''
