@@ -10,6 +10,8 @@ import {
   ChevronRight, Minimize2, Maximize2, RotateCcw, List, AlertCircle, Clock, Eye, Printer, Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const ProductionPurchases = () => {
   const { user } = useAuth();
@@ -163,9 +165,95 @@ export const ProductionPurchases = () => {
   };
 
   const handleSavePDF = () => {
-    // For simplicity, we'll use window.print() but we could also use a library if needed.
-    // The user asked for a simple printable pdf file.
-    window.print();
+    if (filteredExpenses.length === 0) return;
+
+    const doc = new jsPDF();
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('fr-FR');
+    const timeStr = now.toLocaleTimeString('fr-FR');
+
+    // Corporate Header
+    doc.setFontSize(22);
+    doc.setTextColor(140, 87, 255); // Primary Purple
+    doc.text('MASAE - Rapport des Dépenses de Production', 14, 22);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Document généré le: ${dateStr} à ${timeStr}`, 14, 30);
+    doc.text(`Nombre d'opérations exportées: ${filteredExpenses.length}`, 14, 35);
+    
+    // Draw a line
+    doc.setDrawColor(140, 87, 255);
+    doc.setLineWidth(0.5);
+    doc.line(14, 38, 196, 38);
+
+    // Helper to format currency with dot as separator
+    const formatCurrency = (num: number) => {
+      return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    };
+
+    // Table
+    const tableColumn = ["Date", "Libellé", "Catégorie", "Responsable", "Mode", "Montant (F)"];
+    const tableRows = filteredExpenses.map(e => [
+      new Date(e.date_operation).toLocaleDateString('fr-FR'),
+      e.libelle,
+      e.nom_categorie || '',
+      e.responsable_nom || '',
+      e.nom_mode || '',
+      formatCurrency(Number(e.montant))
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 45,
+      theme: 'striped',
+      headStyles: { 
+        fillColor: [140, 87, 255],
+        textColor: [255, 255, 255],
+        fontSize: 9,
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [50, 50, 50]
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 255]
+      },
+      columnStyles: {
+        5: { halign: 'right', fontStyle: 'bold' }
+      },
+      margin: { top: 45 }
+    });
+
+    // Footer with Total
+    const finalY = (doc as any).lastAutoTable.finalY || 45;
+    
+    // Check if we need a new page for the total
+    if (finalY > 260) {
+      doc.addPage();
+      doc.setFontSize(12);
+      doc.setTextColor(40);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`TOTAL GÉNÉRAL DES DÉPENSES: ${formatCurrency(totalAmount)} F`, 196, 20, { align: 'right' });
+    } else {
+      doc.setFontSize(12);
+      doc.setTextColor(40);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`TOTAL GÉNÉRAL DES DÉPENSES: ${formatCurrency(totalAmount)} F`, 196, finalY + 15, { align: 'right' });
+    }
+
+    // Add page numbers
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Page ${i} sur ${pageCount}`, 196, 285, { align: 'right' });
+    }
+
+    doc.save(`rapport_depenses_production_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const handleSave = async (e: FormEvent) => {
