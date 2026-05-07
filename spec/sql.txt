@@ -1,6 +1,60 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.admin_categories_depense (
+  id_categorie uuid NOT NULL DEFAULT gen_random_uuid(),
+  nom_categorie character varying NOT NULL,
+  CONSTRAINT admin_categories_depense_pkey PRIMARY KEY (id_categorie)
+);
+CREATE TABLE public.admin_codes_analytiques (
+  id_code uuid NOT NULL DEFAULT gen_random_uuid(),
+  code character varying UNIQUE,
+  description text,
+  CONSTRAINT admin_codes_analytiques_pkey PRIMARY KEY (id_code)
+);
+CREATE TABLE public.admin_depenses (
+  id_depense uuid NOT NULL DEFAULT gen_random_uuid(),
+  date_operation date NOT NULL,
+  libelle character varying NOT NULL,
+  montant numeric NOT NULL CHECK (montant >= 0::numeric),
+  id_categorie uuid,
+  id_mode_paiement uuid,
+  id_code_analytique uuid,
+  id_responsable uuid,
+  reference_piece character varying,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  id_user uuid,
+  depense_en_attente boolean DEFAULT false,
+  CONSTRAINT admin_depenses_pkey PRIMARY KEY (id_depense),
+  CONSTRAINT admin_depenses_id_categorie_fkey FOREIGN KEY (id_categorie) REFERENCES public.admin_categories_depense(id_categorie),
+  CONSTRAINT admin_depenses_id_mode_paiement_fkey FOREIGN KEY (id_mode_paiement) REFERENCES public.admin_modes_paiement(id_mode),
+  CONSTRAINT admin_depenses_id_code_analytique_fkey FOREIGN KEY (id_code_analytique) REFERENCES public.admin_codes_analytiques(id_code),
+  CONSTRAINT admin_depenses_id_responsable_fkey FOREIGN KEY (id_responsable) REFERENCES public.admin_personnel(id_personnel),
+  CONSTRAINT fk_admin_depenses_user_preferences FOREIGN KEY (id_user) REFERENCES public.user_preferences(id)
+);
+CREATE TABLE public.admin_modes_paiement (
+  id_mode uuid NOT NULL DEFAULT gen_random_uuid(),
+  nom_mode character varying NOT NULL,
+  CONSTRAINT admin_modes_paiement_pkey PRIMARY KEY (id_mode)
+);
+CREATE TABLE public.admin_personnel (
+  id_personnel uuid NOT NULL DEFAULT gen_random_uuid(),
+  nom character varying NOT NULL,
+  prenom character varying,
+  id_poste uuid,
+  telephone character varying,
+  user_preference_id uuid,
+  CONSTRAINT admin_personnel_pkey PRIMARY KEY (id_personnel),
+  CONSTRAINT admin_personnel_id_poste_fkey FOREIGN KEY (id_poste) REFERENCES public.admin_postes(id_poste),
+  CONSTRAINT admin_personnel_user_preference_id_fkey FOREIGN KEY (user_preference_id) REFERENCES public.user_preferences(user_id)
+);
+CREATE TABLE public.admin_postes (
+  id_poste uuid NOT NULL DEFAULT gen_random_uuid(),
+  titre_poste character varying NOT NULL,
+  categorie_poste character varying,
+  CONSTRAINT admin_postes_pkey PRIMARY KEY (id_poste)
+);
 CREATE TABLE public.allocations (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   allocation_key character varying NOT NULL UNIQUE,
@@ -45,6 +99,7 @@ CREATE TABLE public.deliveries (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   payments_id uuid,
+  declaration_code text,
   CONSTRAINT deliveries_pkey PRIMARY KEY (id),
   CONSTRAINT deliveries_allocation_id_fkey FOREIGN KEY (allocation_id) REFERENCES public.allocations(id),
   CONSTRAINT deliveries_truck_id_fkey FOREIGN KEY (truck_id) REFERENCES public.trucks(id),
@@ -70,6 +125,136 @@ CREATE TABLE public.drivers (
   truck_id uuid,
   CONSTRAINT drivers_pkey PRIMARY KEY (id),
   CONSTRAINT drivers_truck_id_fkey FOREIGN KEY (truck_id) REFERENCES public.trucks(id)
+);
+CREATE TABLE public.equipment_types (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  label character varying NOT NULL,
+  code character varying NOT NULL UNIQUE,
+  description text,
+  icon_name character varying,
+  is_regulatory_subject boolean NOT NULL DEFAULT true,
+  default_frequency_days integer,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT equipment_types_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.equipments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  ref_code character varying NOT NULL UNIQUE,
+  name character varying NOT NULL,
+  category character varying,
+  serial_number character varying,
+  location character varying,
+  commissioning_date date,
+  status character varying NOT NULL DEFAULT 'Actif'::character varying,
+  responsible_user_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  type_id uuid,
+  Affectation_equipements uuid,
+  quantite_dispo numeric DEFAULT '0'::numeric,
+  CONSTRAINT equipments_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_equipments_responsible_user FOREIGN KEY (responsible_user_id) REFERENCES public.admin_personnel(id_personnel),
+  CONSTRAINT fk_equipments_type_id FOREIGN KEY (type_id) REFERENCES public.equipment_types(id)
+);
+CREATE TABLE public.hqse_corrective_actions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  nc_id uuid,
+  action_plan text NOT NULL,
+  assigned_to uuid,
+  target_date date,
+  completion_date date,
+  status character varying NOT NULL DEFAULT 'A faire'::character varying,
+  CONSTRAINT hqse_corrective_actions_pkey PRIMARY KEY (id),
+  CONSTRAINT hqse_corrective_actions_nc_id_fkey FOREIGN KEY (nc_id) REFERENCES public.hqse_non_conformities(id),
+  CONSTRAINT fk_corrective_actions_assigned_to FOREIGN KEY (assigned_to) REFERENCES public.admin_personnel(id_personnel)
+);
+CREATE TABLE public.hqse_employee_allocations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  employee_id uuid NOT NULL,
+  equipment_id uuid NOT NULL,
+  quantity_allocated integer NOT NULL DEFAULT 1 CHECK (quantity_allocated > 0),
+  allocation_date date NOT NULL DEFAULT CURRENT_DATE,
+  expected_renewal_date date,
+  condition_at_allocation character varying DEFAULT 'Neuf'::character varying,
+  is_returned boolean DEFAULT false,
+  return_date date,
+  comments text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT hqse_employee_allocations_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_allocation_employee FOREIGN KEY (employee_id) REFERENCES public.admin_personnel(id_personnel),
+  CONSTRAINT hqse_employee_allocations_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES public.equipments(id)
+);
+CREATE TABLE public.hqse_inspection_plans (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  equipment_id uuid,
+  inspection_type character varying NOT NULL,
+  frequency_days integer NOT NULL CHECK (frequency_days > 0),
+  last_inspection_date date,
+  next_due_date date DEFAULT ((last_inspection_date + ((frequency_days)::double precision * '1 day'::interval)))::date,
+  CONSTRAINT hqse_inspection_plans_pkey PRIMARY KEY (id),
+  CONSTRAINT hqse_inspection_plans_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES public.equipments(id)
+);
+CREATE TABLE public.hqse_inspections (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  equipment_id uuid,
+  inspector_name character varying,
+  inspection_date date NOT NULL,
+  verdict character varying CHECK (verdict::text = ANY (ARRAY['OK'::character varying, 'NON-CONFORME'::character varying]::text[])),
+  report text,
+  comments text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  id_employe uuid,
+  CONSTRAINT hqse_inspections_pkey PRIMARY KEY (id),
+  CONSTRAINT hqse_inspections_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES public.equipments(id),
+  CONSTRAINT hqse_inspections_id_employe_fkey FOREIGN KEY (id_employe) REFERENCES public.admin_personnel(id_personnel)
+);
+CREATE TABLE public.hqse_non_conformities (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  inspection_id uuid,
+  equipment_id uuid,
+  description text NOT NULL,
+  severity character varying CHECK (severity::text = ANY (ARRAY['Mineure'::character varying, 'Majeure'::character varying, 'Critique'::character varying]::text[])),
+  status character varying NOT NULL DEFAULT 'Ouvert'::character varying,
+  declared_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT hqse_non_conformities_pkey PRIMARY KEY (id),
+  CONSTRAINT hqse_non_conformities_inspection_id_fkey FOREIGN KEY (inspection_id) REFERENCES public.hqse_inspections(id),
+  CONSTRAINT hqse_non_conformities_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES public.equipments(id)
+);
+CREATE TABLE public.hqse_safety_compliance_audits (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  employee_id uuid NOT NULL,
+  auditor_id uuid NOT NULL,
+  audit_date timestamp with time zone NOT NULL DEFAULT now(),
+  equipment_id uuid,
+  number_of_items integer NOT NULL DEFAULT 1,
+  is_usage_respected boolean NOT NULL DEFAULT true,
+  observation_notes text,
+  has_loss_occurred boolean NOT NULL DEFAULT false,
+  has_deteriorated_equipment boolean NOT NULL DEFAULT false,
+  corrective_action_required text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  sanction_type text,
+  CONSTRAINT hqse_safety_compliance_audits_pkey PRIMARY KEY (id),
+  CONSTRAINT hqse_safety_compliance_audits_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES public.admin_personnel(id_personnel),
+  CONSTRAINT hqse_safety_compliance_audits_auditor_id_fkey FOREIGN KEY (auditor_id) REFERENCES public.user_preferences(id),
+  CONSTRAINT hqse_safety_compliance_audits_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES public.equipments(id)
+);
+CREATE TABLE public.hqse_tickets_signalements (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  register USER-DEFINED NOT NULL,
+  origin USER-DEFINED NOT NULL,
+  equipment_id uuid,
+  employee_concerned_id uuid,
+  event_date timestamp with time zone NOT NULL DEFAULT now(),
+  severity USER-DEFINED NOT NULL DEFAULT 'Mineure'::hqse_severity_level,
+  reason_description text NOT NULL,
+  measures_to_take text,
+  status character varying NOT NULL DEFAULT 'Nouveau'::character varying,
+  reported_by uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT hqse_tickets_signalements_pkey PRIMARY KEY (id),
+  CONSTRAINT hqse_tickets_signalements_employee_concerned_id_fkey FOREIGN KEY (employee_concerned_id) REFERENCES public.admin_personnel(id_personnel),
+  CONSTRAINT hqse_tickets_signalements_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.user_preferences(id),
+  CONSTRAINT hqse_tickets_signalements_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES public.equipments(id)
 );
 CREATE TABLE public.operators (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -116,6 +301,7 @@ CREATE TABLE public.production (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   nombre_elements numeric,
   equipe_couture numeric,
+  is_accounted boolean DEFAULT false,
   CONSTRAINT production_pkey PRIMARY KEY (id),
   CONSTRAINT production_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.project(id)
 );
@@ -126,6 +312,9 @@ CREATE TABLE public.project (
   numero_phase smallint,
   date_mise_disposition date,
   tonnage_total smallint,
+  project_visibility boolean,
+  project_description text,
+  export_statut boolean DEFAULT false,
   CONSTRAINT project_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.regions (
@@ -145,6 +334,10 @@ CREATE TABLE public.trucks (
   owner_type boolean NOT NULL DEFAULT true,
   qrcode_content text,
   updated_at date,
+  chassis_camion text,
+  truck_type text,
+  truck_marque text,
+  Trucks_proprietaire text,
   CONSTRAINT trucks_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.user_preferences (

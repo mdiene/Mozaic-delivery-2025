@@ -1,5 +1,6 @@
 
 import { useState, useEffect, Fragment, FormEvent } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../services/db';
 import { Map, MapPin, Briefcase, Plus, Trash2, Edit2, ChevronRight, X, Users, Search, Phone, Building2, User, Filter, Layers, Save, Ruler, Info, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Region, Department, Commune, Project, Operator } from '../types';
@@ -29,6 +30,11 @@ export const Settings = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<string>('');
   const [formData, setFormData] = useState<any>({});
+
+  // Quick Add Modal State
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddType, setQuickAddType] = useState<string>('');
+  const [quickAddData, setQuickAddData] = useState<any>({});
 
   const isVisitor = user?.role === 'VISITOR';
 
@@ -72,6 +78,12 @@ export const Settings = () => {
       } else {
         // Existing Project: Use stored value, default to true if null/undefined
         setFormData({ ...item, project_visibility: item.project_visibility !== false });
+      }
+    } else if (type === 'operator') {
+      if (!item.id) {
+        setFormData({ ...item, is_coop: true });
+      } else {
+        setFormData(item);
       }
     } else {
       setFormData(item);
@@ -151,6 +163,39 @@ export const Settings = () => {
     } catch (error) { 
       console.error(error);
       alert('Erreur lors de l\'enregistrement.'); 
+    }
+  };
+
+  const handleQuickAddSave = async (e: FormEvent) => {
+    e.preventDefault();
+    if (isVisitor) return;
+
+    try {
+      let table = '';
+      if (quickAddType === 'commune') table = 'communes';
+      
+      const payload = { ...quickAddData };
+      if (quickAddType === 'commune') {
+        payload.distance_mine = payload.distance_mine ? Number(payload.distance_mine) : null;
+      }
+
+      const result = await db.createItem(table, payload);
+      
+      // Update local state
+      if (quickAddType === 'commune') {
+        const newCommunes = await db.getCommunes();
+        setCommunes(newCommunes);
+        // Automatically select the newly created commune in the parent modal if applicable
+        if (modalType === 'operator') {
+          setFormData(prev => ({ ...prev, commune_id: result[0].id }));
+        }
+      }
+
+      setIsQuickAddOpen(false);
+      setQuickAddData({});
+    } catch (error) {
+      console.error(error);
+      alert('Erreur lors de l\'enregistrement rapide.');
     }
   };
 
@@ -425,61 +470,62 @@ export const Settings = () => {
 
                     const groups: Record<string, Operator[]> = {};
                     filtered.forEach(op => {
-                      const project = projects.find(p => p.id === op.projet_id);
-                      const phaseName = project ? `Phase ${project.numero_phase}` : 'Sans Phase';
-                      if (!groups[phaseName]) groups[phaseName] = [];
-                      groups[phaseName].push(op);
+                      const commune = communes.find(c => c.id === op.commune_id);
+                      const dept = departments.find(d => d.id === commune?.department_id);
+                      const region = regions.find(r => r.id === dept?.region_id);
+                      const regionName = region?.name || 'Région Inconnue';
+                      if (!groups[regionName]) groups[regionName] = [];
+                      groups[regionName].push(op);
                     });
 
-                    const sortedGroups = Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+                    const sortedGroups = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
 
                     if (sortedGroups.length === 0) {
                       return <tr><td colSpan={5} className="p-12 text-center text-muted-foreground italic">Aucun opérateur trouvé.</td></tr>;
                     }
 
-                    return sortedGroups.map(([phaseName, items]) => {
-                      const phaseNum = phaseName.replace('Phase ', '');
-                      const phaseColor = getPhaseColor(phaseNum);
+                    return sortedGroups.map(([regionName, items]) => {
                       return (
-                        <Fragment key={phaseName}>
-                          <tr className={`${phaseColor.soft}/30`}>
+                        <Fragment key={regionName}>
+                          <tr className="bg-primary/5">
                             <td colSpan={5} className="px-6 py-2">
                               <div className="flex items-center gap-2">
-                                <span className={`text-xs font-black uppercase tracking-widest ${phaseColor.softText}`}>{phaseName}</span>
-                                {projects.find(p => `Phase ${p.numero_phase}` === phaseName)?.project_description && (
-                                  <span className="text-[10px] text-muted-foreground italic">
-                                    — {projects.find(p => `Phase ${p.numero_phase}` === phaseName)?.project_description}
-                                  </span>
-                                )}
+                                <MapPin size={14} className="text-primary" />
+                                <span className="text-xs font-black uppercase tracking-widest text-primary">{regionName}</span>
                               </div>
                             </td>
                           </tr>
-                          {items.map(op => (
-                            <tr key={op.id} className="hover:bg-muted/10 transition-colors">
-                              <td>
-                                 <div className="flex flex-col">
-                                    <span className="font-bold text-foreground">{op.name}</span>
-                                    {op.is_coop && op.coop_name && (
-                                      <span className={`text-[10px] ${phaseColor.softText} font-medium italic leading-tight`}>{op.coop_name}</span>
-                                    )}
-                                    <span className="text-[10px] text-muted-foreground font-mono">{op.phone || 'Sans téléphone'}</span>
-                                 </div>
-                              </td>
-                              <td>
-                                 <span className={`badge badge-soft text-[10px] font-black uppercase ${op.is_coop ? phaseColor.badge : 'badge-secondary'}`}>
-                                    {op.is_coop ? 'Coopérative / GIE' : 'Individuel'}
-                                 </span>
-                              </td>
-                              <td className="text-sm text-muted-foreground">{communes.find(c => c.id === op.commune_id)?.name || '-'}</td>
-                              <td><span className={`badge badge-soft ${phaseColor.badge} text-[10px] font-bold`}>Phase {projects.find(p => p.id === op.projet_id)?.numero_phase || '-'}</span></td>
-                              <td className="text-right">
-                                <div className="flex justify-end gap-1">
-                                  <button onClick={() => openModal('operator', op)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                                  <button onClick={() => handleDelete('operators', op.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                          {items.map(op => {
+                            const project = projects.find(p => p.id === op.projet_id);
+                            const phaseNum = project?.numero_phase || 1;
+                            const phaseColor = getPhaseColor(phaseNum);
+                            return (
+                              <tr key={op.id} className="hover:bg-muted/10 transition-colors">
+                                <td>
+                                   <div className="flex flex-col">
+                                      <span className="font-bold text-foreground">{op.name}</span>
+                                      {op.is_coop && op.coop_name && (
+                                        <span className={`text-[10px] ${phaseColor.softText} font-medium italic leading-tight`}>{op.coop_name}</span>
+                                      )}
+                                      <span className="text-[10px] text-muted-foreground font-mono">{op.phone || 'Sans téléphone'}</span>
+                                   </div>
+                                </td>
+                                <td>
+                                   <span className={`badge badge-soft text-[10px] font-black uppercase ${op.is_coop ? phaseColor.badge : 'badge-secondary'}`}>
+                                      {op.is_coop ? 'Coopérative / GIE' : 'Individuel'}
+                                   </span>
+                                </td>
+                                <td className="text-sm text-muted-foreground">{communes.find(c => c.id === op.commune_id)?.name || '-'}</td>
+                                <td><span className={`badge badge-soft ${phaseColor.badge} text-[10px] font-bold`}>Phase {project?.numero_phase || '-'}</span></td>
+                                <td className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <button onClick={() => openModal('operator', op)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                    <button onClick={() => handleDelete('operators', op.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </Fragment>
                       );
                     });
@@ -609,7 +655,11 @@ export const Settings = () => {
                        </div>
                        <div>
                          <label className="block text-sm font-medium mb-1">Type</label>
-                         <select className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.is_coop ? 'true' : 'false'} onChange={e => setFormData({...formData, is_coop: e.target.value === 'true'})}>
+                         <select 
+                           className="w-full border border-input rounded-xl p-2.5 text-sm bg-background transition-all focus:ring-1 focus:ring-primary" 
+                           value={formData.is_coop ? 'true' : 'false'} 
+                           onChange={e => setFormData({...formData, is_coop: e.target.value === 'true'})}
+                         >
                             <option value="false">Individuel</option>
                             <option value="true">Coopérative / GIE</option>
                          </select>
@@ -629,27 +679,65 @@ export const Settings = () => {
                     )}
                     <div>
                       <label className="block text-sm font-medium mb-1">Commune Siège</label>
-                      <select required className="w-full border border-input rounded-xl p-2.5 text-sm bg-background" value={formData.commune_id || ''} onChange={e => setFormData({...formData, commune_id: e.target.value})}>
-                         <option value="">Sélectionner...</option>
-                         {communes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
+                      <AdvancedSelect
+                        options={communes.map(c => ({
+                          value: c.id,
+                          label: c.name,
+                          subLabel: departments.find(d => d.id === c.department_id)?.name
+                        }))}
+                        value={formData.commune_id || ''}
+                        onChange={val => setFormData({...formData, commune_id: val})}
+                        placeholder="Sélectionner une commune..."
+                        required
+                        footer={
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setQuickAddType('commune');
+                              setQuickAddData({});
+                              setIsQuickAddOpen(true);
+                            }}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          >
+                            <Plus size={14} /> Ajouter une nouvelle commune
+                          </button>
+                        }
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">Phase Projet</label>
-                      <AdvancedSelect 
-                        options={projects.map(p => {
-                          const phaseColor = getPhaseColor(p.numero_phase);
-                          return {
-                            value: p.id,
-                            label: `Phase ${p.numero_phase}`,
-                            subLabel: p.project_description || undefined,
-                            extraInfo: <div className={`h-2 w-2 rounded-full ${phaseColor.bg}`} />
-                          };
-                        })}
-                        value={formData.projet_id || ''}
-                        onChange={val => setFormData({...formData, projet_id: val})}
-                        placeholder="Sélectionner une phase..."
-                      />
+                      <div className="border border-input rounded-xl bg-background overflow-hidden">
+                        <div className="max-h-[140px] overflow-y-auto p-1 space-y-0.5 no-scrollbar">
+                          {projects.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-muted-foreground italic">Aucune phase disponible</div>
+                          ) : (
+                            [...projects].sort((a, b) => (b.numero_phase || 0) - (a.numero_phase || 0)).map(p => {
+                              const phaseColor = getPhaseColor(p.numero_phase);
+                              const isSelected = formData.projet_id === p.id;
+                              return (
+                                <div
+                                  key={p.id}
+                                  onClick={() => setFormData({...formData, projet_id: p.id})}
+                                  className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all ${isSelected ? `${phaseColor.bg} ${phaseColor.softText} border-primary` : 'hover:bg-muted/50 border-transparent'} border text-sm`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`h-8 w-8 rounded-lg ${isSelected ? 'bg-white shadow-sm' : phaseColor.bg} flex items-center justify-center font-black text-xs ${isSelected ? phaseColor.softText : phaseColor.text}`}>
+                                      {p.numero_phase}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="font-bold">Phase {p.numero_phase}</span>
+                                      {p.project_description && (
+                                        <span className="text-[10px] opacity-70 truncate max-w-[180px]">{p.project_description}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {isSelected && <div className={`h-2 w-2 rounded-full ${phaseColor.text} animate-pulse`} />}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
                     </div>
                  </div>
                )}
@@ -662,6 +750,73 @@ export const Settings = () => {
                </div>
             </form>
           </div>
+        </div>
+      )}
+      
+      {/* Quick Add Modal (Sub-modal) */}
+      {isQuickAddOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-card rounded-2xl shadow-3xl w-full max-w-sm overflow-hidden border border-primary/20"
+          >
+            <div className="px-5 py-4 border-b border-border flex justify-between items-center bg-primary/5">
+              <h3 className="font-black text-xs uppercase tracking-widest text-primary flex items-center gap-2">
+                <MapPin size={16} /> Ajouter une commune
+              </h3>
+              <button onClick={() => setIsQuickAddOpen(false)} className="text-muted-foreground hover:text-foreground transition-all"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleQuickAddSave} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5 ml-1">Département</label>
+                <select 
+                  required 
+                  className="w-full border border-input rounded-xl p-2.5 text-sm bg-background transition-all focus:ring-1 focus:ring-primary shadow-soft-sm" 
+                  value={quickAddData.department_id || ''} 
+                  onChange={e => setQuickAddData({...quickAddData, department_id: e.target.value})}
+                >
+                   <option value="">Sélectionner...</option>
+                   {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5 ml-1">Nom de la Commune</label>
+                  <input 
+                    required 
+                    className="w-full border border-input rounded-xl p-2.5 text-sm bg-background shadow-soft-sm" 
+                    value={quickAddData.name || ''} 
+                    onChange={e => setQuickAddData({...quickAddData, name: e.target.value})} 
+                    placeholder="Ex: Tivaouane" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5 ml-1">Code</label>
+                  <input 
+                    required 
+                    className="w-full border border-input rounded-xl p-2.5 text-sm bg-background font-mono uppercase shadow-soft-sm" 
+                    value={quickAddData.code || ''} 
+                    onChange={e => setQuickAddData({...quickAddData, code: e.target.value.toUpperCase()})} 
+                    placeholder="TIV" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5 ml-1">Dist. (km)</label>
+                  <input 
+                    type="number" 
+                    className="w-full border border-input rounded-xl p-2.5 text-sm bg-background shadow-soft-sm" 
+                    value={quickAddData.distance_mine || ''} 
+                    onChange={e => setQuickAddData({...quickAddData, distance_mine: e.target.value})} 
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4 border-t border-border mt-2">
+                <button type="button" onClick={() => setIsQuickAddOpen(false)} className="flex-1 px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted rounded-xl transition-all">Annuler</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95">Enregistrer</button>
+              </div>
+            </form>
+          </motion.div>
         </div>
       )}
     </div>

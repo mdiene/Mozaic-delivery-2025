@@ -20,6 +20,7 @@ interface AdvancedSelectProps {
   required?: boolean;
   disabled?: boolean;
   name?: string;
+  footer?: ReactNode;
 }
 
 export const AdvancedSelect: FC<AdvancedSelectProps> = ({
@@ -32,7 +33,8 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
   className = "",
   required = false,
   disabled = false,
-  name
+  name,
+  footer
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,6 +179,11 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
               </div>
             )}
           </div>
+          {footer && (
+            <div className="border-t border-border p-2 bg-muted/20">
+              {footer}
+            </div>
+          )}
         </div>
       )}
     </div>
