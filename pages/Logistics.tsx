@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AdvancedSelect, Option } from '../components/AdvancedSelect';
 import { useAuth } from '../contexts/AuthContext';
 
-type GroupBy = 'none' | 'truck' | 'commune' | 'region';
+type GroupBy = 'none' | 'truck' | 'commune' | 'region' | 'date';
 
 export const Logistics = () => {
   const location = useLocation();
@@ -27,10 +27,10 @@ export const Logistics = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [mainPhaseFilter, setMainPhaseFilter] = useState<string>('all');
   
-  // Grouping State
-  const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  // Grouping State - DEFAULT TO DATE
+  const [groupBy, setGroupBy] = useState<GroupBy>('date');
   
-  // Accordion State - Empty by default (closed)
+  // Accordion State - Open first group by default
   const [activeAccordionPhases, setActiveAccordionPhases] = useState<Set<string>>(new Set());
 
   // Modal State
@@ -293,6 +293,7 @@ export const Logistics = () => {
          if (groupBy === 'truck') key = d.truck_plate || 'Aucun Camion';
          if (groupBy === 'commune') key = d.commune_name || 'Aucune Commune';
          if (groupBy === 'region') key = d.region_name || 'Aucune Région';
+         if (groupBy === 'date') key = d.delivery_date ? new Date(d.delivery_date).toLocaleDateString('fr-FR') : 'Date Inconnue';
          if (!subGroupMap[key]) subGroupMap[key] = [];
          subGroupMap[key].push(d);
        });
@@ -300,7 +301,14 @@ export const Logistics = () => {
          key,
          items,
          totalLoad: items.reduce((sum, d) => sum + Number(d.tonnage_loaded), 0)
-       })).sort((a, b) => b.totalLoad - a.totalLoad);
+       })).sort((a, b) => {
+         if (groupBy === 'date') {
+           const dateA = a.key.split('/').reverse().join('-');
+           const dateB = b.key.split('/').reverse().join('-');
+           return dateB.localeCompare(dateA);
+         }
+         return b.totalLoad - a.totalLoad;
+       });
        return { phase, subGroups };
     });
   }, [deliveries, groupBy, mainPhaseFilter, searchTerm]);
@@ -416,6 +424,7 @@ export const Logistics = () => {
              <span className="text-xs font-semibold text-muted-foreground uppercase mr-1 whitespace-nowrap flex items-center gap-1">
                <Layers size={14} /> Grouper par:
              </span>
+             <button onClick={() => setGroupBy('date')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'date' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted text-muted-foreground border-border'}`}>Date</button>
              <button onClick={() => setGroupBy('truck')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'truck' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted text-muted-foreground border-border'}`}>Camion</button>
              <button onClick={() => setGroupBy('commune')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'commune' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted text-muted-foreground border-border'}`}>Commune</button>
              <button onClick={() => setGroupBy('region')} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${groupBy === 'region' ? 'bg-primary/10 text-primary border-primary' : 'bg-card hover:bg-muted text-muted-foreground border-border'}`}>Région</button>
@@ -425,7 +434,7 @@ export const Logistics = () => {
           </div>
       </div>
 
-      <div className="accordion flex flex-col gap-4 min-h-[500px]">
+      <div className="accordion accordion-shadow *:accordion-item-active:shadow-md space-y-4">
         {groupedDeliveries.length === 0 && (
           <div className="p-12 text-center text-muted-foreground bg-card rounded-xl border border-border">
              {searchTerm || mainPhaseFilter !== 'all' ? 'Aucun résultat.' : 'Aucune expédition trouvée.'}
@@ -433,81 +442,123 @@ export const Logistics = () => {
         )}
         
         {groupedDeliveries.map((projectGroup) => {
-           const isOpen = activeAccordionPhases.has(projectGroup.phase);
-           return (
-            <div key={projectGroup.phase} className="accordion-item">
-              <button onClick={() => toggleAccordion(projectGroup.phase)} className="accordion-toggle" aria-expanded={isOpen}>
-                <div className="flex items-center gap-4">
-                  <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}><ChevronRight size={20} className="text-muted-foreground" /></span>
-                  <span className="text-lg font-bold">{projectGroup.phase}</span>
-                </div>
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted px-2 py-1 rounded">
-                  {projectGroup.subGroups.reduce((acc, sub) => acc + sub.items.length, 0)} Livraisons
-                </span>
-              </button>
-              
-              <div className={`accordion-content ${!isOpen ? 'hidden' : ''}`}>
-                 <div className="w-full overflow-x-auto">
-                    <table className="table table-striped">
-                      <thead className="bg-primary/5 border-b-2 border-primary/20">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider w-32">N° BL</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Destination</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Transport</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Charge</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Frais</th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Date</th>
-                          <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider w-32">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                         {projectGroup.subGroups.map((subGroup) => (
-                           <Fragment key={subGroup.key}>
-                              {groupBy !== 'none' && (
-                                <tr className="bg-muted/30">
-                                   <td colSpan={7} className="px-6 py-2 text-xs font-medium text-foreground border-b border-border/50 flex items-center justify-between">
-                                      <span className="flex items-center gap-2 uppercase tracking-wide font-bold">{subGroup.key}</span>
-                                      <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded text-[10px]">Total: {subGroup.totalLoad.toFixed(2)} T</span>
-                                   </td>
-                                </tr>
-                              )}
+          return (
+            <div key={projectGroup.phase} className="space-y-4">
+              <div className="flex items-center gap-4 px-2">
+                <div className="h-0.5 flex-1 bg-border/50"></div>
+                <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Target size={14} /> {projectGroup.phase}
+                </h2>
+                <div className="h-0.5 flex-1 bg-border/50"></div>
+              </div>
+
+              {projectGroup.subGroups.map((subGroup) => {
+                const accordionId = `${projectGroup.phase}-${subGroup.key}`;
+                const isOpen = activeAccordionPhases.has(accordionId);
+                
+                // Set first one open if none are active? No, let's keep user state
+                
+                return (
+                  <div key={subGroup.key} className={`accordion-item ${isOpen ? 'active' : ''}`} id={accordionId}>
+                    <button 
+                      onClick={() => toggleAccordion(accordionId)}
+                      className="accordion-toggle inline-flex items-center justify-between text-start w-full bg-card p-4 rounded-xl border border-border shadow-soft-sm hover:shadow-md transition-all"
+                      aria-expanded={isOpen}
+                    >
+                      <div className="flex gap-4 items-center">
+                        <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                          {groupBy === 'date' ? <Calendar size={24} /> : 
+                           groupBy === 'truck' ? <TruckIcon size={24} /> :
+                           groupBy === 'commune' ? <MapPin size={24} /> :
+                           <Layers size={24} />}
+                        </div>
+                        <div>
+                          <p className="font-bold text-foreground text-sm uppercase tracking-wide">{subGroup.key}</p>
+                          <p className="text-xs text-muted-foreground font-normal">
+                             {subGroup.items.length} {subGroup.items.length > 1 ? 'Livraisons' : 'Livraison'} • <span className="font-mono font-bold text-primary">{subGroup.totalLoad.toFixed(2)} T</span>
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className={`size-5 text-muted-foreground transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`} />
+                    </button>
+                    
+                    <div className={`accordion-content w-full overflow-hidden transition-all duration-300 ${!isOpen ? 'max-h-0' : 'max-h-[2000px] mt-2'}`}>
+                      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-inner bg-muted/5">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-secondary/30">
+                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">N° BL</th>
+                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Destination</th>
+                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Transport</th>
+                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Charge</th>
+                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Frais</th>
+                                <th className="px-4 py-3 text-right"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/50">
                               {subGroup.items.map((del) => (
-                                <tr key={del.id} className="hover:bg-muted/50 transition-colors">
-                                  <td className="px-4 py-3"><span className="font-bold font-mono text-foreground text-sm">{del.bl_number}</span></td>
-                                  <td className="px-4 py-3">
+                                <tr key={del.id} className="hover:bg-primary/5 transition-colors group">
+                                  <td className="px-4 py-4">
+                                    <div className="flex items-center gap-2">
+                                      <div className="size-8 rounded-lg bg-muted flex items-center justify-center">
+                                        <FileText size={14} className="text-muted-foreground" />
+                                      </div>
+                                      <span className="font-mono font-bold text-sm text-foreground">{del.bl_number}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4">
                                     <div className="flex flex-col">
-                                      <span className="text-sm font-medium text-foreground">{del.operator_name}</span>
+                                      <span className="text-sm font-bold text-foreground">{del.operator_name}</span>
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground flex items-center gap-1"><MapPin size={10} /> {del.commune_name}, {del.region_name}</span>
+                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium"><MapPin size={10} /> {del.commune_name}</span>
                                         {del.declaration_code && (
-                                          <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 uppercase">
+                                          <span className="text-[10px] font-black bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded uppercase tracking-wider">
                                             {del.declaration_code}
                                           </span>
                                         )}
                                       </div>
                                     </div>
                                   </td>
-                                  <td className="px-4 py-3"><div className="flex flex-col"><p className="text-sm font-mono font-medium text-foreground">{del.truck_plate || 'Aucun'}</p><p className="text-xs text-muted-foreground">{del.driver_name || 'Aucun'}</p></div></td>
-                                  <td className="px-4 py-3"><span className="text-sm font-bold text-foreground bg-muted px-2 py-1 rounded">{del.tonnage_loaded} T</span></td>
-                                  <td className="px-4 py-3"><span className="text-sm font-bold text-amber-600">{del.total_fees?.toLocaleString()} F</span></td>
-                                  <td className="px-4 py-3 text-sm text-muted-foreground">{del.delivery_date ? new Date(del.delivery_date).toLocaleDateString() : '-'}</td>
-                                  <td className="px-4 py-3 text-right">
-                                     <div className="flex justify-end gap-1">
-                                        <button onClick={() => goToExpenses(del.bl_number)} className="btn btn-circle btn-text btn-sm text-amber-600 hover:bg-amber-50" title="Voir Note de Frais"><Receipt size={16} /></button>
-                                        <button onClick={() => handleOpenModal(del)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed" title={isVisitor ? "Lecture seule" : "Modifier"}><Edit2 size={16} /></button>
-                                        <button onClick={() => handleDelete(del.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm btn-text-error disabled:opacity-30 disabled:cursor-not-allowed" title={isVisitor ? "Lecture seule" : "Supprimer"}><Trash2 size={16} /></button>
-                                     </div>
+                                  <td className="px-4 py-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-mono font-bold text-foreground">{del.truck_plate || '-'}</span>
+                                      <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{del.driver_name || '-'}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 text-right">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-lg bg-primary/10 text-primary text-xs font-bold font-mono">
+                                      {del.tonnage_loaded} T
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-4 text-right">
+                                    <span className="text-sm font-bold text-amber-600 font-mono">
+                                      {del.total_fees?.toLocaleString()} F
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                      <button onClick={() => goToExpenses(del.bl_number)} className="p-2 rounded-lg hover:bg-amber-100 text-amber-600 transition-colors" title="Note de Frais"><Receipt size={16} /></button>
+                                      {!isVisitor && (
+                                        <>
+                                          <button onClick={() => handleOpenModal(del)} className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors" title="Modifier"><Edit2 size={16} /></button>
+                                          <button onClick={() => handleDelete(del.id)} className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors" title="Supprimer"><Trash2 size={16} /></button>
+                                        </>
+                                      )}
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
-                           </Fragment>
-                         ))}
-                      </tbody>
-                    </table>
-                 </div>
-              </div>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-           );
+          );
         })}
       </div>
 
