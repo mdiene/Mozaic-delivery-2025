@@ -278,9 +278,7 @@ export const Views = () => {
           <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Modalités</div>
           <div style="margin-top: 4px; font-size: 12px;">
             <span style="margin-right: 20px;">Camion: <strong>${item.truck_plate_number || '________________'}${trailerStr}</strong></span>
-            {item.Trucks_proprietaire && (
-              <span style="margin-right: 20px;">Propriétaire: <strong>${item.Trucks_proprietaire}</strong></span>
-            )}
+            ${item.Trucks_proprietaire ? `<span style="margin-right: 20px;">Propriétaire: <strong>${item.Trucks_proprietaire}</strong></span>` : ''}
             <span>Chauffeur: <strong>${item.driver_name || '________________'}</strong></span>
           </div>
         </div>
@@ -292,7 +290,11 @@ export const Views = () => {
            </tbody>
         </table>
         <div style="margin-top: 60px; display: flex; justify-content: space-between;">
-           <div style="width: 45%; position: relative; min-height: 120px;"><strong>Réceptionnaire</strong><br/>${item.operator_name}</div>
+           <div style="width: 45%; position: relative; min-height: 120px;">
+             <strong>Réceptionnaire</strong><br/>
+             ${item.operator_name}
+             ${item.operator_contact_info ? `<br/><span style="font-size: 12px; color: #555;">Tél : ${item.operator_contact_info}</span>` : ''}
+           </div>
            <div style="width: 45%; position: relative; min-height: 120px; text-align: right;">
               <strong>Signature SOMA</strong>
               <div style="border: 3px solid #1e3a8a; border-radius: 8px; padding: 5px 10px; color: #1e3a8a; font-family: 'Courier New', Courier, monospace; font-weight: 900; text-align: center; transform: rotate(-2deg); position: absolute; top: 30px; right: 0; background: rgba(255, 255, 255, 0.85); font-size: 12px;">SOCIETE MINIERE AFRICAINE<br/>" SOMA "<br/>Le Directeur Général</div>
@@ -389,9 +391,7 @@ export const Views = () => {
            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
               <div>
                  <p style="margin: 8px 0;"><strong>Camion / marque / modèle :</strong> ${item.truck_plate_number} / ${item.truck_trailer_number || '---'} / ${item.truck_chassis || '---'}</p>
-                 {item.Trucks_proprietaire && (
-                   <p style="margin: 8px 0;"><strong>Propriétaire :</strong> ${item.Trucks_proprietaire}</p>
-                 )}
+                 ${item.Trucks_proprietaire ? `<p style="margin: 8px 0;"><strong>Propriétaire :</strong> ${item.Trucks_proprietaire}</p>` : ''}
               </div>
               <div>
                  <p style="margin: 8px 0;"><strong>Chauffeur :</strong> ${item.driver_name}</p>
@@ -769,9 +769,6 @@ export const Views = () => {
                             <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
                             <td className="px-4 py-3 text-center">
                                <div className="flex items-center justify-center gap-2">
-                                  <button onClick={() => downloadBLPdf(item)} disabled={downloadingId === item.bl_number} className={`btn btn-text btn-sm text-blue-500 hover:bg-blue-50 rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2 ${downloadingId === item.bl_number ? 'opacity-50 cursor-wait' : ''}`} title="Enregistrer PDF">
-                                     {downloadingId === item.bl_number ? <RefreshCw size={14} className="animate-spin" /> : <Download size={16} />}
-                                  </button>
                                   <button onClick={() => handlePrintSingleBL(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer BL"><Printer size={16} /></button>
                                </div>
                             </td>
