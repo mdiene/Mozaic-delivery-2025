@@ -575,9 +575,9 @@ export const Views = () => {
    */
   const getBLTemplate = (item: BonLivraisonView) => {
     const trailerStr = item.truck_trailer_number ? ` / ${item.truck_trailer_number}` : '';
-    const destinatireName = item.operateur_coop_gie && item.operator_coop_name 
-      ? `${item.operator_name} / ${item.operator_coop_name}` 
-      : item.operator_name;
+    const bonSomaVal = item.project_num_bon && item.project_num_bon.trim() !== '' && !item.project_num_bon.toLowerCase().includes('n/a')
+      ? `#${item.project_num_bon}`
+      : '';
 
     return `
       <div class="bl-page">
@@ -589,37 +589,36 @@ export const Views = () => {
         <div class="addresses-container">
             <div class="address-block">
                 <h3>Destinataire</h3>
-                <p><strong>${destinatireName}</strong></p>
+                <p><strong>${item.operator_name}</strong></p>
                 <p>Téléphone : <strong>${item.operator_contact_info || '---'}</strong></p>
-                <p>Région : ${item.region || '---'}</p>
-                <p>Département : ${item.department || '---'}</p>
                 <p>Commune : <strong>${item.commune || '---'}</strong></p>
+                <p>Département : ${item.department || '---'}</p>
+                <p>Région / Ville : ${item.region || '---'}</p>
             </div>
             <div class="address-block">
                 <h3>Expéditeur</h3>
                 <p><strong>SOCIÉTÉ MINIÈRE AFRICAINE (SOMA S.A.)</strong></p>
                 <p>Site de Matam, Hamady Ounaré, Sénégal</p>
                 <p>Siège : 11 rue Alfred goux, Apt N1 1er Etage, Dakar</p>
-                <p>TEL : +221 77 260 95 67 / 77 247 25 00</p>
             </div>
         </div>
 
         <div class="meta-table">
             <div class="meta-col">
                 <div class="meta-label">Numéro BL</div>
-                <div class="meta-value">${item.bl_number}</div>
+                <div class="meta-value" style="font-size: 11px;">${item.bl_number}</div>
             </div>
             <div class="meta-col">
-                <div class="meta-label">Phase</div>
-                <div class="meta-value">Phase ${item.numero_phase}</div>
+                <div class="meta-label">Coopérative / Entreprise</div>
+                <div class="meta-value" style="font-size: 10px; word-break: break-all;">${item.operator_coop_name || 'Individuel'}</div>
             </div>
             <div class="meta-col">
                 <div class="meta-label">Date</div>
-                <div class="meta-value">${new Date(item.delivery_date).toLocaleDateString('fr-FR')}</div>
+                <div class="meta-value" style="font-size: 11px;">${new Date(item.delivery_date).toLocaleDateString('fr-FR')}</div>
             </div>
             <div class="meta-col">
-                <div class="meta-label">Bon SOMA</div>
-                <div class="meta-value">#${item.project_num_bon || '---'}</div>
+                <div class="meta-label">Bon SOMA / Alloc.</div>
+                <div class="meta-value" style="font-size: 10px; word-break: break-all;">${bonSomaVal ? `${bonSomaVal} ` : ''}[${item.allocation_key || '---'}]</div>
             </div>
         </div>
 
@@ -628,7 +627,6 @@ export const Views = () => {
             <div class="transport-grid">
                 <div class="transport-item"><strong>Chauffeur :</strong> ${item.driver_name || '---'}</div>
                 <div class="transport-item"><strong>Camion / Remorque :</strong> ${item.truck_plate_number || '---'}${trailerStr}</div>
-                ${item.Trucks_proprietaire ? `<div class="transport-item"><strong>Propriétaire :</strong> ${item.Trucks_proprietaire}</div>` : ''}
                 <div class="transport-item"><strong>Programme :</strong> ${item.project_description || 'Campagne agricole 2025/2026'}</div>
             </div>
         </div>
@@ -678,10 +676,10 @@ export const Views = () => {
             </div>
             <div class="signature-block" style="width: 31%;">
                 <div class="signature-title">Pour la SOMA S.A.</div>
-                <div class="stamp-container">
-                    <div class="soma-stamp" style="font-size: 7px;">SOCIÉTÉ MINIÈRE AFRICAINE<br/>" SOMA S.A. "<br/>Le Directeur Général</div>
+                <div class="stamp-container" style="height: 14mm; display: flex; align-items: center; justify-content: center;">
+                    <div class="soma-stamp" style="font-size: 11px; padding: 4px 9px; border-width: 3px; transform: scale(1.275) rotate(-3deg); white-space: nowrap;">SOCIÉTÉ MINIÈRE AFRICAINE<br/>" SOMA S.A. "<br/>Le Directeur Général</div>
                 </div>
-                <div class="signature-label">Visa Autorisé</div>
+                <div class="signature-label" style="margin-top: 4px;">Visa Autorisé</div>
             </div>
         </div>
 

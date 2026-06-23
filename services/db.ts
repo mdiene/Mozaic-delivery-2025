@@ -26,6 +26,7 @@ export const db = {
           region_id,
           department_id,
           project_id,
+          allocation_key,
           operators(name),
           regions(name),
           departments(name),
@@ -70,7 +71,8 @@ export const db = {
         driver_name: del.drivers?.name || 'Unknown',
         driver_license: del.drivers?.license_number,
         driver_phone: del.drivers?.phone_normalized,
-        project_id: alloc?.project_id
+        project_id: alloc?.project_id,
+        allocation_key: alloc?.allocation_key
       };
     });
   },
