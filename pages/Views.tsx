@@ -709,7 +709,7 @@ export const Views = () => {
       <div class="fc-page">
         <div class="doc-header">
             ${SOMA_LOGO_HTML}
-            <h1 class="doc-title" style="font-size: 26px;">Procès Verbal</h1>
+            <h1 class="doc-title" style="font-size: 26px;">Procès Verbal de fin de cession</h1>
         </div>
 
         <div class="addresses-container">
