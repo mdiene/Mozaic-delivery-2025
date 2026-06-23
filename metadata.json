@@ -1,5 +1,10 @@
 {
   "name": "MASAE Delivery Tracker",
   "description": "Une plateforme SaaS complète pour gérer l'allocation des ressources agricoles, l'expédition logistique et le suivi des livraisons en temps réel au Sénégal.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

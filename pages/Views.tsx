@@ -32,10 +32,337 @@ const SOMA_LOGO_STYLES = `
   .o-dot { position: relative; display: inline-block; }
   .o-dot::after { content: ''; position: absolute; width: 8px; height: 8px; background-color: var(--soma-black); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
   .tagline { font-family: 'Arial', sans-serif; font-size: 14px; font-weight: bold; color: var(--soma-black); line-height: 1.1; border-left: 1px solid #ccc; padding-left: 10px; letter-spacing: 0.5px; }
+  
+  /* --- Unified Redesigned Styles --- */
+  .bl-page, .fc-page {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    box-sizing: border-box;
+    padding: 18mm 15mm 42mm 15mm;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: #ffffff;
+    page-break-after: always;
+  }
+  
+  /* Top smooth curved background gradient shape in SOMA tones */
+  .bl-page::before, .fc-page::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 120mm;
+    background: radial-gradient(circle at top right, rgba(240, 162, 67, 0.12) 0%, rgba(201, 176, 55, 0.08) 35%, rgba(126, 179, 68, 0.05) 60%, transparent 80%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* --- Header --- */
+  .doc-header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12mm;
+  }
+  .doc-title {
+    font-size: 32px;
+    font-weight: 900;
+    color: #0A2540;
+    font-style: italic;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+    text-align: right;
+  }
+
+  /* --- Addresses Block --- */
+  .addresses-container {
+    position: relative;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 15mm;
+    margin-bottom: 8mm;
+  }
+  .address-block h3 {
+    font-size: 13px;
+    font-weight: 800;
+    color: #0A2540;
+    border-bottom: 2px solid #E2E8F0;
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    margin-top: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .address-block p {
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 3px 0;
+    color: #334155;
+  }
+
+  /* --- Metadata horizontal bar --- */
+  .meta-table {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background-color: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8mm;
+    text-align: center;
+  }
+  .meta-col {
+    padding: 10px 4px;
+    border-right: 1px solid #CBD5E1;
+  }
+  .meta-col:last-child {
+    border-right: none;
+  }
+  .meta-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: #0A2540;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .meta-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+  }
+
+  /* --- Items Table --- */
+  .items-table {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: auto; /* Pushes remaining content down */
+  }
+  .items-table th {
+    background-color: #0A2540;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 12px;
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    text-align: center;
+  }
+  .items-table th:last-child {
+    border-right: none;
+  }
+  .items-table td {
+    padding: 10px 12px;
+    font-size: 11px;
+    text-align: center;
+    color: #334155;
+    border-bottom: 1px solid #E2E8F0;
+    border-right: 1px solid #E2E8F0;
+  }
+  .items-table td:last-child {
+    border-right: none;
+  }
+  .items-table tr:nth-child(even) td {
+    background-color: #F8FAFC;
+  }
+  .items-table tr:nth-child(odd) td {
+    background-color: #E2E8F0;
+  }
+  .items-table td.left-align {
+    text-align: left;
+  }
+  .items-table .total-row td {
+    font-weight: 800;
+    background-color: #F0FDF4 !important;
+    border-top: 2px solid #0A2540;
+    color: #15803D;
+  }
+
+  /* --- Transport Details Box --- */
+  .transport-container {
+    position: relative;
+    z-index: 10;
+    background-color: #F8FAFC;
+    border-left: 4px solid #f0a243;
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin-bottom: 8mm;
+  }
+  .transport-title {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #0A2540;
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+  }
+  .transport-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 15px;
+  }
+  .transport-item {
+    font-size: 11px;
+    color: #475569;
+  }
+
+  /* --- Thank you section --- */
+  .thanks-section {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    margin-top: 4mm;
+    margin-bottom: 4mm;
+  }
+  .thanks-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #0A2540;
+    margin-bottom: 3px;
+  }
+  .thanks-text {
+    font-size: 9px;
+    color: #64748B;
+    max-width: 85%;
+    margin: 0 auto;
+    line-height: 1.4;
+  }
+
+  /* --- Signatures Receipt Zone --- */
+  .receipt-zone-title {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0A2540;
+    margin-top: 2mm;
+    margin-bottom: 2mm;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .receipt-zone {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4mm;
+    gap: 15mm;
+  }
+  .signature-block {
+    width: 48%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .signature-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: #0A2540;
+    margin-bottom: 6mm;
+  }
+  .signature-line-placeholder {
+    width: 80%;
+    border-bottom: 1px solid #94A3B8;
+    height: 8mm;
+    margin-bottom: 3px;
+  }
+  .signature-label {
+    font-size: 9px;
+    color: #64748B;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .stamp-container {
+    width: 80%;
+    height: 8mm;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 3px;
+  }
+  .soma-stamp {
+    border: 2px solid #1e3a8a;
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: #1e3a8a;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 900;
+    text-align: center;
+    transform: rotate(-3deg);
+    background: rgba(255, 255, 255, 0.9);
+    font-size: 8px;
+    line-height: 1.1;
+  }
+
+  /* --- Footer Wave --- */
+  .footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 210mm;
+    height: 42mm;
+    background: linear-gradient(135deg, #0A2540 0%, #111827 100%);
+    border-top: 4px solid #f0a243;
+    clip-path: ellipse(120% 100% at 35% 100%);
+    box-sizing: border-box;
+    padding: 18mm 15mm 6mm 15mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    color: #ffffff;
+    z-index: 10;
+  }
+  .footer-info {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 4px 15px;
+    font-size: 9px;
+    opacity: 0.95;
+  }
+  .footer-info-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .footer-terms {
+    width: 45%;
+    font-size: 8px;
+    line-height: 1.4;
+    opacity: 0.9;
+    border-left: 1px solid #38BDF8;
+    padding-left: 10px;
+    margin-bottom: 2px;
+  }
+  .footer-terms h4 {
+    margin: 0 0 2px 0;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #38BDF8;
+  }
+
   @media print { 
     .leaf, .divider { -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
     .o-dot::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .fc-page { page-break-after: always; position: relative; }
+    .bl-page, .fc-page { page-break-after: always; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .bl-page::before, .fc-page::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 `;
 
@@ -253,54 +580,123 @@ export const Views = () => {
       : item.operator_name;
 
     return `
-      <div class="bl-page" style="page-break-after: always; min-height: 100vh; position: relative; padding: 20px;">
-        <div class="header-container" style="display: flex; align-items: center; margin-bottom: 15px;">
-           ${SOMA_LOGO_HTML}
+      <div class="bl-page">
+        <div class="doc-header">
+            ${SOMA_LOGO_HTML}
+            <h1 class="doc-title">Bon de Livraison</h1>
         </div>
-        <div style="background-color: #fff9e6; padding: 10px; margin-top: 10px; margin-bottom: 15px; border-left: 5px solid #d97706;">
-           <div style="font-size: 24px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 1px;">BON DE LIVRAISON</div>
+
+        <div class="addresses-container">
+            <div class="address-block">
+                <h3>Destinataire</h3>
+                <p><strong>${destinatireName}</strong></p>
+                <p>Téléphone : <strong>${item.operator_contact_info || '---'}</strong></p>
+                <p>Région : ${item.region || '---'}</p>
+                <p>Département : ${item.department || '---'}</p>
+                <p>Commune : <strong>${item.commune || '---'}</strong></p>
+            </div>
+            <div class="address-block">
+                <h3>Expéditeur</h3>
+                <p><strong>SOCIÉTÉ MINIÈRE AFRICAINE (SOMA S.A.)</strong></p>
+                <p>Site de Matam, Hamady Ounaré, Sénégal</p>
+                <p>Siège : 11 rue Alfred goux, Apt N1 1er Etage, Dakar</p>
+                <p>TEL : +221 77 260 95 67 / 77 247 25 00</p>
+            </div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-           <div>
-              <div style="font-size: 11px; margin-bottom: 15px; color: #333;"><strong>SOCIETE MINIERE AFRICAINE</strong><br/>11 rue Alfred goux<br/>Apt N1 1er Etage Dakar Plateau Sénégal<br/>TEL : 77 260 95 67</div>
-              <div style="margin-top: 15px;"><div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Programme</div><div style="background:#f9f9f9; padding:6px; font-weight:bold;">${item.project_description || 'MASAE campagne agricole 2025/2026'}</div></div>
-           </div>
-           <div style="text-align: right;">
-              <div style="margin-bottom: 10px;"><span style="font-weight:bold; margin-right: 10px;">DATE DE LIVRAISON</span><span style="border-bottom: 1px dotted #000; padding: 0 10px; font-family: monospace; font-size: 12px;">${new Date(item.delivery_date).toLocaleDateString('fr-FR')}</span></div>
-              <div style="margin-bottom: 10px;"><span style="font-weight:bold; margin-right: 10px;">NUMERO BL</span><span style="background: #eee; padding: 4px 8px; font-family: monospace; font-weight:bold; font-size: 13px;">${item.bl_number}</span></div>
-              <div style="text-align: left; margin-top: 15px; border: 1px solid #ccc; padding: 8px;">
-                 <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">DESTINATAIRE</div><div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${destinatireName}</div>
-                 <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-top:8px;">EXPÉDIEZ À</div><div>${item.region} / ${item.department}</div><div style="font-weight:bold;">${item.commune}</div>
-              </div>
-           </div>
+
+        <div class="meta-table">
+            <div class="meta-col">
+                <div class="meta-label">Numéro BL</div>
+                <div class="meta-value">${item.bl_number}</div>
+            </div>
+            <div class="meta-col">
+                <div class="meta-label">Phase</div>
+                <div class="meta-value">Phase ${item.numero_phase}</div>
+            </div>
+            <div class="meta-col">
+                <div class="meta-label">Date</div>
+                <div class="meta-value">${new Date(item.delivery_date).toLocaleDateString('fr-FR')}</div>
+            </div>
+            <div class="meta-col">
+                <div class="meta-label">Bon SOMA</div>
+                <div class="meta-value">#${item.project_num_bon || '---'}</div>
+            </div>
         </div>
-        <div style="border: 1px solid #ddd; padding: 12px; margin: 30px 0 20px 0; background: #f9fafb;">
-          <div style="font-weight: bold; text-transform: uppercase; font-size: 10px; color: #444; margin-bottom: 2px;">Modalités</div>
-          <div style="margin-top: 4px; font-size: 12px;">
-            <span style="margin-right: 20px;">Camion: <strong>${item.truck_plate_number || '________________'}${trailerStr}</strong></span>
-            ${item.Trucks_proprietaire ? `<span style="margin-right: 20px;">Propriétaire: <strong>${item.Trucks_proprietaire}</strong></span>` : ''}
-            <span>Chauffeur: <strong>${item.driver_name || '________________'}</strong></span>
-          </div>
+
+        <div class="transport-container">
+            <div class="transport-title">Informations de Transport</div>
+            <div class="transport-grid">
+                <div class="transport-item"><strong>Chauffeur :</strong> ${item.driver_name || '---'}</div>
+                <div class="transport-item"><strong>Camion / Remorque :</strong> ${item.truck_plate_number || '---'}${trailerStr}</div>
+                ${item.Trucks_proprietaire ? `<div class="transport-item"><strong>Propriétaire :</strong> ${item.Trucks_proprietaire}</div>` : ''}
+                <div class="transport-item"><strong>Programme :</strong> ${item.project_description || 'Campagne agricole 2025/2026'}</div>
+            </div>
         </div>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-           <thead><tr><th width="70%" style="text-align: left; background-color: #fff9e6; padding: 8px 6px; font-weight: bold; text-transform: uppercase; font-size: 10px; border-bottom: 2px solid #ddd;">DESCRIPTION</th><th width="30%" style="text-align:right; background-color: #fff9e6; padding: 8px 6px; font-weight: bold; text-transform: uppercase; font-size: 10px; border-bottom: 2px solid #ddd;">Quantité / Tonnes</th></tr></thead>
-           <tbody>
-              <tr><td style="padding: 18px 8px; border-bottom: 1px solid #eee; vertical-align: top;"><strong>Engrais à base de phosphate naturel</strong><br/><span>Sac de 50 kg – Campagne agricole 2025-2026</span><br/><span>Projet Phase ${item.numero_phase} (Bon N° ${item.project_num_bon})</span></td><td style="text-align:right; font-size:14px; font-weight:bold; padding: 18px 8px; border-bottom: 1px solid #eee; vertical-align: top;">${item.tonnage_loaded}</td></tr>
-              <tr style="background-color: #f0fdf4; font-weight: bold;"><td style="text-align:right; padding-right: 20px; border-top: 2px solid #ddd; padding: 18px 8px;">SOUS-TOTAL</td><td style="text-align:right; border-top: 2px solid #ddd; padding: 18px 8px;">${item.tonnage_loaded}</td></tr>
-           </tbody>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Qté (Sacs)</th>
+                    <th style="width: 20%;">Code Article</th>
+                    <th style="width: 50%;">Description</th>
+                    <th style="width: 15%;">Tonnage (T)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>${Math.round(item.tonnage_loaded * 20)}</td>
+                    <td>PN-50KG</td>
+                    <td class="left-align">
+                        <strong>Engrais à base de phosphate naturel</strong><br/>
+                        <span style="font-size: 10px; color: #64748B;">Sac de 50 kg – Campagne agricole 2025-2026</span>
+                    </td>
+                    <td><strong>${item.tonnage_loaded} T</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="3" style="text-align: right; padding-right: 15px;">TOTAL LIVRÉ</td>
+                    <td>${item.tonnage_loaded} T</td>
+                </tr>
+            </tbody>
         </table>
-        <div style="margin-top: 60px; display: flex; justify-content: space-between;">
-           <div style="width: 45%; position: relative; min-height: 120px;">
-             <strong>Réceptionnaire</strong><br/>
-             ${item.operator_name}
-             ${item.operator_contact_info ? `<br/><span style="font-size: 12px; color: #555;">Tél : ${item.operator_contact_info}</span>` : ''}
-           </div>
-           <div style="width: 45%; position: relative; min-height: 120px; text-align: right;">
-              <strong>Signature SOMA</strong>
-              <div style="border: 3px solid #1e3a8a; border-radius: 8px; padding: 5px 10px; color: #1e3a8a; font-family: 'Courier New', Courier, monospace; font-weight: 900; text-align: center; transform: rotate(-2deg); position: absolute; top: 30px; right: 0; background: rgba(255, 255, 255, 0.85); font-size: 12px;">SOCIETE MINIERE AFRICAINE<br/>" SOMA "<br/>Le Directeur Général</div>
-           </div>
+
+        <div class="thanks-section">
+            <div class="thanks-title">Merci pour votre confiance !</div>
+            <div class="thanks-text">Les marchandises livrées restent la propriété de la SOMA jusqu'au complet déchargement et validation du procès-verbal de réception.</div>
         </div>
-        <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 9px; color: #333; border-top: 1px solid #ccc; padding-top: 8px;">SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage<br/>Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 mdiene@gmail.com</div>
+
+        <div class="receipt-zone-title">Émargements et Réception</div>
+        <div class="receipt-zone" style="gap: 5mm;">
+            <div class="signature-block" style="width: 31%;">
+                <div class="signature-title">Le Réceptionnaire</div>
+                <div class="signature-line-placeholder"></div>
+                <div class="signature-label">Signature & Date</div>
+            </div>
+            <div class="signature-block" style="width: 31%;">
+                <div class="signature-title">Le Chauffeur</div>
+                <div class="signature-line-placeholder"></div>
+                <div class="signature-label">Signature & Date</div>
+            </div>
+            <div class="signature-block" style="width: 31%;">
+                <div class="signature-title">Pour la SOMA S.A.</div>
+                <div class="stamp-container">
+                    <div class="soma-stamp" style="font-size: 7px;">SOCIÉTÉ MINIÈRE AFRICAINE<br/>" SOMA S.A. "<br/>Le Directeur Général</div>
+                </div>
+                <div class="signature-label">Visa Autorisé</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-info">
+                <div class="footer-info-item">📍 Matam / Hamady Ounaré, Sénégal</div>
+                <div class="footer-info-item">✉️ mdiene@gmail.com</div>
+                <div class="footer-info-item">📞 +221 77 247 25 00 / 77 260 95 67</div>
+                <div class="footer-info-item">🌐 www.soma.sn</div>
+            </div>
+            <div class="footer-terms">
+                <h4>SOCIÉTÉ MINIÈRE AFRICAINE S.A.</h4>
+                Les marchandises livrées restent la propriété de la SOMA jusqu'à réception conforme. Tout litige relève de la compétence exclusive du tribunal de commerce de Dakar.
+            </div>
+        </div>
       </div>
     `;
   };
@@ -310,51 +706,109 @@ export const Views = () => {
    */
   const getFCTemplate = (item: FinDeCessionView) => {
     return `
-      <div class="fc-page" style="page-break-after: always; min-height: 100vh; position: relative; padding: 20px;">
-        <div class="watermark" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); opacity: 0.1; z-index: -1; pointer-events: none; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 40px; width: 100%; justify-content: center;">
-          <div class="leaf-stack" style="transform: scale(6);">
-            <div class="leaf orange"></div>
-            <div class="leaf gold"></div>
-            <div class="leaf green"></div>
-          </div>
+      <div class="fc-page">
+        <div class="doc-header">
+            ${SOMA_LOGO_HTML}
+            <h1 class="doc-title" style="font-size: 26px;">Procès Verbal</h1>
         </div>
-        <div class="header-container" style="display: flex; align-items: center; margin-bottom: 20px;">
-           ${SOMA_LOGO_HTML}
+
+        <div class="addresses-container">
+            <div class="address-block">
+                <h3>Point de Réception</h3>
+                <p><strong>Commune de : ${item.commune}</strong></p>
+                <p>Département : ${item.department}</p>
+                <p>Région : ${item.region}</p>
+            </div>
+            <div class="address-block">
+                <h3>Opérateur Bénéficiaire</h3>
+                <p><strong>${item.operator_coop_name || item.operator_name}</strong></p>
+                <p>Représenté par : <strong>${item.operator_name}</strong></p>
+                <p>Tél : ${item.operator_phone || '---'}</p>
+            </div>
         </div>
-        <div style="margin-bottom: 30px; font-weight: bold;">Date : ${new Date().toLocaleDateString('fr-FR')}</div>
-        <div style="text-align: center; background: #fffbeb; border: 1px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 40px;">
-           <h2 style="margin: 0; font-size: 20px; text-transform: uppercase; color: #92400e; letter-spacing: 1px;">Procès Verbal de Réception des Intrants Agricoles</h2>
-           <p style="margin: 8px 0 0; font-weight: bold; font-size: 14px;">CAMPAGNE AGRICOLE 2025-2026</p>
+
+        <div class="meta-table">
+            <div class="meta-col">
+                <div class="meta-label">Document</div>
+                <div class="meta-value">PV Réception</div>
+            </div>
+            <div class="meta-col">
+                <div class="meta-label">Campagne</div>
+                <div class="meta-value">2025 - 2026</div>
+            </div>
+            <div class="meta-col">
+                <div class="meta-label">Date PV</div>
+                <div class="meta-value">${new Date().toLocaleDateString('fr-FR')}</div>
+            </div>
+            <div class="meta-col">
+                <div class="meta-label">Phase</div>
+                <div class="meta-value">Phase ${item.project_phase || '---'}</div>
+            </div>
         </div>
-        <div style="margin-bottom: 25px; line-height: 1.6; text-align: justify; font-size: 14px;"><strong>COMMUNE DE : <span style="text-transform: uppercase; border-bottom: 1px dotted #000;">${item.commune}</span></strong></div>
-        <div style="margin-bottom: 25px; line-height: 1.6; text-align: justify; font-size: 14px;">Suite à la notification de mise à disposition d’engrais N° 394/MASAE/DA faite à la société minière africaine et selon le planning de la lettre N° 0971/DA/BRAFS de mise en place phosphate naturel.</div>
-        <table style="width: 100%; border-collapse: collapse; margin: 30px 0;">
-          <thead>
-            <tr>
-              <th style="background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase;">Coopérative / GIE</th>
-              <th style="background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase;">Représentant</th>
-              <th style="background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase;">Produit</th>
-              <th style="background: #fef3c7; color: #92400e; padding: 12px; border: 1px solid #d1d5db; font-size: 12px; text-transform: uppercase;">Quantité / Tonnes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px;">${item.operator_coop_name || item.operator_name}</td>
-              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px;">${item.operator_name}</td>
-              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px;">Phosphate naturel</td>
-              <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; font-size: 14px;">${item.total_tonnage.toFixed(2)}</td>
-            </tr>
-          </tbody>
+
+        <div style="font-size: 11px; line-height: 1.5; color: #475569; margin-bottom: 6mm; text-align: justify; z-index: 10; position: relative;">
+            La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> certifie que la SOMA a effectivement livré les volumes ci-dessous à l'opérateur bénéficiaire, conformément aux dispositions de mise à disposition des intrants de la campagne agricole 2025-2026.
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Qté (Sacs)</th>
+                    <th style="width: 20%;">Code Article</th>
+                    <th style="width: 50%;">Description</th>
+                    <th style="width: 15%;">Tonnage (T)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>${Math.round(item.total_tonnage * 20)}</td>
+                    <td>PN-50KG</td>
+                    <td class="left-align">
+                        <strong>Phosphate naturel (En vrac / sacs)</strong><br/>
+                        <span style="font-size: 10px; color: #64748B;">Distribution intrants agricoles - Campagne 2025/2026</span>
+                    </td>
+                    <td><strong>${item.total_tonnage.toFixed(2)} T</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="3" style="text-align: right; padding-right: 15px;">TOTAL RÉCEPTIONNÉ</td>
+                    <td>${item.total_tonnage.toFixed(2)} T</td>
+                </tr>
+            </tbody>
         </table>
-        <div style="margin-bottom: 25px; line-height: 1.6; text-align: justify; font-size: 14px;">La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> du Département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>.<br/><br/>Composée des personnes dont les noms sont ci-dessus indiqués, certifie que La SOMA a effectivement livré <strong>${item.total_tonnage.toFixed(2)}</strong> tonnes à l’opérateur : <strong>${item.operator_coop_name || item.operator_name}</strong>.</div>
-        <div style="margin-top: 60px; page-break-inside: avoid;">
-           <p><strong>Ont signé :</strong></p>
-           <table style="width: 100%; border: none;">
-              <tr><td width="40%" style="font-weight: bold; font-size: 13px; padding-bottom: 10px; border: none; text-align: left;">Prénom et nom</td><td width="30%" style="font-weight: bold; font-size: 13px; padding-bottom: 10px; border: none; text-align: left;">Téléphone</td><td width="30%" style="font-weight: bold; font-size: 13px; padding-bottom: 10px; border: none; text-align: left;">Signature</td></tr>
-              <tr><td style="border-bottom: 1px solid #000 !important; height: 40px; vertical-align: bottom; border: none; text-align: left;">${item.operator_name}</td><td style="border-bottom: 1px solid #000 !important; height: 40px; vertical-align: bottom; border: none; text-align: left;">${item.operator_phone || ''}</td><td style="border-bottom: 1px solid #000 !important; height: 40px; border: none; text-align: left;"></td></tr>
-           </table>
+
+        <div class="thanks-section" style="margin-top: 6mm;">
+            <div class="thanks-title">Certification de Conformité</div>
+            <div class="thanks-text">Les membres de la commission attestent de la conformité quantitative et qualitative des intrants réceptionnés au point de livraison convenu.</div>
         </div>
-        <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 9px; color: #333; border-top: 1px solid #ccc; padding-top: 8px;">SARL au capital de 10 000 000 F CFA – Siege social: 11 rue Alfred goux Apt N1 1er Etage Dakar Plateau<br/>Tel: +221 77 247 25 00 – fax: +221 33 827 95 85 – email: mdiene@gmail.com</div>
+
+        <div class="receipt-zone-title" style="margin-top: 4mm;">Émargements Commission</div>
+        <div class="receipt-zone">
+            <div class="signature-block">
+                <div class="signature-title">${item.operator_name}</div>
+                <div class="signature-line-placeholder"></div>
+                <div class="signature-label">Signature & Date (Tél: ${item.operator_phone || '---'})</div>
+            </div>
+            <div class="signature-block">
+                <div class="signature-title">Pour la SOMA S.A.</div>
+                <div class="stamp-container">
+                    <div class="soma-stamp">SOCIÉTÉ MINIÈRE AFRICAINE<br/>" SOMA S.A. "<br/>Le Directeur Général</div>
+                </div>
+                <div class="signature-label">Visa Autorisé</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-info">
+                <div class="footer-info-item">📍 Matam / Hamady Ounaré, Sénégal</div>
+                <div class="footer-info-item">✉️ mdiene@gmail.com</div>
+                <div class="footer-info-item">📞 +221 77 247 25 00 / 77 260 95 67</div>
+                <div class="footer-info-item">🌐 www.soma.sn</div>
+            </div>
+            <div class="footer-terms">
+                <h4>SOCIÉTÉ MINIÈRE AFRICAINE S.A.</h4>
+                Le présent Procès-Verbal est dressé en vue de certifier de la conformité de la réception physique des intrants conformément aux engagements de livraison.
+            </div>
+        </div>
       </div>
     `;
   };
@@ -449,10 +903,9 @@ export const Views = () => {
           <title>${title}</title>
           <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,900" rel="stylesheet">
           <style>
-            @page { size: A4; margin: 1cm; }
-            body { font-family: 'Lato', sans-serif; color: #000; margin: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: A4; margin: 0; }
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2D3748; margin: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             ${SOMA_LOGO_STYLES}
-            .bl-page, .fc-page { width: 100%; box-sizing: border-box; }
           </style>
         </head>
         <body>
