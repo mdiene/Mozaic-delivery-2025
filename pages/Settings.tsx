@@ -22,6 +22,9 @@ export const Settings = () => {
   const [usedProjectIds, setUsedProjectIds] = useState<Set<string>>(new Set());
   const [operators, setOperators] = useState<Operator[]>([]);
   const [operatorSearch, setOperatorSearch] = useState('');
+  const [regionSearch, setRegionSearch] = useState('');
+  const [departmentSearch, setDepartmentSearch] = useState('');
+  const [communeSearch, setCommuneSearch] = useState('');
   const [operatorPhaseFilter, setOperatorPhaseFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -229,15 +232,48 @@ export const Settings = () => {
 
       {activeTab === 'geographic' && (
         <div className="bg-card rounded-2xl border border-border shadow-soft-xl overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10">
-            <div className="space-y-4">
+          <div className="p-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4 bg-muted/10">
+            <div className="space-y-4 flex-1">
               <h2 className="text-lg font-bold flex items-center gap-2 capitalize">
                  <MapPin size={20} className="text-primary" /> Configuration Géographique
               </h2>
-              <div className="flex items-center gap-1 bg-background p-1 rounded-xl border border-border w-fit shadow-soft-xs">
-                <button onClick={() => setGeoTab('regions')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${geoTab === 'regions' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}>Régions</button>
-                <button onClick={() => setGeoTab('departments')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${geoTab === 'departments' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}>Départements</button>
-                <button onClick={() => setGeoTab('communes')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${geoTab === 'communes' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}>Communes</button>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-1 bg-background p-1 rounded-xl border border-border w-fit shadow-soft-xs">
+                  <button onClick={() => setGeoTab('regions')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${geoTab === 'regions' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}>Régions</button>
+                  <button onClick={() => setGeoTab('departments')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${geoTab === 'departments' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}>Départements</button>
+                  <button onClick={() => setGeoTab('communes')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${geoTab === 'communes' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}>Communes</button>
+                </div>
+
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+                  {geoTab === 'regions' && (
+                    <input 
+                      type="text" 
+                      placeholder="Rechercher une région..."
+                      value={regionSearch}
+                      onChange={(e) => setRegionSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
+                    />
+                  )}
+                  {geoTab === 'departments' && (
+                    <input 
+                      type="text" 
+                      placeholder="Rechercher un département..."
+                      value={departmentSearch}
+                      onChange={(e) => setDepartmentSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
+                    />
+                  )}
+                  {geoTab === 'communes' && (
+                    <input 
+                      type="text" 
+                      placeholder="Rechercher une commune..."
+                      value={communeSearch}
+                      onChange={(e) => setCommuneSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
+                    />
+                  )}
+                </div>
               </div>
             </div>
             <button 
@@ -260,43 +296,58 @@ export const Settings = () => {
                 </tr>
               </thead>
               <tbody>
-                {geoTab === 'regions' && regions.map(item => (
-                  <tr key={item.id}>
-                    <td className="font-bold">{item.name}</td>
-                    <td className="font-mono">{item.code}</td>
-                    <td className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => openModal('region', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('regions', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {geoTab === 'departments' && departments.map(item => (
-                  <tr key={item.id}>
-                    <td className="font-bold">{item.name}</td>
-                    <td className="font-mono">{item.code}</td>
-                    <td className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => openModal('department', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('departments', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {geoTab === 'communes' && communes.map(item => (
-                  <tr key={item.id}>
-                    <td className="font-bold">{item.name}</td>
-                    <td className="font-mono">{item.code}</td>
-                    <td>{item.distance_mine || '-'}</td>
-                    <td className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => openModal('commune', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete('communes', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {geoTab === 'regions' && regions
+                  .filter(item => 
+                    item.name.toLowerCase().includes(regionSearch.toLowerCase()) || 
+                    item.code.toLowerCase().includes(regionSearch.toLowerCase())
+                  )
+                  .map(item => (
+                    <tr key={item.id}>
+                      <td className="font-bold">{item.name}</td>
+                      <td className="font-mono">{item.code}</td>
+                      <td className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <button onClick={() => openModal('region', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete('regions', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                {geoTab === 'departments' && departments
+                  .filter(item => 
+                    item.name.toLowerCase().includes(departmentSearch.toLowerCase()) || 
+                    item.code.toLowerCase().includes(departmentSearch.toLowerCase())
+                  )
+                  .map(item => (
+                    <tr key={item.id}>
+                      <td className="font-bold">{item.name}</td>
+                      <td className="font-mono">{item.code}</td>
+                      <td className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <button onClick={() => openModal('department', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete('departments', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                {geoTab === 'communes' && communes
+                  .filter(item => 
+                    item.name.toLowerCase().includes(communeSearch.toLowerCase()) || 
+                    item.code.toLowerCase().includes(communeSearch.toLowerCase())
+                  )
+                  .map(item => (
+                    <tr key={item.id}>
+                      <td className="font-bold">{item.name}</td>
+                      <td className="font-mono">{item.code}</td>
+                      <td>{item.distance_mine || '-'}</td>
+                      <td className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <button onClick={() => openModal('commune', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete('communes', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -417,10 +468,10 @@ export const Settings = () => {
 
                 <div className="flex flex-col gap-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Filtrer par Phase:</span>
-                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                  <div className="flex flex-wrap items-stretch gap-2 pb-1">
                     <button 
                       onClick={() => setOperatorPhaseFilter('all')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${operatorPhaseFilter === 'all' ? 'bg-primary text-white border-primary shadow-md' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border flex items-center justify-center text-center ${operatorPhaseFilter === 'all' ? 'bg-primary text-white border-primary shadow-md' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
                     >
                       Toutes les Phases
                     </button>
@@ -431,11 +482,11 @@ export const Settings = () => {
                         <button 
                           key={p.id}
                           onClick={() => setOperatorPhaseFilter(p.id)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border flex flex-col items-start min-w-[120px] ${isActive ? `${phaseColor.bg} ${phaseColor.text} ${phaseColor.border} shadow-md` : `bg-background text-muted-foreground border-border hover:${phaseColor.border}/50`}`}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border flex flex-col items-start justify-center min-w-[120px] max-w-[200px] ${isActive ? `${phaseColor.bg} ${phaseColor.text} ${phaseColor.border} shadow-md` : `bg-background text-muted-foreground border-border hover:${phaseColor.border}/50`}`}
                         >
                           <span>Phase {p.numero_phase}</span>
                           {p.project_description && (
-                            <span className={`text-[9px] lowercase italic font-normal truncate w-full ${isActive ? 'text-white/80' : 'text-muted-foreground/70'}`}>
+                            <span className={`text-[9px] lowercase italic font-normal text-left break-words whitespace-normal line-clamp-2 w-full ${isActive ? 'text-white/80' : 'text-muted-foreground/70'}`}>
                               {p.project_description}
                             </span>
                           )}
