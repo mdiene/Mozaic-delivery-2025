@@ -28,6 +28,8 @@ export const Settings = () => {
   const [operatorPhaseFilter, setOperatorPhaseFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [expandedRegions, setExpandedRegions] = useState<Record<string, boolean>>({});
+  const [expandedDepartments, setExpandedDepartments] = useState<Record<string, boolean>>({});
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -247,31 +249,64 @@ export const Settings = () => {
                 <div className="relative flex-1 max-w-xs">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
                   {geoTab === 'regions' && (
-                    <input 
-                      type="text" 
-                      placeholder="Rechercher une région..."
-                      value={regionSearch}
-                      onChange={(e) => setRegionSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
-                    />
+                    <>
+                      <input 
+                        type="text" 
+                        placeholder="Rechercher une région..."
+                        value={regionSearch}
+                        onChange={(e) => setRegionSearch(e.target.value)}
+                        className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
+                      />
+                      {regionSearch && (
+                        <button 
+                          onClick={() => setRegionSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted transition-colors"
+                          title="Effacer"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </>
                   )}
                   {geoTab === 'departments' && (
-                    <input 
-                      type="text" 
-                      placeholder="Rechercher un département..."
-                      value={departmentSearch}
-                      onChange={(e) => setDepartmentSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
-                    />
+                    <>
+                      <input 
+                        type="text" 
+                        placeholder="Rechercher un département..."
+                        value={departmentSearch}
+                        onChange={(e) => setDepartmentSearch(e.target.value)}
+                        className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
+                      />
+                      {departmentSearch && (
+                        <button 
+                          onClick={() => setDepartmentSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted transition-colors"
+                          title="Effacer"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </>
                   )}
                   {geoTab === 'communes' && (
-                    <input 
-                      type="text" 
-                      placeholder="Rechercher une commune..."
-                      value={communeSearch}
-                      onChange={(e) => setCommuneSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
-                    />
+                    <>
+                      <input 
+                        type="text" 
+                        placeholder="Rechercher une commune..."
+                        value={communeSearch}
+                        onChange={(e) => setCommuneSearch(e.target.value)}
+                        className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-xs"
+                      />
+                      {communeSearch && (
+                        <button 
+                          onClick={() => setCommuneSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted transition-colors"
+                          title="Effacer"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -285,72 +320,340 @@ export const Settings = () => {
             </button>
           </div>
           
-          <div className="w-full overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nom</th>
-                  <th>Code</th>
-                  {geoTab === 'communes' && <th>Dist. Mine (km)</th>}
-                  <th className="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {geoTab === 'regions' && regions
-                  .filter(item => 
-                    item.name.toLowerCase().includes(regionSearch.toLowerCase()) || 
-                    item.code.toLowerCase().includes(regionSearch.toLowerCase())
-                  )
-                  .map(item => (
-                    <tr key={item.id}>
-                      <td className="font-bold">{item.name}</td>
-                      <td className="font-mono">{item.code}</td>
-                      <td className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => openModal('region', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete('regions', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+          {geoTab === 'regions' ? (
+            <div className="w-full overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Nom</th>
+                    <th>Code</th>
+                    <th className="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {regions
+                    .filter(item => 
+                      item.name.toLowerCase().includes(regionSearch.toLowerCase()) || 
+                      item.code.toLowerCase().includes(regionSearch.toLowerCase())
+                    )
+                    .map(item => (
+                      <tr key={item.id}>
+                        <td className="font-bold">{item.name}</td>
+                        <td className="font-mono">{item.code}</td>
+                        <td className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => openModal('region', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                            <button onClick={() => handleDelete('regions', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          ) : geoTab === 'departments' ? (
+            <div className="p-6 space-y-3">
+              {(() => {
+                const filteredDepts = departments.filter(item => 
+                  item.name.toLowerCase().includes(departmentSearch.toLowerCase()) || 
+                  item.code.toLowerCase().includes(departmentSearch.toLowerCase())
+                );
+
+                // Group departments by region_id
+                const deptsByRegion: Record<string, Department[]> = {};
+                filteredDepts.forEach(d => {
+                  if (!deptsByRegion[d.region_id]) {
+                    deptsByRegion[d.region_id] = [];
+                  }
+                  deptsByRegion[d.region_id].push(d);
+                });
+
+                const regionsWithDepts = regions.filter(r => deptsByRegion[r.id] && deptsByRegion[r.id].length > 0);
+                const untaggedDepts = filteredDepts.filter(d => !d.region_id || !regions.some(r => r.id === d.region_id));
+
+                return (
+                  <>
+                    {regionsWithDepts.map(region => {
+                      const isExpanded = expandedRegions[region.id] ?? (departmentSearch !== '');
+                      const regionDepts = deptsByRegion[region.id] || [];
+                      return (
+                        <div key={region.id} className="border border-border rounded-xl overflow-hidden bg-background">
+                          <button 
+                            onClick={() => setExpandedRegions(prev => ({ ...prev, [region.id]: !isExpanded }))}
+                            className="w-full flex items-center justify-between p-4 bg-muted/20 hover:bg-muted/30 transition-all font-semibold"
+                          >
+                            <div className="flex items-center gap-2 text-left">
+                              <ChevronRight size={18} className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                              <span className="text-sm font-bold text-foreground">{region.name}</span>
+                              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
+                                {regionDepts.length} {regionDepts.length > 1 ? 'départements' : 'département'}
+                              </span>
+                            </div>
+                            <span className="text-xs font-mono text-muted-foreground hidden sm:inline">{region.code}</span>
+                          </button>
+                          
+                          <AnimatePresence initial={false}>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="overflow-hidden border-t border-border"
+                              >
+                                <div className="p-2 bg-card overflow-x-auto">
+                                  <table className="table table-sm w-full min-w-[500px]">
+                                    <thead>
+                                      <tr>
+                                        <th className="pl-4">Nom de département</th>
+                                        <th>Code</th>
+                                        <th className="text-right pr-4">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {regionDepts.map(item => (
+                                        <tr key={item.id} className="hover:bg-muted/10">
+                                          <td className="font-semibold pl-4 text-foreground">{item.name}</td>
+                                          <td className="font-mono text-xs">{item.code}</td>
+                                          <td className="text-right pr-4">
+                                            <div className="flex justify-end gap-1">
+                                              <button onClick={() => openModal('department', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                              <button onClick={() => handleDelete('departments', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                {geoTab === 'departments' && departments
-                  .filter(item => 
-                    item.name.toLowerCase().includes(departmentSearch.toLowerCase()) || 
-                    item.code.toLowerCase().includes(departmentSearch.toLowerCase())
-                  )
-                  .map(item => (
-                    <tr key={item.id}>
-                      <td className="font-bold">{item.name}</td>
-                      <td className="font-mono">{item.code}</td>
-                      <td className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => openModal('department', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete('departments', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                      );
+                    })}
+
+                    {untaggedDepts.length > 0 && (
+                      <div className="border border-border rounded-xl overflow-hidden bg-background">
+                        <button 
+                          onClick={() => setExpandedRegions(prev => ({ ...prev, 'untagged': !(expandedRegions['untagged'] ?? true) }))}
+                          className="w-full flex items-center justify-between p-4 bg-muted/20 hover:bg-muted/30 transition-all font-semibold"
+                        >
+                          <div className="flex items-center gap-2 text-left">
+                            <ChevronRight size={18} className={`transition-transform duration-200 ${(expandedRegions['untagged'] ?? true) ? 'rotate-90' : ''}`} />
+                            <span className="text-sm font-bold text-foreground">Autres / Sans Région</span>
+                            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
+                              {untaggedDepts.length} {untaggedDepts.length > 1 ? 'départements' : 'département'}
+                            </span>
+                          </div>
+                        </button>
+                        
+                        <AnimatePresence initial={false}>
+                          {(expandedRegions['untagged'] ?? true) && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.15 }}
+                              className="overflow-hidden border-t border-border"
+                            >
+                              <div className="p-2 bg-card overflow-x-auto">
+                                <table className="table table-sm w-full min-w-[500px]">
+                                  <thead>
+                                    <tr>
+                                      <th className="pl-4">Nom de département</th>
+                                      <th>Code</th>
+                                      <th className="text-right pr-4">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {untaggedDepts.map(item => (
+                                      <tr key={item.id} className="hover:bg-muted/10">
+                                        <td className="font-semibold pl-4 text-foreground">{item.name}</td>
+                                        <td className="font-mono text-xs">{item.code}</td>
+                                        <td className="text-right pr-4">
+                                          <div className="flex justify-end gap-1">
+                                            <button onClick={() => openModal('department', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                            <button onClick={() => handleDelete('departments', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
+
+                    {filteredDepts.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        Aucun département trouvé.
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="p-6 space-y-3">
+              {(() => {
+                const filteredCommunes = communes.filter(item => 
+                  item.name.toLowerCase().includes(communeSearch.toLowerCase()) || 
+                  item.code.toLowerCase().includes(communeSearch.toLowerCase())
+                );
+
+                // Group communes by department_id
+                const communesByDept: Record<string, Commune[]> = {};
+                filteredCommunes.forEach(c => {
+                  if (!communesByDept[c.department_id]) {
+                    communesByDept[c.department_id] = [];
+                  }
+                  communesByDept[c.department_id].push(c);
+                });
+
+                const deptsWithCommunes = departments.filter(d => communesByDept[d.id] && communesByDept[d.id].length > 0);
+                const untaggedCommunes = filteredCommunes.filter(c => !c.department_id || !departments.some(d => d.id === c.department_id));
+
+                return (
+                  <>
+                    {deptsWithCommunes.map(dept => {
+                      const isExpanded = expandedDepartments[dept.id] ?? (communeSearch !== '');
+                      const deptCommunes = communesByDept[dept.id] || [];
+                      const parentRegion = regions.find(r => r.id === dept.region_id);
+                      return (
+                        <div key={dept.id} className="border border-border rounded-xl overflow-hidden bg-background">
+                          <button 
+                            onClick={() => setExpandedDepartments(prev => ({ ...prev, [dept.id]: !isExpanded }))}
+                            className="w-full flex items-center justify-between p-4 bg-muted/20 hover:bg-muted/30 transition-all font-semibold"
+                          >
+                            <div className="flex items-center gap-2 text-left">
+                              <ChevronRight size={18} className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                              <span className="text-sm font-bold text-foreground">{dept.name}</span>
+                              {parentRegion && (
+                                <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">
+                                  {parentRegion.name}
+                                </span>
+                              )}
+                              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
+                                {deptCommunes.length} {deptCommunes.length > 1 ? 'communes' : 'commune'}
+                              </span>
+                            </div>
+                            <span className="text-xs font-mono text-muted-foreground hidden sm:inline">{dept.code}</span>
+                          </button>
+                          
+                          <AnimatePresence initial={false}>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="overflow-hidden border-t border-border"
+                              >
+                                <div className="p-2 bg-card overflow-x-auto">
+                                  <table className="table table-sm w-full min-w-[500px]">
+                                    <thead>
+                                      <tr>
+                                        <th className="pl-4">Nom de commune</th>
+                                        <th>Code</th>
+                                        <th>Dist. Mine (km)</th>
+                                        <th className="text-right pr-4">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {deptCommunes.map(item => (
+                                        <tr key={item.id} className="hover:bg-muted/10">
+                                          <td className="font-semibold pl-4 text-foreground">{item.name}</td>
+                                          <td className="font-mono text-xs">{item.code}</td>
+                                          <td>{item.distance_mine ?? '-'}</td>
+                                          <td className="text-right pr-4">
+                                            <div className="flex justify-end gap-1">
+                                              <button onClick={() => openModal('commune', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                              <button onClick={() => handleDelete('communes', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                {geoTab === 'communes' && communes
-                  .filter(item => 
-                    item.name.toLowerCase().includes(communeSearch.toLowerCase()) || 
-                    item.code.toLowerCase().includes(communeSearch.toLowerCase())
-                  )
-                  .map(item => (
-                    <tr key={item.id}>
-                      <td className="font-bold">{item.name}</td>
-                      <td className="font-mono">{item.code}</td>
-                      <td>{item.distance_mine || '-'}</td>
-                      <td className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => openModal('commune', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete('communes', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+                      );
+                    })}
+
+                    {untaggedCommunes.length > 0 && (
+                      <div className="border border-border rounded-xl overflow-hidden bg-background">
+                        <button 
+                          onClick={() => setExpandedDepartments(prev => ({ ...prev, 'untagged': !(expandedDepartments['untagged'] ?? true) }))}
+                          className="w-full flex items-center justify-between p-4 bg-muted/20 hover:bg-muted/30 transition-all font-semibold"
+                        >
+                          <div className="flex items-center gap-2 text-left">
+                            <ChevronRight size={18} className={`transition-transform duration-200 ${(expandedDepartments['untagged'] ?? true) ? 'rotate-90' : ''}`} />
+                            <span className="text-sm font-bold text-foreground">Autres / Sans Département</span>
+                            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
+                              {untaggedCommunes.length} {untaggedCommunes.length > 1 ? 'communes' : 'commune'}
+                            </span>
+                          </div>
+                        </button>
+                        
+                        <AnimatePresence initial={false}>
+                          {(expandedDepartments['untagged'] ?? true) && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.15 }}
+                              className="overflow-hidden border-t border-border"
+                            >
+                              <div className="p-2 bg-card overflow-x-auto">
+                                <table className="table table-sm w-full min-w-[500px]">
+                                  <thead>
+                                    <tr>
+                                      <th className="pl-4">Nom de commune</th>
+                                      <th>Code</th>
+                                      <th>Dist. Mine (km)</th>
+                                      <th className="text-right pr-4">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {untaggedCommunes.map(item => (
+                                      <tr key={item.id} className="hover:bg-muted/10">
+                                        <td className="font-semibold pl-4 text-foreground">{item.name}</td>
+                                        <td className="font-mono text-xs">{item.code}</td>
+                                        <td>{item.distance_mine ?? '-'}</td>
+                                        <td className="text-right pr-4">
+                                          <div className="flex justify-end gap-1">
+                                            <button onClick={() => openModal('commune', item)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
+                                            <button onClick={() => handleDelete('communes', item.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
+
+                    {filteredCommunes.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        Aucune commune trouvée.
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 
