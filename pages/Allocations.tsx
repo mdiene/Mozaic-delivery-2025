@@ -1,5 +1,5 @@
 
-import { useState, useMemo, FormEvent } from 'react';
+import { useState, useMemo, FormEvent, useEffect } from 'react';
 import { db } from '../services/db';
 import { AllocationView, DeliveryView } from '../types';
 import { useAllocations, useReferenceData, useUpdateItem, useDeleteItem } from '../hooks/useData';
@@ -8,7 +8,7 @@ import {
   CheckCircle, TrendingUp, Activity, Eye, Printer, ArrowUpDown, ChevronRight, Layers, ListFilter, Truck,
   Phone, User, Box, Calendar, FileText, Info, Lightbulb, History as HistoryIcon, Building2, FileSpreadsheet
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useProject } from '../components/Layout';
 import { AdvancedSelect } from '../components/AdvancedSelect';
 import { useQueryClient } from '@tanstack/react-query';
@@ -62,6 +62,41 @@ export const Allocations = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    const operatorId = searchParams.get('operatorId');
+    if (action === 'new' && operatorId && communes.length > 0) {
+      const pId = searchParams.get('projetId') || '';
+      const cId = searchParams.get('communeId') || '';
+      
+      const commune = communes.find(c => c.id === cId);
+      const deptId = commune?.department_id || '';
+      const dept = departments.find(d => d.id === deptId);
+      const regId = dept?.region_id || '';
+
+      const op = operators.find(o => o.id === operatorId);
+
+      setFormData({
+        status: 'OPEN',
+        target_tonnage: 0,
+        allocation_key: `ALL-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+        operator_id: operatorId,
+        project_id: pId,
+        commune_id: cId,
+        department_id: deptId,
+        region_id: regId,
+        coop_name: op?.coop_name,
+        is_coop: op?.is_coop,
+        responsible_name: op?.name,
+        responsible_phone_raw: op?.phone
+      });
+      setIsModalOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, communes, departments, operators, setSearchParams]);
   
   // View Modal State
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);

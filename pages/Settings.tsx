@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getPhaseColor } from '../lib/colors';
 import { AdvancedSelect } from '../components/AdvancedSelect';
 
-type Tab = 'geographic' | 'projects' | 'operators';
+type Tab = 'geographic' | 'projects';
 type GeoTab = 'regions' | 'departments' | 'communes';
 
 export const Settings = () => {
@@ -20,12 +20,9 @@ export const Settings = () => {
   const [communes, setCommunes] = useState<Commune[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [usedProjectIds, setUsedProjectIds] = useState<Set<string>>(new Set());
-  const [operators, setOperators] = useState<Operator[]>([]);
-  const [operatorSearch, setOperatorSearch] = useState('');
   const [regionSearch, setRegionSearch] = useState('');
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [communeSearch, setCommuneSearch] = useState('');
-  const [operatorPhaseFilter, setOperatorPhaseFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [expandedRegions, setExpandedRegions] = useState<Record<string, boolean>>({});
@@ -46,20 +43,18 @@ export const Settings = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [r, d, c, p, used, o] = await Promise.all([
+      const [r, d, c, p, used] = await Promise.all([
         db.getRegions(), 
         db.getDepartments(), 
         db.getCommunes(), 
         db.getProjects(), 
-        db.getUsedProjectIds(), 
-        db.getOperators()
+        db.getUsedProjectIds()
       ]);
       setRegions(r); 
       setDepartments(d); 
       setCommunes(c); 
       setProjects(p); 
       setUsedProjectIds(used); 
-      setOperators(o);
     } catch (error) { 
       console.error(error); 
     } finally { 
@@ -229,7 +224,6 @@ export const Settings = () => {
       <div className="flex gap-4 border-b border-border">
         <button onClick={() => setActiveTab('geographic')} className={`pb-3 px-1 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'geographic' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Géographie</button>
         <button onClick={() => setActiveTab('projects')} className={`pb-3 px-1 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'projects' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Projets</button>
-        <button onClick={() => setActiveTab('operators')} className={`pb-3 px-1 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'operators' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Opérateurs</button>
       </div>
 
       {activeTab === 'geographic' && (
@@ -736,157 +730,6 @@ export const Settings = () => {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'operators' && (
-        <div className="space-y-4">
-          <div className="bg-card rounded-2xl border border-border shadow-soft-xl overflow-hidden">
-            <div className="p-6 border-b border-border bg-muted/10 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                   <Users size={20} className="text-primary" /> Annuaire Opérateurs
-                </h2>
-                <button 
-                  onClick={() => openModal('operator')} 
-                  disabled={isVisitor}
-                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium shadow-sm transition-all disabled:opacity-50"
-                >
-                  <Plus size={18} /> Ajouter un Opérateur
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                  <input 
-                    type="text" 
-                    placeholder="Filtrer par nom ou commune..."
-                    value={operatorSearch}
-                    onChange={(e) => setOperatorSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Filtrer par Phase:</span>
-                  <div className="flex flex-wrap items-stretch gap-2 pb-1">
-                    <button 
-                      onClick={() => setOperatorPhaseFilter('all')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border flex items-center justify-center text-center ${operatorPhaseFilter === 'all' ? 'bg-primary text-white border-primary shadow-md' : 'bg-background text-muted-foreground border-border hover:border-primary/50'}`}
-                    >
-                      Toutes les Phases
-                    </button>
-                    {projects.map(p => {
-                      const phaseColor = getPhaseColor(p.numero_phase);
-                      const isActive = operatorPhaseFilter === p.id;
-                      return (
-                        <button 
-                          key={p.id}
-                          onClick={() => setOperatorPhaseFilter(p.id)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border flex flex-col items-start justify-center min-w-[120px] max-w-[200px] ${isActive ? `${phaseColor.bg} ${phaseColor.text} ${phaseColor.border} shadow-md` : `bg-background text-muted-foreground border-border hover:${phaseColor.border}/50`}`}
-                        >
-                          <span>Phase {p.numero_phase}</span>
-                          {p.project_description && (
-                            <span className={`text-[9px] lowercase italic font-normal text-left break-words whitespace-normal line-clamp-2 w-full ${isActive ? 'text-white/80' : 'text-muted-foreground/70'}`}>
-                              {p.project_description}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="w-full overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Nom</th>
-                    <th>Type</th>
-                    <th>Commune</th>
-                    <th>Phase Projet</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const filtered = operators.filter(op => {
-                      const communeName = communes.find(c => c.id === op.commune_id)?.name || '';
-                      const matchesSearch = op.name.toLowerCase().includes(operatorSearch.toLowerCase()) || 
-                                            communeName.toLowerCase().includes(operatorSearch.toLowerCase());
-                      const matchesPhase = operatorPhaseFilter === 'all' || op.projet_id === operatorPhaseFilter;
-                      return matchesSearch && matchesPhase;
-                    });
-
-                    const groups: Record<string, Operator[]> = {};
-                    filtered.forEach(op => {
-                      const commune = communes.find(c => c.id === op.commune_id);
-                      const dept = departments.find(d => d.id === commune?.department_id);
-                      const region = regions.find(r => r.id === dept?.region_id);
-                      const regionName = region?.name || 'Région Inconnue';
-                      if (!groups[regionName]) groups[regionName] = [];
-                      groups[regionName].push(op);
-                    });
-
-                    const sortedGroups = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
-
-                    if (sortedGroups.length === 0) {
-                      return <tr><td colSpan={5} className="p-12 text-center text-muted-foreground italic">Aucun opérateur trouvé.</td></tr>;
-                    }
-
-                    return sortedGroups.map(([regionName, items]) => {
-                      return (
-                        <Fragment key={regionName}>
-                          <tr className="bg-primary/5">
-                            <td colSpan={5} className="px-6 py-2">
-                              <div className="flex items-center gap-2">
-                                <MapPin size={14} className="text-primary" />
-                                <span className="text-xs font-black uppercase tracking-widest text-primary">{regionName}</span>
-                              </div>
-                            </td>
-                          </tr>
-                          {items.map(op => {
-                            const project = projects.find(p => p.id === op.projet_id);
-                            const phaseNum = project?.numero_phase || 1;
-                            const phaseColor = getPhaseColor(phaseNum);
-                            return (
-                              <tr key={op.id} className="hover:bg-muted/10 transition-colors">
-                                <td>
-                                   <div className="flex flex-col">
-                                      <span className="font-bold text-foreground">{op.name}</span>
-                                      {op.is_coop && op.coop_name && (
-                                        <span className={`text-[10px] ${phaseColor.softText} font-medium italic leading-tight`}>{op.coop_name}</span>
-                                      )}
-                                      <span className="text-[10px] text-muted-foreground font-mono">{op.phone || 'Sans téléphone'}</span>
-                                   </div>
-                                </td>
-                                <td>
-                                   <span className={`badge badge-soft text-[10px] font-black uppercase ${op.is_coop ? phaseColor.badge : 'badge-secondary'}`}>
-                                      {op.is_coop ? 'Coopérative / GIE' : 'Individuel'}
-                                   </span>
-                                </td>
-                                <td className="text-sm text-muted-foreground">{communes.find(c => c.id === op.commune_id)?.name || '-'}</td>
-                                <td><span className={`badge badge-soft ${phaseColor.badge} text-[10px] font-bold`}>Phase {project?.numero_phase || '-'}</span></td>
-                                <td className="text-right">
-                                  <div className="flex justify-end gap-1">
-                                    <button onClick={() => openModal('operator', op)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600"><Edit2 size={16} /></button>
-                                    <button onClick={() => handleDelete('operators', op.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-destructive"><Trash2 size={16} /></button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </Fragment>
-                      );
-                    });
-                  })()}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       )}

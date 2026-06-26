@@ -43,7 +43,8 @@ import {
   UserCheck,
   Activity,
   UserPlus,
-  Calculator
+  Calculator,
+  Layers
 } from 'lucide-react';
 import { db } from '../services/db';
 import { Project } from '../types';
@@ -213,17 +214,10 @@ const Sidebar = ({
           )}
 
           {(isAdmin || isVisitor) && (
-            <li>
-              <NavLink 
-                to="/allocations"
-                className={({ isActive }) => 
-                  `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`
-                }
-              >
-                <Map size={20} className="shrink-0" />
-                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>Allocations</span>
-              </NavLink>
-            </li>
+            <SidebarSubmenu label="Allocations" icon={Map} basePath="/allocations" expanded={expanded}>
+               <li><NavLink to="/allocations" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Layers size={16} className="shrink-0" /><span className="truncate">Suivi</span></NavLink></li>
+               <li><NavLink to="/allocations/operators" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Users size={16} className="shrink-0" /><span className="truncate">Opérateurs</span></NavLink></li>
+            </SidebarSubmenu>
           )}
 
           {(isAdmin || isManager || isVisitor) && (

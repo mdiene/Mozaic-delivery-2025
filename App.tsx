@@ -4,6 +4,7 @@ import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'reac
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Allocations } from './pages/Allocations';
+import { OperatorsDirectory } from './pages/OperatorsDirectory';
 import { Logistics } from './pages/Logistics';
 import { Fleet } from './pages/Fleet';
 import { Settings } from './pages/Settings';
@@ -70,11 +71,18 @@ function App() {
             </ProtectedRoute>
           } />
           
-          <Route path="allocations" element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
-              <Allocations />
-            </ProtectedRoute>
-          } />
+          <Route path="allocations">
+            <Route index element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+                <Allocations />
+              </ProtectedRoute>
+            } />
+            <Route path="operators" element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'VISITOR']}>
+                <OperatorsDirectory />
+              </ProtectedRoute>
+            } />
+          </Route>
           
           <Route path="production">
             <Route index element={
