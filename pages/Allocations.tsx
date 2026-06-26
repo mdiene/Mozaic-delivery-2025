@@ -14,6 +14,17 @@ import { AdvancedSelect } from '../components/AdvancedSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { getPhaseColor, PHASE_COLORS } from '../lib/colors';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableFooter
+} from '../components/ui/table';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 
 export const Allocations = () => {
   const navigate = useNavigate();
@@ -476,20 +487,20 @@ export const Allocations = () => {
                   </button>
                   <div className={`accordion-content ${!isOpen ? 'hidden' : ''}`}>
                      <div className="w-full overflow-x-auto">
-                        <table className="table w-full">
-                           <thead className="bg-primary/5 border-b-2 border-primary/20">
-                              <tr>
-                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Opérateur / Référence</th>
-                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Localisation</th>
-                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Coopérative</th>
-                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => requestSort('performance')}>
+                        <Table>
+                           <TableHeader className="bg-primary/5 border-b border-border">
+                              <TableRow>
+                                 <TableHead className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Opérateur / Référence</TableHead>
+                                 <TableHead className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Localisation</TableHead>
+                                 <TableHead className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Coopérative</TableHead>
+                                 <TableHead className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => requestSort('performance')}>
                                     <div className="flex items-center gap-1">Performance & Quota <ArrowUpDown size={14} className={sortConfig?.key === 'performance' ? 'text-primary' : 'text-primary/50'} /></div>
-                                 </th>
-                                 <th className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Statut</th>
-                                 <th className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider">Actions</th>
-                              </tr>
-                           </thead>
-                           <tbody className="divide-y divide-border">
+                                 </TableHead>
+                                 <TableHead className="px-4 py-3 text-left text-sm font-bold text-primary uppercase tracking-wider">Statut</TableHead>
+                                 <TableHead className="px-4 py-3 text-right text-sm font-bold text-primary uppercase tracking-wider">Actions</TableHead>
+                              </TableRow>
+                           </TableHeader>
+                           <TableBody>
                               {items.map(alloc => {
                                  const progress = alloc.progress;
                                  let progressColor = 'bg-primary'; let textColor = 'text-primary'; let StatusIcon = Activity;
@@ -498,8 +509,8 @@ export const Allocations = () => {
                                  else if (progress >= 70) { progressColor = 'bg-sky-500'; textColor = 'text-sky-500'; StatusIcon = TrendingUp; }
                                  const stepsFilled = Math.min(10, Math.floor(progress / 10));
                                  return (
-                                    <tr key={alloc.id} className="hover:bg-muted/30 transition-colors">
-                                       <td className="px-4 py-3">
+                                    <TableRow key={alloc.id} className="hover:bg-muted/30 transition-colors">
+                                       <TableCell className="px-4 py-3">
                                           <div className="group relative">
                                              <div className="flex flex-col cursor-help"><span className="font-bold text-foreground text-sm">{alloc.operator_name}</span><span className="text-xs text-muted-foreground font-mono">{alloc.allocation_key}</span></div>
                                              <div className="invisible group-hover:visible absolute z-50 left-0 top-full mt-2 w-64 p-3 bg-card border border-border rounded-xl shadow-soft-xl animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
@@ -510,28 +521,28 @@ export const Allocations = () => {
                                                 </div>
                                              </div>
                                           </div>
-                                       </td>
-                                       <td className="px-4 py-3"><div className="flex flex-col text-sm"><span className="text-foreground">{alloc.commune_name}</span><span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span></div></td>
-                                       <td className="px-4 py-3">
+                                       </TableCell>
+                                       <TableCell className="px-4 py-3"><div className="flex flex-col text-sm"><span className="text-foreground">{alloc.commune_name}</span><span className="text-xs text-muted-foreground">{alloc.department_name}, {alloc.region_name}</span></div></TableCell>
+                                       <TableCell className="px-4 py-3">
                                           <div className="flex flex-col">
                                             <span className="text-sm font-bold text-foreground">{alloc.coop_name || 'Individuel'}</span>
                                             <span className={`text-[10px] font-bold ${getPhaseColor(alloc.project_phase?.replace('Phase ', '') || '').softText} uppercase tracking-tighter`}>{alloc.project_phase || '-'}</span>
                                           </div>
-                                       </td>
-                                       <td className="px-4 py-3 w-64">
+                                       </TableCell>
+                                       <TableCell className="px-4 py-3 w-64">
                                           <div className="flex flex-col gap-1.5">
                                              <div className="flex justify-between text-xs font-medium"><span className={textColor}>{alloc.delivered_tonnage.toLocaleString()} / {alloc.target_tonnage.toLocaleString()} T</span><span className="text-muted-foreground">{alloc.progress.toFixed(0)}%</span></div>
                                              <div className="flex items-center gap-2"><div className="flex-1 flex gap-0.5 h-2">{[...Array(10)].map((_, i) => (<div key={i} className={`flex-1 rounded-sm transition-colors duration-300 ${ i < stepsFilled ? progressColor : 'bg-muted/50' }`}></div>))}</div><StatusIcon size={16} className={textColor} /></div>
                                           </div>
-                                       </td>
-                                       <td className="px-4 py-3">
+                                       </TableCell>
+                                       <TableCell className="px-4 py-3">
                                           {(() => {
                                              const config = { 'OPEN': { label: 'Ouvert', icon: Unlock, className: 'badge-info' }, 'IN_PROGRESS': { label: 'En Cours', icon: Activity, className: 'badge-warning' }, 'CLOSED': { label: 'Clôturé', icon: Lock, className: 'badge-success' }, 'OVER_DELIVERED': { label: 'Dépassement', icon: AlertTriangle, className: 'badge-error' } }[alloc.status as string] || { label: alloc.status, icon: Activity, className: 'badge-secondary' };
                                              const StatusIconComponent = config.icon;
                                              return ( <button onClick={() => setStatusFilter(alloc.status as any)} className={`badge badge-soft text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity gap-1.5 ${config.className}`} title="Filtrer par ce statut"><StatusIconComponent size={12} />{config.label}</button> );
                                           })()}
-                                       </td>
-                                       <td className="px-4 py-3 text-right">
+                                       </TableCell>
+                                       <TableCell className="px-4 py-3 text-right">
                                           <div className="flex items-center justify-end gap-1">
                                              <button onClick={() => handleView(alloc)} className="btn btn-circle btn-text btn-sm text-sky-600 hover:bg-sky-50" title="Voir Détails"><Eye size={16} /></button>
                                              <button onClick={() => handleCreateDelivery(alloc)} disabled={alloc.status === 'CLOSED' || isVisitor} className={`btn btn-circle btn-text btn-sm ${ (alloc.status === 'CLOSED' || isVisitor) ? 'text-muted-foreground opacity-30 cursor-not-allowed' : 'text-emerald-600 hover:bg-emerald-50'}`} title={alloc.status === 'CLOSED' ? "Allocation fermée" : isVisitor ? "Lecture seule" : "Nouvelle Expédition"}><Truck size={16} /></button>
@@ -539,12 +550,12 @@ export const Allocations = () => {
                                              <button onClick={() => handleOpenModal(alloc)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed" title={isVisitor ? "Lecture seule" : "Modifier"}><Edit2 size={16} /></button>
                                              <button onClick={() => handleDelete(alloc.id)} disabled={isVisitor} className="btn btn-circle btn-text btn-sm btn-text-error hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed" title={isVisitor ? "Lecture seule" : "Supprimer"}><Trash2 size={16} /></button>
                                           </div>
-                                       </td>
-                                    </tr>
+                                       </TableCell>
+                                    </TableRow>
                                  );
                               })}
-                           </tbody>
-                        </table>
+                           </TableBody>
+                        </Table>
                      </div>
                   </div>
                </div>
@@ -752,41 +763,41 @@ export const Allocations = () => {
                        
                        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-soft-sm">
                           <table className="table w-full">
-                             <thead className="bg-muted/30">
-                                <tr>
-                                   <th className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">N° BL</th>
-                                   <th className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">Date</th>
-                                   <th className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">Transport (Camion/Chauffeur)</th>
-                                   <th className="px-6 py-4 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Poids (T)</th>
-                                </tr>
-                             </thead>
-                             <tbody className="divide-y divide-border/50">
+                             <TableHeader className="bg-muted/30">
+                                <TableRow>
+                                   <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">N° BL</TableHead>
+                                   <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">Date</TableHead>
+                                   <TableHead className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">Transport (Camion/Chauffeur)</TableHead>
+                                   <TableHead className="px-6 py-4 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Poids (T)</TableHead>
+                                </TableRow>
+                             </TableHeader>
+                             <TableBody>
                                 {viewDeliveries.length === 0 ? (
-                                   <tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Aucune livraison enregistrée pour le moment.</td></tr>
+                                   <TableRow><TableCell colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Aucune livraison enregistrée pour le moment.</TableCell></TableRow>
                                 ) : (
                                    viewDeliveries.map((del, idx) => (
-                                      <tr key={idx} className="hover:bg-muted/20 transition-colors group">
-                                         <td className="px-6 py-4"><div className="flex items-center gap-2"><FileText size={16} className="text-primary/70" /><span className="font-mono font-bold text-foreground text-sm">{del.bl_number}</span></div></td>
-                                         <td className="px-6 py-4"><div className="flex items-center gap-2 text-muted-foreground text-sm"><Calendar size={14} />{new Date(del.delivery_date).toLocaleDateString('fr-FR')}</div></td>
-                                         <td className="px-6 py-4">
+                                      <TableRow key={idx} className="hover:bg-muted/20 transition-colors group">
+                                         <TableCell className="px-6 py-4"><div className="flex items-center gap-2"><FileText size={16} className="text-primary/70" /><span className="font-mono font-bold text-foreground text-sm">{del.bl_number}</span></div></TableCell>
+                                         <TableCell className="px-6 py-4"><div className="flex items-center gap-2 text-muted-foreground text-sm"><Calendar size={14} />{new Date(del.delivery_date).toLocaleDateString('fr-FR')}</div></TableCell>
+                                         <TableCell className="px-6 py-4">
                                             <div className="flex flex-col">
                                                <span className="text-sm font-bold text-foreground flex items-center gap-2"><Truck size={14} className="text-muted-foreground" /> {del.truck_plate}</span>
                                                <span className="text-xs text-muted-foreground ml-5">{del.driver_name}</span>
                                             </div>
-                                         </td>
-                                         <td className="px-6 py-4 text-right"><span className="px-2.5 py-1 rounded-lg bg-primary/5 text-primary font-bold font-mono text-sm">{del.tonnage_loaded} T</span></td>
-                                      </tr>
+                                         </TableCell>
+                                         <TableCell className="px-6 py-4 text-right"><span className="px-2.5 py-1 rounded-lg bg-primary/5 text-primary font-bold font-mono text-sm">{del.tonnage_loaded} T</span></TableCell>
+                                      </TableRow>
                                    ))
                                 )}
-                             </tbody>
+                             </TableBody>
                              {viewDeliveries.length > 0 && (
-                                <tfoot className="bg-muted/10 border-t border-border">
-                                   <tr>
-                                      <td colSpan={2} className="px-6 py-4 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Statistiques Globales</td>
-                                      <td className="px-6 py-4 font-bold text-sm text-foreground">{viewDeliveries.length} Rotation{viewDeliveries.length > 1 ? 's' : ''}</td>
-                                      <td className="px-6 py-4 text-right font-black text-lg text-primary font-mono">{viewAllocation.delivered_tonnage} T</td>
-                                   </tr>
-                                </tfoot>
+                                <TableFooter className="bg-muted/10 border-t border-border">
+                                   <TableRow>
+                                      <TableCell colSpan={2} className="px-6 py-4 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Statistiques Globales</TableCell>
+                                      <TableCell className="px-6 py-4 font-bold text-sm text-foreground">{viewDeliveries.length} Rotation{viewDeliveries.length > 1 ? 's' : ''}</TableCell>
+                                      <TableCell className="px-6 py-4 text-right font-black text-lg text-primary font-mono">{viewAllocation.delivered_tonnage} T</TableCell>
+                                   </TableRow>
+                                </TableFooter>
                              )}
                           </table>
                        </div>
