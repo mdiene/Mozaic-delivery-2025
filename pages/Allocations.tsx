@@ -633,7 +633,16 @@ export const Allocations = () => {
                       <div><label className="block text-sm font-medium text-foreground mb-1">Commune</label><select required disabled={!formData.department_id} className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground disabled:opacity-50" value={formData.commune_id || ''} onChange={e => setFormData({...formData, commune_id: e.target.value})}><option value="">Sélectionner...</option>{filteredCommunes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                   </div>
                   <div className="space-y-4">
-                      <div><label className="block text-sm font-medium text-foreground mb-1">Opérateur</label><AdvancedSelect options={filteredOperators.map(op => ({ value: op.id, label: `${op.name} (${communes.find(c => c.id === op.commune_id)?.name || '?'})`, subLabel: op.is_coop ? op.coop_name : 'Individuel' }))} value={formData.operator_id || ''} onChange={handleOperatorSelect} placeholder="Rechercher Opérateur..." disabled={!formData.project_id} /></div>
+                      <div><label className="block text-sm font-medium text-foreground mb-1">Opérateur</label><AdvancedSelect options={filteredOperators.map(op => {
+                        const existingTonnage = allocations.find(a => a.project_id === formData.project_id && a.operator_id === op.id)?.target_tonnage;
+                        const hasAllocation = existingTonnage !== undefined && existingTonnage > 0;
+                        return {
+                          value: op.id,
+                          label: `${op.name} (${communes.find(c => c.id === op.commune_id)?.name || '?'})`,
+                          subLabel: op.is_coop ? op.coop_name : 'Individuel',
+                          className: hasAllocation ? 'text-emerald-600 dark:text-emerald-400 font-bold' : ''
+                        };
+                      })} value={formData.operator_id || ''} onChange={handleOperatorSelect} placeholder="Rechercher Opérateur..." disabled={!formData.project_id} /></div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Objectif Tonnage (T)</label><input type="number" step="0.01" required className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.target_tonnage || ''} onChange={e => setFormData({...formData, target_tonnage: e.target.value})} /></div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Responsable</label><input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.responsible_name || ''} onChange={e => setFormData({...formData, responsible_name: e.target.value})} /></div>
                       <div><label className="block text-sm font-medium text-foreground mb-1">Téléphone</label><input className="w-full border border-input rounded-lg p-2 text-sm bg-background text-foreground" value={formData.responsible_phone_raw || ''} onChange={e => setFormData({...formData, responsible_phone_raw: e.target.value})} /></div>
@@ -653,6 +662,40 @@ export const Allocations = () => {
                             {formData.is_coop ? 'Membre Coopérative' : 'Producteur Privé'}
                          </span>
                       </div>
+
+                      {formData.operator_id && (
+                        <div className="mt-3 pt-3 border-t border-border/60">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Tonnage Alloué Existant</p>
+                          {(() => {
+                            const existing = allocations.find(
+                              a => a.project_id === formData.project_id && a.operator_id === formData.operator_id
+                            );
+                            if (existing) {
+                              return (
+                                <div className="flex items-center justify-between bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/20 p-2.5 rounded-lg mt-1 animate-fade-in">
+                                  <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                                    {existing.target_tonnage} T
+                                  </span>
+                                  <button 
+                                    type="button"
+                                    onClick={() => setFormData({ ...existing })}
+                                    className="p-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-md transition-colors cursor-pointer flex items-center justify-center"
+                                    title="Modifier cette allocation"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold bg-amber-50/50 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/20 p-2.5 rounded-lg italic mt-1 animate-fade-in">
+                                  Aucun tonnage alloué (Vide)
+                                </p>
+                              );
+                            }
+                          })()}
+                        </div>
+                      )}
                    </div>
 
                    {formData.id && (

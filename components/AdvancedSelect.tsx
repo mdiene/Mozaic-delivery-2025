@@ -7,6 +7,7 @@ export interface Option {
   label: string;
   subLabel?: string;
   extraInfo?: ReactNode;
+  className?: string;
 }
 
 interface AdvancedSelectProps {
@@ -101,7 +102,7 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
         aria-expanded={isOpen}
         disabled={disabled}
       >
-        <span className={`truncate ${!selectedOption ? 'text-muted-foreground' : ''}`}>
+        <span className={`truncate ${!selectedOption ? 'text-muted-foreground' : (selectedOption as any).className || ''}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronsUpDown size={16} className="text-muted-foreground shrink-0" />
@@ -152,7 +153,7 @@ export const AdvancedSelect: FC<AdvancedSelectProps> = ({
                 >
                   <div className="flex items-center justify-between w-full overflow-hidden">
                     <div className="flex flex-col overflow-hidden">
-                      <span className="truncate" data-title>{option.label}</span>
+                      <span className={`truncate ${option.className || ''}`} data-title>{option.label}</span>
                       {option.subLabel && (
                         <span className="text-xs text-muted-foreground truncate">{option.subLabel}</span>
                       )}

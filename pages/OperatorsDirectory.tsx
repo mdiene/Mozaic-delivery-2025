@@ -9,6 +9,7 @@ import { getPhaseColor } from '../lib/colors';
 import { AdvancedSelect } from '../components/AdvancedSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '../components/ui/accordion';
 import { 
   Users, Plus, Search, MapPin, Edit2, Trash2, X, Save, 
   Layers, Phone, Building2, User, Filter, ChevronRight, FilePlus, ChevronDown
@@ -318,55 +319,46 @@ export const OperatorsDirectory = () => {
         </div>
       </div>
 
-      {/* Operators List Table */}
-      <div className="bg-card rounded-2xl border border-border shadow-soft-xl overflow-hidden">
-        <div className="w-full overflow-x-auto">
-          <table className="table w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-border bg-muted/20 text-muted-foreground text-xs uppercase tracking-widest font-black">
-                <th className="p-4 pl-6">Opérateur</th>
-                <th className="p-4">Type</th>
-                <th className="p-4">Commune Siège</th>
-                <th className="p-4">Phase Projet</th>
-                <th className="p-4">Allocation Accordée</th>
-                <th className="p-4 text-right pr-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groupByRegion ? (
-                groupedOperators.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-12 text-center text-muted-foreground italic">Aucun opérateur trouvé.</td>
-                  </tr>
-                ) : (
-                  groupedOperators.map(([regionName, items]) => {
-                    const isCollapsed = collapsedGroups.has(regionName);
-                    return (
-                      <Fragment key={regionName}>
-                        {/* Region Collapsible Header Row */}
-                        <tr 
-                          onClick={() => toggleGroup(regionName)}
-                          className="bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer border-b border-border/40 select-none"
-                        >
-                          <td colSpan={6} className="p-3 pl-6">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <MapPin size={14} className="text-primary" />
-                                <span className="text-xs font-black uppercase tracking-widest text-primary">{regionName}</span>
-                                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold ml-2">
-                                  {items.length} {items.length > 1 ? 'opérateurs' : 'opérateur'}
-                                </span>
-                              </div>
-                              <ChevronDown 
-                                size={16} 
-                                className={`text-primary transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} 
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                        
-                        {/* Group Items */}
-                        {!isCollapsed && items.map(op => {
+      {/* Operators List */}
+      {groupByRegion ? (
+        groupedOperators.length === 0 ? (
+          <div className="bg-card rounded-2xl border border-border shadow-soft-xl p-12 text-center text-muted-foreground italic">
+            Aucun opérateur trouvé.
+          </div>
+        ) : (
+          <Accordion type="multiple" className="space-y-4">
+            {groupedOperators.map(([regionName, items]) => {
+              return (
+                <AccordionItem 
+                  key={regionName} 
+                  value={regionName} 
+                  className="bg-card border border-border rounded-2xl shadow-soft-xl overflow-hidden animate-fade-in"
+                >
+                  <AccordionTrigger className="w-full px-6 py-4 flex items-center justify-between hover:no-underline bg-muted/20 border-b border-border/40 hover:bg-muted/30 transition-all cursor-pointer select-none text-foreground font-medium">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={16} className="text-primary" />
+                      <span className="text-sm font-black uppercase tracking-widest text-primary">{regionName}</span>
+                      <span className="text-xs bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold ml-2">
+                        {items.length} {items.length > 1 ? 'opérateurs' : 'opérateur'}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  
+                  <AccordionContent className="p-0">
+                    <div className="w-full overflow-x-auto">
+                      <table className="table w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/10 text-muted-foreground text-xs uppercase tracking-widest font-black">
+                            <th className="p-4 pl-6">Opérateur</th>
+                            <th className="p-4">Type</th>
+                            <th className="p-4">Commune Siège</th>
+                            <th className="p-4">Phase Projet</th>
+                            <th className="p-4">Allocation Accordée</th>
+                            <th className="p-4 text-right pr-6">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map(op => {
                           const project = projects.find(p => p.id === op.projet_id);
                           const phaseNum = project?.numero_phase || 1;
                           const phaseColor = getPhaseColor(phaseNum);
@@ -469,12 +461,31 @@ export const OperatorsDirectory = () => {
                             </tr>
                           );
                         })}
-                      </Fragment>
-                    );
-                  })
-                )
-              ) : (
-                filteredOperators.length === 0 ? (
+                        </tbody>
+                      </table>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        )
+      ) : (
+        <div className="bg-card rounded-2xl border border-border shadow-soft-xl overflow-hidden">
+          <div className="w-full overflow-x-auto">
+            <table className="table w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-border bg-muted/20 text-muted-foreground text-xs uppercase tracking-widest font-black">
+                  <th className="p-4 pl-6">Opérateur</th>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Commune Siège</th>
+                  <th className="p-4">Phase Projet</th>
+                  <th className="p-4">Allocation Accordée</th>
+                  <th className="p-4 text-right pr-6">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOperators.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="p-12 text-center text-muted-foreground italic">Aucun opérateur trouvé.</td>
                   </tr>
@@ -583,11 +594,12 @@ export const OperatorsDirectory = () => {
                     );
                   })
                 )
-              )}
+              }
             </tbody>
           </table>
         </div>
       </div>
+      )}
 
       {/* Operator Add/Edit Modal */}
       {isModalOpen && (
