@@ -13,7 +13,7 @@ import { useProject } from '../components/Layout';
 import { AdvancedSelect } from '../components/AdvancedSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
-import { getPhaseColor } from '../lib/colors';
+import { getPhaseColor, PHASE_COLORS } from '../lib/colors';
 
 export const Allocations = () => {
   const navigate = useNavigate();
@@ -41,6 +41,8 @@ export const Allocations = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'OVER_DELIVERED'>('ALL');
+  const [regionFilter, setRegionFilter] = useState('all');
+  const [groupByMode, setGroupByMode] = useState<'phase' | 'region'>('phase');
 
   // Sorting & Grouping
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -60,6 +62,7 @@ export const Allocations = () => {
     return allocations.filter(alloc => {
       if (selectedProject !== 'all' && alloc.project_id !== selectedProject) return false;
       if (statusFilter !== 'ALL' && alloc.status !== statusFilter) return false;
+      if (regionFilter !== 'all' && alloc.region_name !== regionFilter) return false;
       if (searchTerm) {
         const lower = searchTerm.toLowerCase();
         return (
@@ -71,7 +74,7 @@ export const Allocations = () => {
       }
       return true;
     });
-  }, [allocations, selectedProject, statusFilter, searchTerm]);
+  }, [allocations, selectedProject, statusFilter, regionFilter, searchTerm]);
 
   // Sorting Logic
   const sortedAllocations = useMemo(() => {
@@ -93,12 +96,19 @@ export const Allocations = () => {
   const groupedAllocations = useMemo(() => {
     const groups: Record<string, AllocationView[]> = {};
     sortedAllocations.forEach(alloc => {
-        const phase = alloc.project_phase || 'Autres';
-        if (!groups[phase]) groups[phase] = [];
-        groups[phase].push(alloc);
+        const key = groupByMode === 'phase' 
+          ? (alloc.project_phase || 'Autres') 
+          : (alloc.region_name || 'Sans Région');
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(alloc);
     });
-    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [sortedAllocations]);
+    
+    if (groupByMode === 'phase') {
+      return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+    } else {
+      return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+    }
+  }, [sortedAllocations, groupByMode]);
 
   const toggleGroup = (phase: string) => {
     const newSet = new Set(expandedGroups);
@@ -360,36 +370,104 @@ export const Allocations = () => {
             </div>
           </div>
         </div>
-        <div className="bg-muted/30 p-3 flex items-center justify-start gap-4 overflow-x-auto">
-           <div className="flex items-center gap-1 text-muted-foreground shrink-0"><ListFilter size={16} /><span className="text-xs font-bold uppercase tracking-wider">Statut:</span></div>
-           <div className="flex items-center gap-2">
-             {(['ALL', 'OPEN', 'IN_PROGRESS', 'CLOSED', 'OVER_DELIVERED'] as const).map(status => {
-                const labelMap: any = { 'ALL': 'Tous', 'OPEN': 'Ouvert', 'IN_PROGRESS': 'En Cours', 'CLOSED': 'Clôturé', 'OVER_DELIVERED': 'Dépassement' };
-                const isActive = statusFilter === status;
-                return (
-                  <button key={status} onClick={() => setStatusFilter(status)} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border shadow-sm ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:bg-muted'}`}>{labelMap[status]}</button>
-                );
-             })}
-           </div>
+        <div className="bg-muted/30 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-t border-border/35 overflow-x-auto">
+          <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+              <ListFilter size={16} />
+              <span className="text-xs font-bold uppercase tracking-wider">Statut:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {(['ALL', 'OPEN', 'IN_PROGRESS', 'CLOSED', 'OVER_DELIVERED'] as const).map(status => {
+                 const labelMap: any = { 'ALL': 'Tous', 'OPEN': 'Ouvert', 'IN_PROGRESS': 'En Cours', 'CLOSED': 'Clôturé', 'OVER_DELIVERED': 'Dépassement' };
+                 const isActive = statusFilter === status;
+                 return (
+                   <button 
+                     key={status} 
+                     onClick={() => setStatusFilter(status)} 
+                     className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border shadow-sm ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:bg-muted'}`}
+                   >
+                     {labelMap[status]}
+                   </button>
+                 );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Region Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                <MapPin size={14} /> Région:
+              </span>
+              <select 
+                value={regionFilter} 
+                onChange={(e) => setRegionFilter(e.target.value)}
+                className="text-xs border border-border rounded-lg bg-card px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+              >
+                <option value="all">Toutes</option>
+                {regions.map(r => (
+                  <option key={r.id} value={r.name}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Group By selector */}
+            <div className="flex items-center gap-2 border-l border-border pl-4">
+              <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                <Layers size={14} /> Grouper par:
+              </span>
+              <div className="inline-flex rounded-lg border border-border p-0.5 bg-card shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGroupByMode('phase');
+                    setExpandedGroups(new Set());
+                  }}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${groupByMode === 'phase' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Phase
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGroupByMode('region');
+                    setExpandedGroups(new Set());
+                  }}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${groupByMode === 'region' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Région
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Accordion Content */}
       <div className="accordion flex flex-col gap-4">
          {groupedAllocations.length === 0 && <div className="p-8 text-center text-muted-foreground bg-card rounded-xl border border-border">Aucune allocation trouvée.</div>}
-         {groupedAllocations.map(([phase, items]) => {
-            const isOpen = expandedGroups.has(phase);
-            const phaseNum = phase.replace('Phase ', '');
-            const phaseColor = getPhaseColor(phaseNum);
+         {groupedAllocations.map(([groupName, items]) => {
+            const isOpen = expandedGroups.has(groupName);
+            const groupColor = groupByMode === 'phase'
+              ? getPhaseColor(groupName.replace('Phase ', ''))
+              : (() => {
+                  const regionIndex = regions.findIndex(r => r.name === groupName);
+                  return regionIndex !== -1 
+                    ? PHASE_COLORS[regionIndex % PHASE_COLORS.length] 
+                    : { bg: 'bg-slate-600', text: 'text-white', border: 'border-slate-600', soft: 'bg-slate-50', softText: 'text-slate-700', badge: 'badge-secondary', hex: '#475569' };
+                })();
             const totalTarget = items.reduce((sum, item) => sum + item.target_tonnage, 0);
             const totalDelivered = items.reduce((sum, item) => sum + item.delivered_tonnage, 0);
             const progress = totalTarget > 0 ? (totalDelivered / totalTarget) * 100 : 0;
             return (
-               <div key={phase} className="accordion-item shadow-sm hover:shadow-md transition-shadow duration-200">
-                  <button onClick={() => toggleGroup(phase)} className={`accordion-toggle ${isOpen ? phaseColor.soft : 'bg-card'} hover:bg-muted/50 transition-colors duration-200 py-4`}>
+               <div key={groupName} className="accordion-item shadow-sm hover:shadow-md transition-shadow duration-200">
+                  <button onClick={() => toggleGroup(groupName)} className={`accordion-toggle ${isOpen ? groupColor.soft : 'bg-card'} hover:bg-muted/50 transition-colors duration-200 py-4`}>
                      <div className="flex items-center gap-4">
-                        <span className={`transition-transform duration-300 ${isOpen ? `rotate-90 ${phaseColor.softText}` : 'text-muted-foreground'}`}><ChevronRight size={20} /></span>
-                        <div className="flex flex-col"><span className={`text-lg font-bold ${isOpen ? phaseColor.softText : 'text-foreground'}`}>{phase}</span><span className="text-xs text-muted-foreground font-medium">{items.length} Allocations</span></div>
+                        <span className={`transition-transform duration-300 ${isOpen ? `rotate-90 ${groupColor.softText}` : 'text-muted-foreground'}`}><ChevronRight size={20} /></span>
+                        <div className="flex flex-col">
+                           <span className={`text-lg font-bold ${isOpen ? groupColor.softText : 'text-foreground'}`}>{groupName}</span>
+                           <span className="text-xs text-muted-foreground font-medium">{items.length} Allocations</span>
+                        </div>
                      </div>
                      <div className="flex items-center gap-8 mr-4">
                         <div className="text-right hidden sm:block"><p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Cible Total</p><p className="font-mono font-bold text-base">{totalTarget.toLocaleString()} T</p></div>
@@ -437,7 +515,7 @@ export const Allocations = () => {
                                        <td className="px-4 py-3">
                                           <div className="flex flex-col">
                                             <span className="text-sm font-bold text-foreground">{alloc.coop_name || 'Individuel'}</span>
-                                            <span className={`text-[10px] font-bold ${phaseColor.softText} uppercase tracking-tighter`}>{alloc.project_phase || '-'}</span>
+                                            <span className={`text-[10px] font-bold ${getPhaseColor(alloc.project_phase?.replace('Phase ', '') || '').softText} uppercase tracking-tighter`}>{alloc.project_phase || '-'}</span>
                                           </div>
                                        </td>
                                        <td className="px-4 py-3 w-64">
