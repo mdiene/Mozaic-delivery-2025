@@ -761,7 +761,7 @@ export const Views = () => {
         </div>
 
         <div style="font-size: 14px; line-height: 2.0; color: #475569; margin-bottom: 6mm; text-align: justify; z-index: 10; position: relative;">
-            La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> certifie que la SOMA a effectivement livré les volumes ci-dessous à l'opérateur bénéficiaire, conformément aux dispositions de mise à disposition des intrants de la campagne agricole 2025-2026.
+            La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> certifie que la SOMA a effectivement livré les volumes ci-dessous à <strong>${item.operator_coop_name || item.operator_name}</strong> représenté par <strong>${item.operator_name}</strong> dans la commune de <strong>${item.commune}</strong> dans le département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>, conformément aux dispositions de mise à disposition des intrants de la campagne agricole 2025-2026.
         </div>
 
         <table class="items-table">
@@ -1264,10 +1264,9 @@ export const Views = () => {
                     const isOpen = !!expandedBLGroups[group.key];
                     return (
                       <div key={group.key} className="accordion-item shadow-sm hover:shadow-md transition-all duration-200 bg-card rounded-xl border border-border/80 overflow-hidden">
-                        <button 
-                          type="button" 
+                        <div 
                           onClick={() => toggleBLGroup(group.key)} 
-                          className={`w-full flex items-center justify-between p-4 ${isOpen ? 'bg-primary/5 text-primary' : 'bg-card text-foreground'} hover:bg-muted/50 transition-colors duration-200 text-left`}
+                          className={`w-full flex items-center justify-between p-4 ${isOpen ? 'bg-primary/5 text-primary' : 'bg-card text-foreground'} hover:bg-muted/50 transition-colors duration-200 text-left cursor-pointer select-none`}
                         >
                           <div className="flex items-center gap-3">
                             <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90 text-primary' : 'text-muted-foreground'}`}>
@@ -1284,7 +1283,7 @@ export const Views = () => {
                               <p className="font-mono font-bold text-base text-primary dark:text-blue-400">{group.total.toFixed(2)} T</p>
                             </div>
                             <button
-                              type="button; e.stopPropagation()"
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handlePrintGroupBL(group.items, group.key);
@@ -1296,7 +1295,7 @@ export const Views = () => {
                               <span>Imprimer Groupe</span>
                             </button>
                           </div>
-                        </button>
+                        </div>
                         
                         {isOpen && (
                           <div className="border-t border-border/60">
@@ -1372,10 +1371,9 @@ export const Views = () => {
                     const isOpen = !!expandedFCGroups[group.key];
                     return (
                       <div key={group.key} className="accordion-item shadow-sm hover:shadow-md transition-all duration-200 bg-card rounded-xl border border-border/80 overflow-hidden">
-                        <button 
-                          type="button" 
+                        <div 
                           onClick={() => toggleFCGroup(group.key)} 
-                          className={`w-full flex items-center justify-between p-4 ${isOpen ? 'bg-primary/5 text-primary' : 'bg-card text-foreground'} hover:bg-muted/50 transition-colors duration-200 text-left`}
+                          className={`w-full flex items-center justify-between p-4 ${isOpen ? 'bg-primary/5 text-primary' : 'bg-card text-foreground'} hover:bg-muted/50 transition-colors duration-200 text-left cursor-pointer select-none`}
                         >
                           <div className="flex items-center gap-3">
                             <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90 text-primary' : 'text-muted-foreground'}`}>
@@ -1404,7 +1402,7 @@ export const Views = () => {
                               <span>Imprimer Région</span>
                             </button>
                           </div>
-                        </button>
+                        </div>
                         
                         {isOpen && (
                           <div className="border-t border-border/60">
