@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, Fragment, useRef } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView, Project } from '../types';
-import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download, FileSpreadsheet, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSearchParams } from 'react-router-dom';
@@ -450,6 +450,22 @@ export const Views = () => {
   
   const [blGroupBy, setBlGroupBy] = useState<'none' | 'operator' | 'region' | 'date'>('date');
   const [fcGroupBy, setFcGroupBy] = useState<'none' | 'region'>('none');
+  const [expandedBLGroups, setExpandedBLGroups] = useState<Record<string, boolean>>({});
+  const [expandedFCGroups, setExpandedFCGroups] = useState<Record<string, boolean>>({});
+
+  const toggleBLGroup = (groupKey: string) => {
+    setExpandedBLGroups(prev => ({
+      ...prev,
+      [groupKey]: !prev[groupKey]
+    }));
+  };
+
+  const toggleFCGroup = (groupKey: string) => {
+    setExpandedFCGroups(prev => ({
+      ...prev,
+      [groupKey]: !prev[groupKey]
+    }));
+  };
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -744,7 +760,7 @@ export const Views = () => {
             </div>
         </div>
 
-        <div style="font-size: 11px; line-height: 1.5; color: #475569; margin-bottom: 6mm; text-align: justify; z-index: 10; position: relative;">
+        <div style="font-size: 14px; line-height: 2.0; color: #475569; margin-bottom: 6mm; text-align: justify; z-index: 10; position: relative;">
             La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> certifie que la SOMA a effectivement livré les volumes ci-dessous à l'opérateur bénéficiaire, conformément aux dispositions de mise à disposition des intrants de la campagne agricole 2025-2026.
         </div>
 
@@ -932,6 +948,24 @@ export const Views = () => {
 
   const handlePrintSingleFC = (item: FinDeCessionView) => {
     openPrintWindow(getFCTemplate(item), `PV_Cession_${item.operator_name}`);
+  };
+
+  const handlePrintRegionFC = (items: FinDeCessionView[], regionName: string) => {
+    if (!items.length) return alert('Aucun PV à imprimer');
+    const content = items.map(item => getFCTemplate(item)).join('');
+    openPrintWindow(content, `Batch_PV_Cession_Region_${regionName}`);
+  };
+
+  const handlePrintGroupBL = (items: BonLivraisonView[], groupName: string) => {
+    if (!items.length) return alert('Aucun BL à imprimer');
+    const content = items.map(item => {
+      let tpl = getBLTemplate(item);
+      if (item.export_statut) {
+        tpl += getFeuilleDeRouteTemplate(item);
+      }
+      return tpl;
+    }).join('');
+    openPrintWindow(content, `Batch_BL_Group_${groupName}`);
   };
 
   const handlePrintAll = () => {
@@ -1201,35 +1235,100 @@ export const Views = () => {
                 </div>
               </div>
 
-              <div className="w-full overflow-x-auto">
-                <table className="table table-striped">
-                  <thead className="bg-primary/5 border-b-2 border-primary/20">
-                    <tr><th>N° BL</th><th>Date</th><th>Opérateur / Détails</th><th>Localisation</th><th className="text-center">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    {groupedBlData.map((group) => (
-                      <Fragment key={group.key}>
-                        {blGroupBy !== 'none' && (
-                          <tr className="bg-muted/30"><td colSpan={5} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">{group.key} ({group.items.length}) - Total: {group.total} T</td></tr>
+              {blGroupBy === 'none' ? (
+                <div className="w-full overflow-x-auto">
+                  <table className="table table-striped w-full">
+                    <thead className="bg-primary/5 border-b-2 border-primary/20">
+                      <tr><th>N° BL</th><th>Date</th><th>Opérateur / Détails</th><th>Localisation</th><th className="text-center">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                      {groupedBlData.flatMap(g => g.items).map((item, idx) => (
+                        <tr key={idx} className="hover:bg-muted/10 transition-colors">
+                          <td className="px-4 py-3"><div className="flex flex-col"><span className="font-mono font-medium text-foreground">{item.bl_number}</span><span className="text-[10px] text-muted-foreground mt-0.5">Phase {item.numero_phase} (Bon: {item.project_num_bon})</span></div></td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}</td>
+                          <td className="px-4 py-3"><div className="flex flex-col gap-1"><span className="text-sm font-bold text-foreground">{item.operator_name}</span>{item.operator_coop_name && <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>}<div className="flex items-center gap-2 mt-1"><span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 text-xs font-semibold border border-blue-100 dark:border-blue-800"><Package size={12} /> {item.tonnage_loaded} T <span className="text-blue-300 mx-1">|</span> <Truck size={12} /> {item.truck_plate_number || 'Camion Inconnu'}</span></div></div></td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
+                          <td className="px-4 py-3 text-center">
+                             <div className="flex items-center justify-center gap-2">
+                                <button onClick={() => handlePrintSingleBL(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer BL"><Printer size={16} /></button>
+                             </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="accordion flex flex-col gap-4 p-4">
+                  {groupedBlData.map((group) => {
+                    const isOpen = !!expandedBLGroups[group.key];
+                    return (
+                      <div key={group.key} className="accordion-item shadow-sm hover:shadow-md transition-all duration-200 bg-card rounded-xl border border-border/80 overflow-hidden">
+                        <button 
+                          type="button" 
+                          onClick={() => toggleBLGroup(group.key)} 
+                          className={`w-full flex items-center justify-between p-4 ${isOpen ? 'bg-primary/5 text-primary' : 'bg-card text-foreground'} hover:bg-muted/50 transition-colors duration-200 text-left`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90 text-primary' : 'text-muted-foreground'}`}>
+                              <ChevronRight size={20} />
+                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-base font-bold uppercase tracking-wider">{group.key}</span>
+                              <span className="text-xs text-muted-foreground font-medium">{group.items.length} Bons de Livraison</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right hidden sm:block">
+                              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Tonnage Total</p>
+                              <p className="font-mono font-bold text-base text-primary dark:text-blue-400">{group.total.toFixed(2)} T</p>
+                            </div>
+                            <button
+                              type="button; e.stopPropagation()"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintGroupBL(group.items, group.key);
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
+                              title="Imprimer tout ce groupe"
+                            >
+                              <Printer size={14} />
+                              <span>Imprimer Groupe</span>
+                            </button>
+                          </div>
+                        </button>
+                        
+                        {isOpen && (
+                          <div className="border-t border-border/60">
+                            <div className="w-full overflow-x-auto">
+                              <table className="table table-striped w-full">
+                                <thead className="bg-primary/5 border-b border-border">
+                                  <tr><th>N° BL</th><th>Date</th><th>Opérateur / Détails</th><th>Localisation</th><th className="text-center">Actions</th></tr>
+                                </thead>
+                                <tbody>
+                                  {group.items.map((item, idx) => (
+                                    <tr key={idx} className="hover:bg-muted/10 transition-colors">
+                                      <td className="px-4 py-3"><div className="flex flex-col"><span className="font-mono font-medium text-foreground">{item.bl_number}</span><span className="text-[10px] text-muted-foreground mt-0.5">Phase {item.numero_phase} (Bon: {item.project_num_bon})</span></div></td>
+                                      <td className="px-4 py-3 text-sm text-muted-foreground">{item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}</td>
+                                      <td className="px-4 py-3"><div className="flex flex-col gap-1"><span className="text-sm font-bold text-foreground">{item.operator_name}</span>{item.operator_coop_name && <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>}<div className="flex items-center gap-2 mt-1"><span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 text-xs font-semibold border border-blue-100 dark:border-blue-800"><Package size={12} /> {item.tonnage_loaded} T <span className="text-blue-300 mx-1">|</span> <Truck size={12} /> {item.truck_plate_number || 'Camion Inconnu'}</span></div></div></td>
+                                      <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
+                                      <td className="px-4 py-3 text-center">
+                                         <div className="flex items-center justify-center gap-2">
+                                            <button onClick={() => handlePrintSingleBL(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer BL"><Printer size={16} /></button>
+                                         </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
                         )}
-                        {group.items.map((item, idx) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-3"><div className="flex flex-col"><span className="font-mono font-medium text-foreground">{item.bl_number}</span><span className="text-[10px] text-muted-foreground mt-0.5">Phase {item.numero_phase} (Bon: {item.project_num_bon})</span></div></td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}</td>
-                            <td className="px-4 py-3"><div className="flex flex-col gap-1"><span className="text-sm font-bold text-foreground">{item.operator_name}</span>{item.operator_coop_name && <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>}<div className="flex items-center gap-2 mt-1"><span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 text-xs font-semibold border border-blue-100 dark:border-blue-800"><Package size={12} /> {item.tonnage_loaded} T <span className="text-blue-300 mx-1">|</span> <Truck size={12} /> {item.truck_plate_number || 'Camion Inconnu'}</span></div></div></td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
-                            <td className="px-4 py-3 text-center">
-                               <div className="flex items-center justify-center gap-2">
-                                  <button onClick={() => handlePrintSingleBL(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer BL"><Printer size={16} /></button>
-                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
 
@@ -1243,38 +1342,102 @@ export const Views = () => {
                 </div>
               </div>
 
-              <div className="w-full overflow-x-auto">
-                <table className="table table-striped">
-                  <thead className="bg-primary/5 border-b-2 border-primary/20">
-                    <tr><th>Opérateur</th><th>Localisation</th><th>Phase Projet</th><th className="text-center">Nbr Livraisons</th><th className="text-right">Tonnage Total</th><th className="text-center">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    {groupedFcData.map((group) => (
-                      <Fragment key={group.key}>
-                        {fcGroupBy !== 'none' && (
-                          <tr className="bg-muted/30"><td colSpan={6} className="px-6 py-2 text-xs font-bold uppercase text-foreground tracking-wider">Région: {group.key} ({group.items.length}) - Total: {group.total} T</td></tr>
+              {fcGroupBy === 'none' ? (
+                <div className="w-full overflow-x-auto">
+                  <table className="table table-striped w-full">
+                    <thead className="bg-primary/5 border-b-2 border-primary/20">
+                      <tr><th>Opérateur</th><th>Localisation</th><th>Phase Projet</th><th className="text-center">Nbr Livraisons</th><th className="text-right">Tonnage Total</th><th className="text-center">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                      {groupedFcData.flatMap(g => g.items).map((item, idx) => (
+                        <tr key={idx} className="hover:bg-muted/10 transition-colors">
+                          <td className="px-4 py-3"><div className="flex flex-col"><span className="text-sm font-medium text-foreground">{item.operator_name}</span>{item.operator_coop_name && <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>}</div></td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
+                          <td className="px-4 py-3 text-sm text-foreground">Phase {item.project_phase}</td>
+                          <td className="px-4 py-3 text-center font-mono text-sm text-foreground">{item.deliveries_count}</td>
+                          <td className="px-4 py-3 text-right font-mono font-medium text-primary">{item.total_tonnage.toFixed(2)} T</td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => handlePrintSingleFC(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer PV"><Printer size={16} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="accordion flex flex-col gap-4 p-4">
+                  {groupedFcData.map((group) => {
+                    const isOpen = !!expandedFCGroups[group.key];
+                    return (
+                      <div key={group.key} className="accordion-item shadow-sm hover:shadow-md transition-all duration-200 bg-card rounded-xl border border-border/80 overflow-hidden">
+                        <button 
+                          type="button" 
+                          onClick={() => toggleFCGroup(group.key)} 
+                          className={`w-full flex items-center justify-between p-4 ${isOpen ? 'bg-primary/5 text-primary' : 'bg-card text-foreground'} hover:bg-muted/50 transition-colors duration-200 text-left`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`transition-transform duration-300 ${isOpen ? 'rotate-90 text-primary' : 'text-muted-foreground'}`}>
+                              <ChevronRight size={20} />
+                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-base font-bold uppercase tracking-wider">Région: {group.key}</span>
+                              <span className="text-xs text-muted-foreground font-medium">{group.items.length} Opérateurs / PV</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right hidden sm:block">
+                              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Tonnage Total</p>
+                              <p className="font-mono font-bold text-base text-primary dark:text-blue-400">{group.total.toFixed(2)} T</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintRegionFC(group.items, group.key);
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
+                              title="Imprimer toute la région"
+                            >
+                              <Printer size={14} />
+                              <span>Imprimer Région</span>
+                            </button>
+                          </div>
+                        </button>
+                        
+                        {isOpen && (
+                          <div className="border-t border-border/60">
+                            <div className="w-full overflow-x-auto">
+                              <table className="table table-striped w-full">
+                                <thead className="bg-primary/5 border-b border-border">
+                                  <tr><th>Opérateur</th><th>Localisation</th><th>Phase Projet</th><th className="text-center">Nbr Livraisons</th><th className="text-right">Tonnage Total</th><th className="text-center">Actions</th></tr>
+                                </thead>
+                                <tbody>
+                                  {group.items.map((item, idx) => (
+                                    <tr key={idx} className="hover:bg-muted/10 transition-colors">
+                                      <td className="px-4 py-3"><div className="flex flex-col"><span className="text-sm font-medium text-foreground">{item.operator_name}</span>{item.operator_coop_name && <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>}</div></td>
+                                      <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
+                                      <td className="px-4 py-3 text-sm text-foreground">Phase {item.project_phase}</td>
+                                      <td className="px-4 py-3 text-center font-mono text-sm text-foreground">{item.deliveries_count}</td>
+                                      <td className="px-4 py-3 text-right font-mono font-medium text-primary">{item.total_tonnage.toFixed(2)} T</td>
+                                      <td className="px-4 py-3 text-center">
+                                        <div className="flex items-center justify-center gap-2">
+                                          <button onClick={() => handlePrintSingleFC(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer PV"><Printer size={16} /></button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
                         )}
-                        {group.items.map((item, idx) => {
-                          return (
-                            <tr key={idx}>
-                              <td className="px-4 py-3"><div className="flex flex-col"><span className="text-sm font-medium text-foreground">{item.operator_name}</span>{item.operator_coop_name && <span className="text-xs text-muted-foreground">{item.operator_coop_name}</span>}</div></td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
-                              <td className="px-4 py-3 text-sm text-foreground">Phase {item.project_phase}</td>
-                              <td className="px-4 py-3 text-center font-mono text-sm text-foreground">{item.deliveries_count}</td>
-                              <td className="px-4 py-3 text-right font-mono font-medium text-primary">{item.total_tonnage.toFixed(2)} T</td>
-                              <td className="px-4 py-3 text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                  <button onClick={() => handlePrintSingleFC(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer PV"><Printer size={16} /></button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
              </>
           )}
         </div>
