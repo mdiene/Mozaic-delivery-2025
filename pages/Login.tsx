@@ -95,7 +95,8 @@ export const Login = () => {
           user_pswd: password,
           user_right_level: roleToLevel['ADMIN'],
           theme_mode: 'light',
-          theme_color: 'default',
+          theme_name: 'Light',
+          theme_color: 'Default',
           sidebar_pinned: false,
           language: 'fr'
         });

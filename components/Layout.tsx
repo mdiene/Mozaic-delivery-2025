@@ -50,6 +50,7 @@ import { db } from '../services/db';
 import { Project } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { ThemeSelector } from './ThemeSelector';
 import { getPhaseColor } from '../lib/colors';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -344,11 +345,15 @@ const Header = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {/* Theme Selector - Just before toggle dark/light mode button */}
+        <ThemeSelector />
+
         {/* Theme Toggle */}
         <button 
           onClick={toggleTheme}
           className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+          title={theme === 'light' ? 'Passer en mode sombre' : 'Passer en mode clair'}
         >
           {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
         </button>

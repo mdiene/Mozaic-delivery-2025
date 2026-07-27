@@ -769,12 +769,33 @@ export const db = {
   },
 
   saveUserPreferences: async (email: string, prefs: Partial<UserPreference>) => {
-    const { error } = await supabase
+    if (!email) return;
+    const { data: existing } = await supabase
       .from('user_preferences')
-      .update({ ...prefs, updated_at: new Date().toISOString() })
-      .eq('user_email', email);
-    
-    if (error) safeLog('Error saving preferences:', error);
+      .select('user_email')
+      .eq('user_email', email)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from('user_preferences')
+        .update({ ...prefs, updated_at: new Date().toISOString() })
+        .eq('user_email', email);
+      
+      if (error) safeLog('Error saving preferences:', error);
+    } else {
+      const { error } = await supabase
+        .from('user_preferences')
+        .insert([{
+          user_email: email,
+          user_id: crypto.randomUUID(),
+          user_right_level: 1,
+          ...prefs,
+          updated_at: new Date().toISOString()
+        }]);
+      
+      if (error) safeLog('Error inserting preferences:', error);
+    }
   },
 
   // HQSE Methods
