@@ -804,9 +804,7 @@ export const Views = () => {
             </div>
             <div class="signature-block">
                 <div class="signature-title">Pour la SOMA S.A.</div>
-                <div class="stamp-container">
-                    <div class="soma-stamp">SOCIÉTÉ MINIÈRE AFRICAINE<br/>" SOMA S.A. "<br/>Le Directeur Général</div>
-                </div>
+                <div class="signature-line-placeholder"></div>
                 <div class="signature-label">Visa Autorisé</div>
             </div>
         </div>
