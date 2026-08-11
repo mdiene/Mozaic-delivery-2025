@@ -24,36 +24,15 @@
 #    npm run preview
 
 # ==============================================================================
-# Project Dependencies (package.json reference)
+# Project Dependencies
+# ==============================================================================
+# Note: All dependencies are managed via package.json using Node.js / npm.
+# Do NOT run 'pip install -r requirements.txt'.
+#
+# Render.com Deployment Setup:
+# ----------------------------
+# 1. Select 'Static Site' or 'Node Web Service' on Render.
+# 2. Build Command: npm install && npm run build
+# 3. Publish Directory: dist (for Static Site) or Start Command: npm run preview
 # ==============================================================================
 
-# Runtime / Production Dependencies:
-@base-ui/react==1.6.0
-@fontsource-variable/geist==5.2.9
-@google/genai==1.31.0
-@supabase/supabase-js==2.86.0
-@tanstack/react-query==5.90.12
-class-variance-authority==0.7.1
-clsx==2.1.1
-html5-qrcode==2.3.8
-jspdf==2.5.1
-jspdf-autotable==3.8.2
-lucide-react==0.555.0
-motion==12.34.5
-qrcode.react==4.2.0
-react==19.2.1
-react-dom==19.2.1
-react-router-dom==7.10.0
-recharts==3.5.1
-shadcn==4.12.0
-tailwind-merge==3.6.0
-tw-animate-css==1.4.0
-vis-network==9.1.9
-
-# Development Dependencies:
-@tailwindcss/vite==4.2.1
-@types/node==22.14.0
-@vitejs/plugin-react==5.1.1
-tailwindcss==4.2.1
-typescript==5.8.2
-vite==7.2.6
