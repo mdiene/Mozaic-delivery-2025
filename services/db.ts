@@ -715,87 +715,119 @@ export const db = {
   },
 
   getUserPreferences: async (email: string): Promise<UserPreference | null> => {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('*')
-      .eq('user_email', email)
-      .maybeSingle();
-    
-    if (error) {
-       safeLog('Error fetching preferences:', error);
+    if (!email) return null;
+    try {
+      const cachedStr = typeof window !== 'undefined' ? localStorage.getItem(`user_prefs_${email}`) : null;
+      const cached = cachedStr ? JSON.parse(cachedStr) : null;
+
+      const { data, error } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_email', email)
+        .maybeSingle();
+      
+      if (error) {
+         return cached;
+      }
+      if (data) {
+        try {
+          localStorage.setItem(`user_prefs_${email}`, JSON.stringify(data));
+        } catch {}
+        return data;
+      }
+      return cached;
+    } catch {
+      try {
+        const cachedStr = typeof window !== 'undefined' ? localStorage.getItem(`user_prefs_${email}`) : null;
+        return cachedStr ? JSON.parse(cachedStr) : null;
+      } catch {
+        return null;
+      }
     }
-    return data;
   },
 
   authenticateUser: async (email: string | null, pswd: string): Promise<UserPreference | null> => {
-    let query = supabase.from('user_preferences').select('*');
-    
-    if (email) {
-      query = query.eq('user_email', email);
-    } else {
-      // Password-only login for Manager role
-      query = query.eq('user_right_level', 2);
-    }
-    
-    const { data, error } = await query
-      .eq('user_pswd', pswd)
-      .maybeSingle();
+    try {
+      let query = supabase.from('user_preferences').select('*');
+      
+      if (email) {
+        query = query.eq('user_email', email);
+      } else {
+        // Password-only login for Manager role
+        query = query.eq('user_right_level', 2);
+      }
+      
+      const { data, error } = await query
+        .eq('user_pswd', pswd)
+        .maybeSingle();
 
-    if (error) {
-      safeLog('Auth error:', error);
+      if (error) {
+        return null;
+      }
+      return data;
+    } catch {
       return null;
     }
-    return data;
   },
 
   createUserAccount: async (payload: Partial<UserPreference>): Promise<UserPreference | null> => {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .insert([{
-        ...payload,
-        user_id: crypto.randomUUID(), // Mock user_id for the FK constraint in this sandbox env
-        user_statut: false, // Default status is false (pending validation)
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('user_preferences')
+        .insert([{
+          ...payload,
+          user_id: crypto.randomUUID(), // Mock user_id for the FK constraint in this sandbox env
+          user_statut: false, // Default status is false (pending validation)
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
-    if (error) {
-      safeLog('Create user error:', error);
+      if (error) {
+        throw error;
+      }
+      return data;
+    } catch (error) {
       throw error;
     }
-    return data;
   },
 
   saveUserPreferences: async (email: string, prefs: Partial<UserPreference>) => {
     if (!email) return;
-    const { data: existing } = await supabase
-      .from('user_preferences')
-      .select('user_email')
-      .eq('user_email', email)
-      .maybeSingle();
 
-    if (existing) {
-      const { error } = await supabase
+    // Cache locally first for instantaneous & offline support
+    try {
+      const cachedStr = localStorage.getItem(`user_prefs_${email}`);
+      const existingLocal = cachedStr ? JSON.parse(cachedStr) : {};
+      const updatedLocal = { ...existingLocal, ...prefs, user_email: email, updated_at: new Date().toISOString() };
+      localStorage.setItem(`user_prefs_${email}`, JSON.stringify(updatedLocal));
+    } catch {}
+
+    try {
+      const { data: existing } = await supabase
         .from('user_preferences')
-        .update({ ...prefs, updated_at: new Date().toISOString() })
-        .eq('user_email', email);
-      
-      if (error) safeLog('Error saving preferences:', error);
-    } else {
-      const { error } = await supabase
-        .from('user_preferences')
-        .insert([{
-          user_email: email,
-          user_id: crypto.randomUUID(),
-          user_right_level: 1,
-          ...prefs,
-          updated_at: new Date().toISOString()
-        }]);
-      
-      if (error) safeLog('Error inserting preferences:', error);
-    }
+        .select('user_email')
+        .eq('user_email', email)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('user_preferences')
+          .update({ ...prefs, updated_at: new Date().toISOString() })
+          .eq('user_email', email);
+      } else {
+        await supabase
+          .from('user_preferences')
+          .insert([{
+            user_email: email,
+            user_id: crypto.randomUUID(),
+            user_right_level: 1,
+            ...prefs,
+            updated_at: new Date().toISOString()
+          }]);
+      }
+    } catch {}
   },
 
   // HQSE Methods

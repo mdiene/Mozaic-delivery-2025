@@ -140,15 +140,11 @@ const SidebarSubmenu = ({
 };
 
 const Sidebar = ({ 
-  expanded, 
-  setHovered,
-  pinned,
-  togglePin
+  isOpen, 
+  onToggle
 }: { 
-  expanded: boolean, 
-  setHovered: (v: boolean) => void,
-  pinned: boolean,
-  togglePin: () => void
+  isOpen: boolean, 
+  onToggle: () => void
 }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -161,9 +157,7 @@ const Sidebar = ({
 
   return (
     <aside 
-      className={`fixed left-0 top-0 z-50 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border shadow-sm ${expanded ? 'w-64' : 'w-20'}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className={`fixed left-0 top-0 z-50 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border shadow-sm ${isOpen ? 'w-64' : 'w-20'}`}
     >
       {/* Logo Area */}
       <div className="flex h-16 items-center justify-between px-4">
@@ -171,7 +165,7 @@ const Sidebar = ({
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center font-bold text-white shadow-lg shadow-primary/30 shrink-0">
             M
           </div>
-          {expanded && (
+          {isOpen && (
             <div className="flex flex-col animate-fade-in whitespace-nowrap overflow-hidden">
                 <span className="font-bold text-lg tracking-tight text-foreground leading-tight">
                 MASAE
@@ -181,15 +175,14 @@ const Sidebar = ({
           )}
         </div>
         
-        {/* Pin Button */}
-        {expanded && (
-           <button 
-             onClick={togglePin}
-             className={`p-1.5 rounded-full hover:bg-secondary transition-colors ${pinned ? 'text-primary' : 'text-muted-foreground'}`}
-           >
-              {pinned ? <Pin size={16} className="fill-current" /> : <Circle size={16} />}
-           </button>
-        )}
+        {/* Always Available Open / Close Button */}
+        <button 
+          onClick={onToggle}
+          className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          title={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
+        >
+          <Menu size={18} />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -197,7 +190,7 @@ const Sidebar = ({
         <ul className="flex flex-col gap-1">
           
           <li className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-4 mb-2 mt-4">
-             <span className={expanded ? 'opacity-100 transition-opacity' : 'opacity-0'}>Menu</span>
+             <span className={isOpen ? 'opacity-100 transition-opacity' : 'opacity-0'}>Menu</span>
           </li>
 
           {(isAdmin || isVisitor) && (
@@ -209,20 +202,20 @@ const Sidebar = ({
                 }
               >
                 <LayoutDashboard size={20} className="shrink-0" />
-                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>Tableau de bord</span>
+                <span className={isOpen ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>Tableau de bord</span>
               </NavLink>
             </li>
           )}
 
           {(isAdmin || isVisitor) && (
-            <SidebarSubmenu label="Allocations" icon={Map} basePath="/allocations" expanded={expanded}>
+            <SidebarSubmenu label="Allocations" icon={Map} basePath="/allocations" expanded={isOpen}>
                <li><NavLink to="/allocations" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Layers size={16} className="shrink-0" /><span className="truncate">Suivi</span></NavLink></li>
                <li><NavLink to="/allocations/operators" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Users size={16} className="shrink-0" /><span className="truncate">Opérateurs</span></NavLink></li>
             </SidebarSubmenu>
           )}
 
           {(isAdmin || isManager || isVisitor) && (
-            <SidebarSubmenu label="Production" icon={Factory} basePath="/production" expanded={expanded}>
+            <SidebarSubmenu label="Production" icon={Factory} basePath="/production" expanded={isOpen}>
                <li><NavLink to="/production" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Package size={16} className="shrink-0" /><span className="truncate">Ensachage</span></NavLink></li>
                <li><NavLink to="/production/purchases" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><ShoppingCart size={16} className="shrink-0" /><span className="truncate">Achats & Dépenses</span></NavLink></li>
                <li><NavLink to="/production/screening" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Grid size={16} className="shrink-0" /><span className="truncate">Cribblage</span></NavLink></li>
@@ -230,7 +223,7 @@ const Sidebar = ({
             </SidebarSubmenu>
           )}
 
-          <SidebarSubmenu label="Logistique" icon={Package} basePath="/logistics" expanded={expanded}>
+          <SidebarSubmenu label="Logistique" icon={Package} basePath="/logistics" expanded={isOpen}>
              <li><NavLink to="/logistics/fifo" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><ScanBarcode size={16} className="shrink-0" /><span className="truncate">File d'attente (FIFO)</span></NavLink></li>
              {(isAdmin || isVisitor) && <li><NavLink to="/logistics/dispatch" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Package size={16} className="shrink-0" /><span className="truncate">Expéditions</span></NavLink></li>}
              {(isAdmin || isManager || isVisitor) && <li><NavLink to="/logistics/expenses" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Receipt size={16} className="shrink-0" /><span className="truncate">Note de frais</span></NavLink></li>}
@@ -240,38 +233,38 @@ const Sidebar = ({
             <li>
               <NavLink to="/fleet" className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`}>
                 <Truck size={20} className="shrink-0" />
-                <span className={expanded ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>Parc Auto</span>
+                <span className={isOpen ? 'opacity-100 transition-opacity duration-200' : 'opacity-0 w-0 overflow-hidden font-medium'}>Parc Auto</span>
               </NavLink>
             </li>
           )}
 
-          <SidebarSubmenu label="Rapports" icon={Eye} basePath="/views" expanded={expanded}>
+          <SidebarSubmenu label="Rapports" icon={Eye} basePath="/views" expanded={isOpen}>
               <li><NavLink to="/views?tab=bon_livraison" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><FileText size={16} className="shrink-0" /><span className="truncate">Bon de Livraison</span></NavLink></li>
               {(isAdmin || isVisitor) && <li><NavLink to="/views?tab=fin_cession" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Gift size={16} className="shrink-0" /><span className="truncate">Fin de Cession</span></NavLink></li>}
           </SidebarSubmenu>
 
-          <SidebarSubmenu label="Réseau" icon={Network} basePath="/network" expanded={expanded}>
+          <SidebarSubmenu label="Réseau" icon={Network} basePath="/network" expanded={isOpen}>
               {(isAdmin || isVisitor) && <li><NavLink to="/network/map" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Map size={16} className="shrink-0" /><span className="truncate">Carte</span></NavLink></li>}
               {(isAdmin || isManager || isVisitor) && <li><NavLink to="/network/itinerary" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Navigation size={16} className="shrink-0" /><span className="truncate">Itinéraire</span></NavLink></li>}
               {(isAdmin || isVisitor) && <li><NavLink to="/network/global" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Globe size={16} className="shrink-0" /><span className="truncate">Vue Globale</span></NavLink></li>}
           </SidebarSubmenu>
 
           {(isAdmin || isVisitor) && (
-            <SidebarSubmenu label="Administration" icon={Users} basePath="/admin" expanded={expanded}>
+            <SidebarSubmenu label="Administration" icon={Users} basePath="/admin" expanded={isOpen}>
                <li><NavLink to="/admin/personnel" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><UserCheck size={16} className="shrink-0" /><span className="truncate">Gestion Personnel</span></NavLink></li>
                <li><NavLink to="/admin/payroll" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Calculator size={16} className="shrink-0" /><span className="truncate">Gestion de la Paye</span></NavLink></li>
             </SidebarSubmenu>
           )}
 
           {(isAdmin || isVisitor) && (
-            <SidebarSubmenu label="HQSE" icon={ShieldCheck} basePath="/hqse" expanded={expanded}>
+            <SidebarSubmenu label="HQSE" icon={ShieldCheck} basePath="/hqse" expanded={isOpen}>
                <li><NavLink to="/hqse/allocations" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Gift size={16} className="shrink-0" /><span className="truncate">Dotations</span></NavLink></li>
                <li><NavLink to="/hqse/dotations" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><HardHat size={16} className="shrink-0" /><span className="truncate">Contrôle</span></NavLink></li>
             </SidebarSubmenu>
           )}
 
           {(isAdmin || isVisitor) && (
-            <SidebarSubmenu label="Paramètres" icon={Settings} basePath="/settings" expanded={expanded}>
+            <SidebarSubmenu label="Paramètres" icon={Settings} basePath="/settings" expanded={isOpen}>
                <li><NavLink to="/settings" end className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Database size={16} className="shrink-0" /><span className="truncate">Système</span></NavLink></li>
                <li><NavLink to="/settings/admin" className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive ? 'text-primary font-semibold' : 'text-sidebar-foreground/70 hover:text-foreground'}`}><Briefcase size={16} className="shrink-0" /><span className="truncate">Administratif</span></NavLink></li>
             </SidebarSubmenu>
@@ -282,8 +275,8 @@ const Sidebar = ({
   );
 };
 
-// --- Missing Header Component ---
-const Header = () => {
+// --- Header Component ---
+const Header = ({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) => {
   const { selectedProject, setSelectedProject, projects } = useProject();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -293,7 +286,16 @@ const Header = () => {
   return (
     <header className="h-16 bg-card/80 border-b border-border px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
       <div className="flex items-center gap-4 flex-1">
-        {/* User Profile & Exit Button - Moved to top left as requested */}
+        {/* Always Available Menu Toggle Button */}
+        <button
+          onClick={onToggle}
+          className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          title={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
+        >
+          <Menu size={20} />
+        </button>
+
+        {/* User Profile & Exit Button */}
         <div className="flex items-center gap-3 pr-4 border-r border-border">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
             {user?.name?.charAt(0)}
@@ -346,7 +348,7 @@ const Header = () => {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Theme Selector - Just before toggle dark/light mode button */}
+        {/* Theme Selector */}
         <ThemeSelector />
 
         {/* Theme Toggle */}
@@ -368,21 +370,31 @@ const Header = () => {
   );
 };
 
-// --- Missing Layout Component ---
+// --- Layout Component ---
 export const Layout = () => {
   const { user } = useAuth();
-  const [sidebarPinned, setSidebarPinned] = useState(true);
-  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebar-open');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
-  const sidebarExpanded = sidebarPinned || sidebarHovered;
+  const toggleSidebar = () => {
+    setSidebarOpen(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebar-open', String(next));
+      if (user?.email) {
+        db.saveUserPreferences(user.email, { sidebar_pinned: next });
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        // Site-wide components only get visible projects
         const data = await db.getProjects(true);
         setProjects(data);
       } catch (e) {
@@ -394,7 +406,6 @@ export const Layout = () => {
     loadProjects();
   }, []);
 
-  // For drivers, we skip the sidebar/header and just show the content (usually FIFO)
   if (user?.role === 'DRIVER') {
     return (
       <main className="min-h-screen bg-background p-6">
@@ -407,14 +418,12 @@ export const Layout = () => {
     <ProjectContext.Provider value={{ projects, selectedProject, setSelectedProject }}>
       <div className="min-h-screen bg-background">
         <Sidebar 
-          expanded={sidebarExpanded} 
-          setHovered={setSidebarHovered}
-          pinned={sidebarPinned}
-          togglePin={() => setSidebarPinned(!sidebarPinned)}
+          isOpen={sidebarOpen} 
+          onToggle={toggleSidebar}
         />
         
-        <div className={`transition-all duration-300 ${sidebarExpanded ? 'pl-64' : 'pl-20'}`}>
-          <Header />
+        <div className={`transition-all duration-300 ${sidebarOpen ? 'pl-64' : 'pl-20'}`}>
+          <Header isOpen={sidebarOpen} onToggle={toggleSidebar} />
           <main className="p-6">
             <Outlet />
           </main>

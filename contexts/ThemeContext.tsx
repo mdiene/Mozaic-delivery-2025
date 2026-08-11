@@ -83,6 +83,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setColorThemeState(matchedTheme.id);
         }
       }
+    }).catch(() => {
+      // Ignore network errors when fetching user preferences
     });
 
     return () => {

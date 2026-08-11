@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, Fragment, useRef } from 'react';
 import { db } from '../services/db';
 import { BonLivraisonView, FinDeCessionView, Project } from '../types';
-import { FileText, Gift, Printer, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download, FileSpreadsheet, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { FileText, Gift, Printer, Eye, Layers, User, MapPin, X, Filter, Calendar, Package, Truck, Download, FileSpreadsheet, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useSearchParams } from 'react-router-dom';
@@ -443,13 +443,14 @@ export const Views = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<{ title: string; htmlContent: string } | null>(null);
 
   const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<number | 'all'>('all');
   const [dateRange, setDateRange] = useState<{start: Date | null, end: Date | null}>({ start: null, end: null });
   const dateRangeInputRef = useRef<HTMLInputElement>(null);
   
   const [blGroupBy, setBlGroupBy] = useState<'none' | 'operator' | 'region' | 'date'>('date');
-  const [fcGroupBy, setFcGroupBy] = useState<'none' | 'region'>('none');
+  const [fcGroupBy, setFcGroupBy] = useState<'none' | 'operator' | 'region' | 'phase'>('none');
   const [expandedBLGroups, setExpandedBLGroups] = useState<Record<string, boolean>>({});
   const [expandedFCGroups, setExpandedFCGroups] = useState<Record<string, boolean>>({});
 
@@ -556,7 +557,10 @@ export const Views = () => {
     if (fcGroupBy === 'none') return [{ key: 'All', items: filteredFcData, total: filteredFcData.reduce((sum, item) => sum + Number(item.total_tonnage), 0) }];
     const groups: Record<string, FinDeCessionView[]> = {};
     filteredFcData.forEach(item => {
-      const key = item.region || 'Inconnu';
+      let key = 'Inconnu';
+      if (fcGroupBy === 'operator') key = item.operator_name || 'Inconnu';
+      if (fcGroupBy === 'region') key = item.region || 'Inconnu';
+      if (fcGroupBy === 'phase') key = `Phase ${item.project_phase || '---'}`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(item);
     });
@@ -723,45 +727,51 @@ export const Views = () => {
       <div class="fc-page">
         <div class="doc-header">
             ${SOMA_LOGO_HTML}
-            <h1 class="doc-title" style="font-size: 26px;">Procès Verbal de fin de cession</h1>
+            <h1 class="doc-title">Bon de Fin de Cession</h1>
         </div>
 
         <div class="addresses-container">
             <div class="address-block">
-                <h3>Point de Réception</h3>
-                <p><strong>Commune de : ${item.commune}</strong></p>
-                <p>Département : ${item.department}</p>
-                <p>Région : ${item.region}</p>
+                <h3>Opérateur Bénéficiaire</h3>
+                <p><strong>${item.operator_name}</strong></p>
+                <p>Coopérative / GIE : <strong>${item.operator_coop_name || 'Individuel'}</strong></p>
+                <p>Téléphone : <strong>${item.operator_phone || '---'}</strong></p>
+                <p>Commune : <strong>${item.commune || '---'}</strong></p>
+                <p>Département : ${item.department || '---'}</p>
+                <p>Région : ${item.region || '---'}</p>
             </div>
             <div class="address-block">
-                <h3>Opérateur Bénéficiaire</h3>
-                <p><strong>${item.operator_coop_name || item.operator_name}</strong></p>
-                <p>Représenté par : <strong>${item.operator_name}</strong></p>
-                <p>Tél : ${item.operator_phone || '---'}</p>
+                <h3>Expéditeur</h3>
+                <p><strong>SOCIÉTÉ MINIÈRE AFRICAINE (SOMA S.A.)</strong></p>
+                <p>Site de Matam, Hamady Ounaré, Sénégal</p>
+                <p>Siège : 11 rue Alfred goux, Apt N1 1er Etage, Dakar</p>
             </div>
         </div>
 
         <div class="meta-table">
             <div class="meta-col">
                 <div class="meta-label">Document</div>
-                <div class="meta-value">PV Réception</div>
+                <div class="meta-value" style="font-size: 11px;">PV Fin de Cession</div>
             </div>
             <div class="meta-col">
                 <div class="meta-label">Campagne</div>
-                <div class="meta-value">2025 - 2026</div>
+                <div class="meta-value" style="font-size: 11px;">2025 - 2026</div>
             </div>
             <div class="meta-col">
                 <div class="meta-label">Date PV</div>
-                <div class="meta-value">${new Date().toLocaleDateString('fr-FR')}</div>
+                <div class="meta-value" style="font-size: 11px;">${new Date().toLocaleDateString('fr-FR')}</div>
             </div>
             <div class="meta-col">
-                <div class="meta-label">Phase</div>
-                <div class="meta-value">Phase ${item.project_phase || '---'}</div>
+                <div class="meta-label">Phase Projet</div>
+                <div class="meta-value" style="font-size: 11px;">Phase ${item.project_phase || '---'}</div>
             </div>
         </div>
 
-        <div style="font-size: 14px; line-height: 2.0; color: #475569; margin-bottom: 6mm; text-align: justify; z-index: 10; position: relative;">
-            La commission de réception des engrais du point de réception de la commune de <strong>${item.commune}</strong> certifie que la SOMA a effectivement livré les volumes ci-dessous à <strong>${item.operator_coop_name || item.operator_name}</strong> représenté par <strong>${item.operator_name}</strong> dans la commune de <strong>${item.commune}</strong> dans le département de <strong>${item.department}</strong> de la région de <strong>${item.region}</strong>, conformément aux dispositions de mise à disposition des intrants de la campagne agricole 2025-2026.
+        <div class="transport-container">
+            <div class="transport-title">Procès Verbal de Réception Physique</div>
+            <div style="font-size: 11px; color: #475569; line-height: 1.5;">
+               La commission de réception certifie que la SOMA a effectivement mis en place un total de <strong>${item.deliveries_count} livraison(s)</strong> représentant <strong>${item.total_tonnage.toFixed(2)} T</strong> d'intrants agricoles au bénéfice de <strong>${item.operator_coop_name || item.operator_name}</strong> (Représentant: <strong>${item.operator_name}</strong>) dans la commune de <strong>${item.commune}</strong> (${item.department}, ${item.region}).
+            </div>
         </div>
 
         <table class="items-table">
@@ -778,8 +788,8 @@ export const Views = () => {
                     <td>${Math.round(item.total_tonnage * 20)}</td>
                     <td>PN-50KG</td>
                     <td class="left-align">
-                        <strong>Phosphate naturel (En vrac / sacs)</strong><br/>
-                        <span style="font-size: 10px; color: #64748B;">Distribution intrants agricoles - Campagne 2025/2026</span>
+                        <strong>Engrais à base de phosphate naturel</strong><br/>
+                        <span style="font-size: 10px; color: #64748B;">Sac de 50 kg – Procès-Verbal de Fin de Cession Campagne 2025-2026</span>
                     </td>
                     <td><strong>${item.total_tonnage.toFixed(2)} T</strong></td>
                 </tr>
@@ -790,19 +800,19 @@ export const Views = () => {
             </tbody>
         </table>
 
-        <div class="thanks-section" style="margin-top: 6mm;">
+        <div class="thanks-section">
             <div class="thanks-title">Certification de Conformité</div>
-            <div class="thanks-text">Les membres de la commission attestent de la conformité quantitative et qualitative des intrants réceptionnés au point de livraison convenu.</div>
+            <div class="thanks-text">Le signataire atteste de la conformité quantitative et qualitative des intrants réceptionnés au point de livraison convenu conformément aux engagements.</div>
         </div>
 
-        <div class="receipt-zone-title" style="margin-top: 4mm;">Émargements Commission</div>
-        <div class="receipt-zone">
-            <div class="signature-block">
-                <div class="signature-title">${item.operator_name}</div>
+        <div class="receipt-zone-title">Émargements et Réception</div>
+        <div class="receipt-zone" style="gap: 5mm;">
+            <div class="signature-block" style="width: 48%;">
+                <div class="signature-title">${item.operator_name} (Bénéficiaire)</div>
                 <div class="signature-line-placeholder"></div>
                 <div class="signature-label">Signature & Date (Tél: ${item.operator_phone || '---'})</div>
             </div>
-            <div class="signature-block">
+            <div class="signature-block" style="width: 48%;">
                 <div class="signature-title">Pour la SOMA S.A.</div>
                 <div class="signature-line-placeholder"></div>
                 <div class="signature-label">Visa Autorisé</div>
@@ -948,10 +958,10 @@ export const Views = () => {
     openPrintWindow(getFCTemplate(item), `PV_Cession_${item.operator_name}`);
   };
 
-  const handlePrintRegionFC = (items: FinDeCessionView[], regionName: string) => {
+  const handlePrintGroupFC = (items: FinDeCessionView[], groupName: string) => {
     if (!items.length) return alert('Aucun PV à imprimer');
     const content = items.map(item => getFCTemplate(item)).join('');
-    openPrintWindow(content, `Batch_PV_Cession_Region_${regionName}`);
+    openPrintWindow(content, `Batch_PV_Cession_Group_${groupName}`);
   };
 
   const handlePrintGroupBL = (items: BonLivraisonView[], groupName: string) => {
@@ -981,6 +991,72 @@ export const Views = () => {
       if (!filteredFcData.length) return alert('Aucun PV à imprimer');
       const content = filteredFcData.map(item => getFCTemplate(item)).join('');
       openPrintWindow(content, `Batch_FC_Ph${selectedPhaseFilter}`);
+    }
+  };
+
+  const handlePreviewSingleBL = (item: BonLivraisonView) => {
+    let content = getBLTemplate(item);
+    if (item.export_statut) {
+      content += getFeuilleDeRouteTemplate(item);
+    }
+    setPreviewData({
+      title: `Aperçu BL #${item.bl_number}`,
+      htmlContent: content,
+    });
+  };
+
+  const handlePreviewSingleFC = (item: FinDeCessionView) => {
+    setPreviewData({
+      title: `Aperçu PV de Fin de Cession - ${item.operator_name}`,
+      htmlContent: getFCTemplate(item),
+    });
+  };
+
+  const handlePreviewGroupFC = (items: FinDeCessionView[], groupName: string) => {
+    if (!items.length) return alert('Aucun PV à prévisualiser');
+    const content = items.map(item => getFCTemplate(item)).join('');
+    setPreviewData({
+      title: `Aperçu Groupe - ${groupName}`,
+      htmlContent: content,
+    });
+  };
+
+  const handlePreviewGroupBL = (items: BonLivraisonView[], groupName: string) => {
+    if (!items.length) return alert('Aucun BL à prévisualiser');
+    const content = items.map(item => {
+      let tpl = getBLTemplate(item);
+      if (item.export_statut) {
+        tpl += getFeuilleDeRouteTemplate(item);
+      }
+      return tpl;
+    }).join('');
+    setPreviewData({
+      title: `Aperçu Groupe - ${groupName}`,
+      htmlContent: content,
+    });
+  };
+
+  const handlePreviewAll = () => {
+    if (activeTab === 'bon_livraison') {
+      if (!filteredBlData.length) return alert('Aucun BL à prévisualiser');
+      const content = filteredBlData.map(item => {
+        let tpl = getBLTemplate(item);
+        if (item.export_statut) {
+          tpl += getFeuilleDeRouteTemplate(item);
+        }
+        return tpl;
+      }).join('');
+      setPreviewData({
+        title: `Aperçu - Tous les Bons de Livraison`,
+        htmlContent: content,
+      });
+    } else {
+      if (!filteredFcData.length) return alert('Aucun PV à prévisualiser');
+      const content = filteredFcData.map(item => getFCTemplate(item)).join('');
+      setPreviewData({
+        title: `Aperçu - Tous les PV Fin de Cession`,
+        htmlContent: content,
+      });
     }
   };
 
@@ -1213,6 +1289,9 @@ export const Views = () => {
             <button onClick={handleExportCSV} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
                <FileSpreadsheet size={16} /> <span className="hidden sm:inline">Exporter CSV</span>
             </button>
+            <button onClick={handlePreviewAll} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm" title="Aperçu avant impression">
+               <Eye size={16} /> <span className="hidden sm:inline">Aperçu Tout</span>
+            </button>
             <button onClick={handlePrintAll} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
                <Printer size={16} /> <span className="hidden sm:inline">Imprimer Tout</span>
             </button>
@@ -1248,7 +1327,8 @@ export const Views = () => {
                           <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
                           <td className="px-4 py-3 text-center">
                              <div className="flex items-center justify-center gap-2">
-                                <button onClick={() => handlePrintSingleBL(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer BL"><Printer size={16} /></button>
+                                <button onClick={() => handlePreviewSingleBL(item)} className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs" title="Aperçu BL"><Eye size={14} /> <span>Aperçu</span></button>
+                                <button onClick={() => handlePrintSingleBL(item)} className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 dark:text-blue-300 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs" title="Imprimer BL"><Printer size={14} /> <span>Imprimer</span></button>
                              </div>
                           </td>
                         </tr>
@@ -1280,18 +1360,32 @@ export const Views = () => {
                               <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Tonnage Total</p>
                               <p className="font-mono font-bold text-base text-primary dark:text-blue-400">{group.total.toFixed(2)} T</p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePrintGroupBL(group.items, group.key);
-                              }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
-                              title="Imprimer tout ce groupe"
-                            >
-                              <Printer size={14} />
-                              <span>Imprimer Groupe</span>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePreviewGroupBL(group.items, group.key);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
+                                title="Aperçu de ce groupe"
+                              >
+                                <Eye size={14} />
+                                <span>Aperçu</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrintGroupBL(group.items, group.key);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
+                                title="Imprimer tout ce groupe"
+                              >
+                                <Printer size={14} />
+                                <span>Imprimer Groupe</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                         
@@ -1311,7 +1405,8 @@ export const Views = () => {
                                       <td className="px-4 py-3 text-sm text-muted-foreground">{item.commune}, {item.department}, {item.region}</td>
                                       <td className="px-4 py-3 text-center">
                                          <div className="flex items-center justify-center gap-2">
-                                            <button onClick={() => handlePrintSingleBL(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer BL"><Printer size={16} /></button>
+                                            <button onClick={() => handlePreviewSingleBL(item)} className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs" title="Aperçu BL"><Eye size={14} /> <span>Aperçu</span></button>
+                                            <button onClick={() => handlePrintSingleBL(item)} className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 dark:text-blue-300 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs" title="Imprimer BL"><Printer size={14} /> <span>Imprimer</span></button>
                                          </div>
                                       </td>
                                     </tr>
@@ -1334,7 +1429,9 @@ export const Views = () => {
                <div className="p-4 border-b border-border flex justify-end">
                 <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg">
                    <div className="text-xs font-semibold uppercase px-2 text-muted-foreground flex items-center gap-1"><Layers size={14} /> Grouper:</div>
+                   <button onClick={() => setFcGroupBy('operator')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${fcGroupBy === 'operator' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><User size={14} /> Opérateur</button>
                    <button onClick={() => setFcGroupBy('region')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${fcGroupBy === 'region' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><MapPin size={14} /> Région</button>
+                   <button onClick={() => setFcGroupBy('phase')} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${fcGroupBy === 'phase' ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground'}`}><Layers size={14} /> Phase</button>
                    {fcGroupBy !== 'none' && <button onClick={() => setFcGroupBy('none')} className="p-1.5 hover:bg-background rounded text-muted-foreground"><X size={14} /></button>}
                 </div>
               </div>
@@ -1355,7 +1452,8 @@ export const Views = () => {
                           <td className="px-4 py-3 text-right font-mono font-medium text-primary">{item.total_tonnage.toFixed(2)} T</td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <button onClick={() => handlePrintSingleFC(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer PV"><Printer size={16} /></button>
+                              <button onClick={() => handlePreviewSingleFC(item)} className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs" title="Aperçu PV"><Eye size={14} /> <span>Aperçu</span></button>
+                              <button onClick={() => handlePrintSingleFC(item)} className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 dark:text-blue-300 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs" title="Imprimer PV"><Printer size={14} /> <span>Imprimer</span></button>
                             </div>
                           </td>
                         </tr>
@@ -1378,8 +1476,8 @@ export const Views = () => {
                               <ChevronRight size={20} />
                             </span>
                             <div className="flex flex-col">
-                              <span className="text-base font-bold uppercase tracking-wider">Région: {group.key}</span>
-                              <span className="text-xs text-muted-foreground font-medium">{group.items.length} Opérateurs / PV</span>
+                              <span className="text-base font-bold uppercase tracking-wider">{group.key}</span>
+                              <span className="text-xs text-muted-foreground font-medium">{group.items.length} PV de Fin de Cession</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-6">
@@ -1387,18 +1485,32 @@ export const Views = () => {
                               <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Tonnage Total</p>
                               <p className="font-mono font-bold text-base text-primary dark:text-blue-400">{group.total.toFixed(2)} T</p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePrintRegionFC(group.items, group.key);
-                              }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
-                              title="Imprimer toute la région"
-                            >
-                              <Printer size={14} />
-                              <span>Imprimer Région</span>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePreviewGroupFC(group.items, group.key);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
+                                title="Aperçu de ce groupe"
+                              >
+                                <Eye size={14} />
+                                <span>Aperçu</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrintGroupFC(group.items, group.key);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm shrink-0"
+                                title="Imprimer tout ce groupe"
+                              >
+                                <Printer size={14} />
+                                <span>Imprimer Groupe</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                         
@@ -1419,7 +1531,8 @@ export const Views = () => {
                                       <td className="px-4 py-3 text-right font-mono font-medium text-primary">{item.total_tonnage.toFixed(2)} T</td>
                                       <td className="px-4 py-3 text-center">
                                         <div className="flex items-center justify-center gap-2">
-                                          <button onClick={() => handlePrintSingleFC(item)} className="btn btn-text btn-sm text-muted-foreground hover:bg-muted rounded-lg inline-flex items-center gap-1 text-sm font-medium w-auto px-2" title="Imprimer PV"><Printer size={16} /></button>
+                                          <button onClick={() => handlePreviewSingleFC(item)} className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs" title="Aperçu PV"><Eye size={14} /> <span>Aperçu</span></button>
+                                          <button onClick={() => handlePrintSingleFC(item)} className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 dark:text-blue-300 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all shadow-2xs" title="Imprimer PV"><Printer size={14} /> <span>Imprimer</span></button>
                                         </div>
                                       </td>
                                     </tr>
@@ -1438,6 +1551,64 @@ export const Views = () => {
           )}
         </div>
       </div>
+
+      {/* Document Preview Modal */}
+      {previewData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4 animate-in fade-in-50">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-5xl h-[92vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-6 py-3.5 border-b border-border flex items-center justify-between bg-muted/40">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
+                  <Eye size={18} />
+                </div>
+                <h3 className="font-bold text-base sm:text-lg text-foreground truncate">{previewData.title}</h3>
+              </div>
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <button
+                  onClick={() => openPrintWindow(previewData.htmlContent, previewData.title)}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Printer size={15} />
+                  <span>Imprimer</span>
+                </button>
+                <button
+                  onClick={() => setPreviewData(null)}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
+                  title="Fermer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Preview Canvas */}
+            <div className="flex-1 bg-slate-900/10 dark:bg-black/40 p-2 sm:p-6 overflow-y-auto flex justify-center">
+              <iframe
+                title="Document Preview"
+                className="w-full max-w-[210mm] bg-white shadow-xl rounded-md border border-border min-h-[297mm]"
+                srcDoc={`
+                  <!DOCTYPE html>
+                  <html>
+                    <head>
+                      <meta charset="utf-8">
+                      <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,900" rel="stylesheet">
+                      <style>
+                        @page { size: A4; margin: 0; }
+                        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2D3748; margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        ${SOMA_LOGO_STYLES}
+                      </style>
+                    </head>
+                    <body>
+                      ${previewData.htmlContent}
+                    </body>
+                  </html>
+                `}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
